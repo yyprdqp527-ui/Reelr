@@ -10,8 +10,10 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:path/path.dart' as path_helper;
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
@@ -166,6 +168,7 @@ class Clip {
   final List<String> tags;
   final DateTime addedAt;
   final String? thumbnailUrl;
+  final int position;
 
   const Clip({
     required this.id,
@@ -176,6 +179,7 @@ class Clip {
     required this.tags,
     required this.addedAt,
     this.thumbnailUrl,
+    this.position = 0,
   });
 
   Map<String, dynamic> toMap() => {
@@ -187,6 +191,7 @@ class Clip {
         'tags': tags.join(','),
         'addedAt': addedAt.toIso8601String(),
         'thumbnailUrl': thumbnailUrl,
+        'position': position,
       };
 
   factory Clip.fromMap(Map<String, dynamic> map) => Clip(
@@ -203,17 +208,19 @@ class Clip {
                 .toList(),
         addedAt: DateTime.parse(map['addedAt'] as String),
         thumbnailUrl: map['thumbnailUrl'] as String?,
+        position: (map['position'] as int?) ?? 0,
       );
 
-  Clip copyWith({String? categoryId}) => Clip(
+  Clip copyWith({String? categoryId, int? position}) => Clip(
         id: id,
         url: url,
         title: title,
         platform: platform,
-        categoryId: categoryId,
+        categoryId: categoryId ?? this.categoryId,
         tags: tags,
         addedAt: addedAt,
         thumbnailUrl: thumbnailUrl,
+        position: position ?? this.position,
       );
 }
 
@@ -240,13 +247,17 @@ class DatabaseHelper {
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-        version: 3, onCreate: _onCreate, onUpgrade: _onUpgrade);
+        version: 4, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 3) {
       await db.delete('categories');
       await _seedDefaultCategories(db);
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+          'ALTER TABLE clips ADD COLUMN position INTEGER NOT NULL DEFAULT 0');
     }
   }
 
@@ -258,53 +269,13 @@ class DatabaseHelper {
   }
 
   static final List<ClipCategory> _defaultCategories = [
-    const ClipCategory(
-      id: 'default_recettes',
-      name: 'Recettes',
-      color: Color.fromRGBO(212, 133, 106, 1),
-      icon: Icons.restaurant_rounded,
-    ),
-    const ClipCategory(
-      id: 'default_yoga',
-      name: 'Yoga',
-      color: Color.fromRGBO(166, 211, 220, 1),
-      icon: Icons.self_improvement_rounded,
-    ),
-    const ClipCategory(
-      id: 'default_moto',
-      name: 'Moto',
-      color: Color.fromRGBO(253, 174, 84, 1),
-      icon: Icons.two_wheeler_rounded,
-    ),
-    const ClipCategory(
-      id: 'default_voyage',
-      name: 'Voyage',
-      color: Color.fromRGBO(148, 164, 255, 1),
-      icon: Icons.flight_takeoff_rounded,
-    ),
-    const ClipCategory(
-      id: 'default_musique',
-      name: 'Musique',
-      color: Color.fromRGBO(140, 200, 130, 1),
-      icon: Icons.music_note_rounded,
-    ),
-    const ClipCategory(
-      id: 'default_sport',
-      name: 'Sport',
-      color: Color.fromRGBO(220, 100, 100, 1),
-      icon: Icons.fitness_center_rounded,
-    ),
+    const ClipCategory(id: '1', name: 'Food',    icon: Icons.restaurant_outlined,      color: Color(0xFFFF6B6B)),
+    const ClipCategory(id: '2', name: 'Workout', icon: Icons.fitness_center_outlined,  color: Color(0xFF4ECDC4)),
+    const ClipCategory(id: '3', name: 'Vibes',   icon: Icons.explore_outlined,          color: Color(0xFFFFE66D)),
+    const ClipCategory(id: '4', name: 'Wellness',icon: Icons.self_improvement_outlined, color: Color(0xFFA8E6CF)),
+    const ClipCategory(id: '5', name: 'Inspo',   icon: Icons.style_outlined,            color: Color(0xFFC77DFF)),
+    const ClipCategory(id: '6', name: 'Gaming',  icon: Icons.sports_esports_outlined,   color: Color(0xFF74B9FF)),
   ];
-
-  /// Emoji affiché dans la grille pour chaque catégorie par défaut.
-  static const Map<String, String> categoryEmojis = {
-    'default_recettes': '🍳',
-    'default_yoga': '🧘',
-    'default_moto': '🏍️',
-    'default_voyage': '✈️',
-    'default_musique': '🎵',
-    'default_sport': '💪',
-  };
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
@@ -316,7 +287,8 @@ class DatabaseHelper {
         categoryId TEXT,
         tags TEXT,
         addedAt TEXT NOT NULL,
-        thumbnailUrl TEXT
+        thumbnailUrl TEXT,
+        position INTEGER NOT NULL DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -332,7 +304,8 @@ class DatabaseHelper {
 
   Future<List<Clip>> getAllClips() async {
     final db = await database;
-    final maps = await db.query('clips', orderBy: 'addedAt DESC');
+    final maps =
+        await db.query('clips', orderBy: 'position ASC, addedAt DESC');
     return maps.map(Clip.fromMap).toList();
   }
 
@@ -359,11 +332,31 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  Future<void> resetCategories() async {
+    final db = await database;
+    await db.delete('categories');
+    await _seedDefaultCategories(db);
+  }
+
   Future<void> deleteCategory(String id) async {
     final db = await database;
     await db.delete('categories', where: 'id = ?', whereArgs: [id]);
     await db.update('clips', {'categoryId': null},
         where: 'categoryId = ?', whereArgs: [id]);
+  }
+
+  Future<void> updateClipPositions(List<String> orderedIds) async {
+    final db = await database;
+    final batch = db.batch();
+    for (int i = 0; i < orderedIds.length; i++) {
+      batch.update(
+        'clips',
+        {'position': i},
+        where: 'id = ?',
+        whereArgs: [orderedIds[i]],
+      );
+    }
+    await batch.commit(noResult: true);
   }
 }
 
@@ -372,14 +365,62 @@ class DatabaseHelper {
 // ─────────────────────────────────────────────
 
 class OEmbedService {
+  /// Retourne la meilleure URL de miniature pour un clip.
+  /// Pour YouTube : construction directe (gratuit, sans clé API).
+  /// Pour les autres : on utilise l'URL stockée via oEmbed.
+  static String? bestThumbnailUrl(String url, String? storedThumbUrl) {
+    final lower = url.toLowerCase();
+    if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
+      final id = _youtubeVideoId(url);
+      if (id != null) {
+        return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
+      }
+    }
+    return storedThumbUrl;
+  }
+
+  static String? _youtubeVideoId(String url) {
+    final regex = RegExp(
+        r'(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})');
+    final match = regex.firstMatch(url);
+    return match?.group(1);
+  }
+
   static Future<Map<String, String?>> fetchMetadata(String url) async {
     try {
       final lower = url.toLowerCase();
+      final isYoutube =
+          lower.contains('youtube.com') || lower.contains('youtu.be');
+
+      if (isYoutube) {
+        // Miniature directe — gratuit, sans quota
+        final videoId = _youtubeVideoId(url);
+        final thumbUrl = videoId != null
+            ? 'https://img.youtube.com/vi/$videoId/hqdefault.jpg'
+            : null;
+        // Titre via oEmbed
+        try {
+          final oembedUrl =
+              'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
+          final response = await http
+              .get(Uri.parse(oembedUrl),
+                  headers: {'Accept': 'application/json'})
+              .timeout(const Duration(seconds: 6));
+          if (response.statusCode == 200) {
+            final data =
+                json.decode(response.body) as Map<String, dynamic>;
+            return {
+              'title': data['title'] as String?,
+              'thumbnailUrl': thumbUrl,
+            };
+          }
+        } catch (_) {}
+        return {'title': null, 'thumbnailUrl': thumbUrl};
+      }
+
+      // Autres plateformes : oEmbed pour titre + miniature
       String? oembedUrl;
-      if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
-        oembedUrl =
-            'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
-      } else if (lower.contains('vimeo.com')) {
+      if (lower.contains('vimeo.com')) {
         oembedUrl =
             'https://vimeo.com/api/oembed.json?url=${Uri.encodeComponent(url)}';
       } else if (lower.contains('tiktok.com')) {
@@ -387,10 +428,10 @@ class OEmbedService {
             'https://www.tiktok.com/oembed?url=${Uri.encodeComponent(url)}';
       }
       if (oembedUrl != null) {
-        final response = await http.get(Uri.parse(oembedUrl),
-            headers: {'Accept': 'application/json'}).timeout(
-          const Duration(seconds: 6),
-        );
+        final response = await http
+            .get(Uri.parse(oembedUrl),
+                headers: {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 6));
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
           return {
@@ -408,80 +449,197 @@ class OEmbedService {
 // CATEGORY CLASSIFIER (keyword-based "AI")
 // ─────────────────────────────────────────────
 
+/// Suggestion de catégorie produite par l'IA (analyse du titre).
+class CategorySuggestion {
+  final String key;
+  final String name;
+  final Color color;
+  final IconData icon;
+  final String? defaultCategoryId;
+  final bool isUnclassified;
+
+  const CategorySuggestion({
+    required this.key,
+    required this.name,
+    required this.color,
+    required this.icon,
+    this.defaultCategoryId,
+    this.isUnclassified = false,
+  });
+
+  String get aiCategoryId => 'ai_$key';
+
+  static const unclassified = CategorySuggestion(
+    key: 'unclassified',
+    name: 'Non classé',
+    color: Color.fromRGBO(150, 150, 150, 1),
+    icon: Icons.help_outline_rounded,
+    isUnclassified: true,
+  );
+}
+
 class CategoryClassifier {
-  /// Maps default category IDs to keyword lists (FR + EN).
+  /// Mots-clés (FR + EN) par bucket de suggestion.
   static const Map<String, List<String>> _keywords = {
-    'default_recettes': [
-      'recette', 'recettes', 'recipe', 'recipes',
-      'cuisine', 'cuisiner', 'cooking', 'cook',
-      'food', 'meal', 'dish', 'chef', 'baking', 'bake',
-      'pâtisserie', 'patisserie', 'dessert', 'gâteau', 'gateau',
-      'pasta', 'pizza', 'soup', 'soupe', 'salade', 'salad',
-      'breakfast', 'lunch', 'dinner', 'snack', 'apéro', 'apero',
+    'food': [
+      'recette', 'recettes', 'recipe', 'recipes', 'cuisine', 'cuisiner',
+      'cooking', 'cook', 'food', 'meal', 'dish', 'chef', 'restaurant',
+      'repas', 'plat', 'manger', 'boire', 'vin', 'wine', 'cocktail',
+      'boulangerie', 'pâtisserie', 'patisserie', 'dessert', 'gâteau',
+      'gateau', 'baking', 'bake', 'pasta', 'pizza', 'soup', 'soupe',
+      'salade', 'salad', 'breakfast', 'lunch', 'dinner', 'snack',
+      'apéro', 'apero',
     ],
-    'default_yoga': [
-      'yoga', 'méditation', 'meditation', 'meditate',
-      'mindfulness', 'breathwork', 'pranayama',
-      'asana', 'vinyasa', 'hatha', 'ashtanga',
-      'relaxation', 'détente', 'detente', 'zen',
-      'stretching', 'étirement', 'etirement',
+    'sport': [
+      'sport', 'foot', 'football', 'soccer', 'tennis', 'basket',
+      'basketball', 'rugby', 'natation', 'swim', 'swimming', 'course',
+      'marathon', 'running', 'musculation', 'muscu', 'bodybuilding',
+      'fitness', 'gym', 'workout', 'cardio', 'hiit', 'crossfit',
+      'cyclisme', 'cycling', 'vélo', 'velo', 'squat', 'pushup',
     ],
-    'default_moto': [
-      'moto', 'motorcycle', 'motorbike', 'biker',
-      'harley', 'ducati', 'yamaha', 'kawasaki', 'honda cb',
-      'bmw motorrad', 'ktm', 'triumph',
-      'roadtrip moto', 'wheelie', 'stunt',
-      'mt-07', 'mt-09', 'r1', 'gsxr',
+    'yoga': [
+      'yoga', 'méditation', 'meditation', 'mindfulness', 'relaxation',
+      'pilates', 'respiration', 'breathwork', 'zen', 'sophrologie',
+      'asana', 'vinyasa', 'hatha', 'ashtanga', 'stretching',
+      'étirement', 'etirement', 'bien-être', 'bien etre', 'wellness',
     ],
-    'default_voyage': [
-      'voyage', 'travel', 'trip', 'tour',
-      'destination', 'vacation', 'vacances', 'holiday',
-      'roadtrip', 'road trip', 'backpack', 'backpacking',
-      'paris', 'bali', 'japan', 'thailand', 'thaïlande', 'thailande',
-      'island', 'beach', 'plage', 'mountain', 'montagne',
-      'flight', 'avion', 'hotel', 'hôtel',
-      'aventure', 'adventure', 'explore',
+    'moto': [
+      'moto', 'voiture', 'car', 'auto', 'conduite', 'permis', 'route',
+      'vitesse', 'garage', 'mécanique', 'mecanique', 'motorcycle',
+      'motorbike', 'biker', 'harley', 'ducati', 'yamaha', 'kawasaki',
+      'honda', 'bmw', 'ktm', 'triumph', 'porsche', 'ferrari', 'tesla',
+      'rally', 'wheelie',
     ],
-    'default_musique': [
-      'music', 'musique', 'song', 'chanson', 'lyrics', 'paroles',
-      'album', 'concert', 'live', 'guitar', 'guitare',
-      'piano', 'drum', 'batterie', 'bass', 'basse',
-      'remix', 'cover', 'acoustic', 'acoustique',
-      'rap', 'hip-hop', 'hip hop', 'rock', 'pop', 'jazz',
-      'edm', 'techno', 'house', 'electro', 'dj',
-      'official video', 'clip officiel', 'mv',
+    'voyage': [
+      'voyage', 'travel', 'vacances', 'trip', 'destination', 'hotel',
+      'hôtel', 'avion', 'flight', 'plage', 'beach', 'montagne',
+      'mountain', 'découverte', 'decouverte', 'holiday', 'roadtrip',
+      'road trip', 'backpack', 'backpacking', 'adventure', 'aventure',
+      'explore', 'tour', 'bali', 'japan', 'thailand', 'paris',
     ],
-    'default_sport': [
-      'sport', 'fitness', 'workout', 'entraînement', 'entrainement',
-      'gym', 'muscu', 'musculation', 'bodybuilding',
-      'cardio', 'hiit', 'crossfit',
-      'running', 'course', 'marathon', 'jog',
-      'football', 'soccer', 'basketball', 'tennis',
-      'rugby', 'cyclisme', 'cycling', 'vélo', 'velo',
-      'natation', 'swim', 'swimming',
-      'abs', 'biceps', 'squat', 'pushup',
+    'musique': [
+      'musique', 'music', 'concert', 'chanson', 'song', 'guitare',
+      'guitar', 'piano', 'clip officiel', 'album', 'artiste', 'lyrics',
+      'paroles', 'remix', 'cover', 'acoustic', 'rap', 'hip-hop',
+      'hip hop', 'rock', 'pop', 'jazz', 'dj', 'techno', 'house',
+      'electro', 'mv', 'official video',
+    ],
+    'tricot': [
+      'tricot', 'couture', 'crochet', 'broderie', 'knitting', 'sewing',
+      'diy', 'fait main', 'handmade', 'laine', 'wool', 'aiguille',
+      'machine à coudre', 'machine a coudre', 'patron', 'pattern',
+    ],
+    'bebe': [
+      'bébé', 'bebe', 'enfant', 'enfants', 'kids', 'puériculture',
+      'puericulture', 'grossesse', 'maternité', 'maternite', 'jouet',
+      'jouets', 'école', 'ecole', 'baby', 'toddler', 'parenting',
+      'parents',
+    ],
+    'humour': [
+      'humour', 'drôle', 'drole', 'blague', 'rire', 'comique', 'sketch',
+      'parodie', 'funny', 'humor', 'comedy', 'meme', 'memes', 'prank',
+      'standup', 'stand-up', 'stand up',
+    ],
+    'beaute': [
+      'beauté', 'beaute', 'maquillage', 'makeup', 'soin', 'soins',
+      'skincare', 'coiffure', 'mode', 'fashion', 'beauty', 'manucure',
+      'nail', 'nails', 'hair', 'cheveux', 'rouge à lèvres',
+      'rouge a levres',
     ],
   };
 
-  /// Returns the best matching category ID from [categories] given [title],
-  /// or `null` if no keyword matches.
-  static String? suggest(String title, List<ClipCategory> categories) {
-    if (title.trim().isEmpty) return null;
+  static const Map<String, CategorySuggestion> _suggestions = {
+    'food': CategorySuggestion(
+      key: 'food', name: 'Food',
+      color: Color(0xFFFF6B6B),
+      icon: Icons.restaurant_outlined,
+      defaultCategoryId: '1',
+    ),
+    'sport': CategorySuggestion(
+      key: 'sport', name: 'Workout',
+      color: Color(0xFF4ECDC4),
+      icon: Icons.fitness_center_outlined,
+      defaultCategoryId: '2',
+    ),
+    'yoga': CategorySuggestion(
+      key: 'yoga', name: 'Wellness',
+      color: Color(0xFFA8E6CF),
+      icon: Icons.self_improvement_outlined,
+      defaultCategoryId: '4',
+    ),
+    'moto': CategorySuggestion(
+      key: 'moto', name: 'Vibes',
+      color: Color(0xFFFFE66D),
+      icon: Icons.explore_outlined,
+      defaultCategoryId: '3',
+    ),
+    'voyage': CategorySuggestion(
+      key: 'voyage', name: 'Vibes',
+      color: Color(0xFFFFE66D),
+      icon: Icons.explore_outlined,
+      defaultCategoryId: '3',
+    ),
+    'musique': CategorySuggestion(
+      key: 'musique', name: 'Inspo',
+      color: Color(0xFFC77DFF),
+      icon: Icons.style_outlined,
+      defaultCategoryId: '5',
+    ),
+    'tricot': CategorySuggestion(
+      key: 'tricot', name: 'Inspo',
+      color: Color(0xFFC77DFF),
+      icon: Icons.style_outlined,
+    ),
+    'bebe': CategorySuggestion(
+      key: 'bebe', name: 'Wellness',
+      color: Color(0xFFA8E6CF),
+      icon: Icons.self_improvement_outlined,
+    ),
+    'humour': CategorySuggestion(
+      key: 'humour', name: 'Vibes',
+      color: Color(0xFFFFE66D),
+      icon: Icons.explore_outlined,
+    ),
+    'beaute': CategorySuggestion(
+      key: 'beaute', name: 'Inspo',
+      color: Color(0xFFC77DFF),
+      icon: Icons.style_outlined,
+    ),
+  };
+
+  /// Renvoie la meilleure suggestion pour [title] ou `unclassified`.
+  static CategorySuggestion suggestDetailed(String title) {
+    if (title.trim().isEmpty) return CategorySuggestion.unclassified;
     final lower = title.toLowerCase();
     final scores = <String, int>{};
-    for (final entry in _keywords.entries) {
+    _keywords.forEach((key, kws) {
       int s = 0;
-      for (final kw in entry.value) {
+      for (final kw in kws) {
         if (lower.contains(kw)) s++;
       }
-      if (s > 0) scores[entry.key] = s;
-    }
-    if (scores.isEmpty) return null;
+      if (s > 0) scores[key] = s;
+    });
+    if (scores.isEmpty) return CategorySuggestion.unclassified;
     final best =
         scores.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    // Only return if that category actually exists in user's list.
-    final exists = categories.any((c) => c.id == best);
-    return exists ? best : null;
+    return _suggestions[best]!;
+  }
+
+  /// Renvoie l'ID d'une catégorie existante correspondant à [suggestion].
+  static String? matchExisting(
+      CategorySuggestion suggestion, List<ClipCategory> categories) {
+    if (suggestion.isUnclassified) return null;
+    for (final c in categories) {
+      if (c.id == suggestion.defaultCategoryId) return c.id;
+      if (c.id == suggestion.aiCategoryId) return c.id;
+      if (c.name.toLowerCase() == suggestion.name.toLowerCase()) return c.id;
+    }
+    return null;
+  }
+
+  /// Compat legacy : ID d'une catégorie existante si match, sinon null.
+  static String? suggest(String title, List<ClipCategory> categories) {
+    return matchExisting(suggestDetailed(title), categories);
   }
 }
 
@@ -537,8 +695,18 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
     _clips = await DatabaseHelper.instance.getAllClips();
     _categories = await DatabaseHelper.instance.getAllCategories();
+    // Migration : anciennes catégories FR → nouvelles EN
+    await _migrateCategories();
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> _migrateCategories() async {
+    const oldNames = {'Recettes', 'Yoga', 'Moto', 'Voyage', 'Musique', 'Sport'};
+    final hasOld = _categories.any((c) => oldNames.contains(c.name));
+    if (!hasOld) return;
+    await DatabaseHelper.instance.resetCategories();
+    _categories = await DatabaseHelper.instance.getAllCategories();
   }
 
   void setSearch(String query) {
@@ -596,6 +764,39 @@ class ClipsState extends ChangeNotifier {
 
   List<Clip> clipsForCategory(String? categoryId) =>
       _clips.where((c) => c.categoryId == categoryId).toList();
+
+  Clip? lastClipFor(String? categoryId) {
+    final pool = categoryId == null
+        ? _clips
+        : _clips.where((c) => c.categoryId == categoryId).toList();
+    if (pool.isEmpty) return null;
+    return pool.reduce((a, b) => a.addedAt.isAfter(b.addedAt) ? a : b);
+  }
+
+  Future<void> reorderClips(
+      int oldIndex, int newIndex, String? categoryId) async {
+    // Extraire la liste filtrée, appliquer le déplacement
+    final filtered = categoryId == null
+        ? List<Clip>.from(_clips)
+        : _clips.where((c) => c.categoryId == categoryId).toList();
+    if (oldIndex < 0 ||
+        newIndex < 0 ||
+        oldIndex >= filtered.length ||
+        newIndex >= filtered.length) return;
+    final moved = filtered.removeAt(oldIndex);
+    filtered.insert(newIndex, moved);
+    // Mettre à jour les positions dans _clips
+    for (int i = 0; i < filtered.length; i++) {
+      final idx = _clips.indexWhere((c) => c.id == filtered[i].id);
+      if (idx != -1) {
+        _clips[idx] = _clips[idx].copyWith(position: i);
+      }
+    }
+    notifyListeners();
+    // Persister en arrière-plan
+    await DatabaseHelper.instance
+        .updateClipPositions(filtered.map((c) => c.id).toList());
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -613,8 +814,7 @@ class AppL10n {
 
   static const Map<String, Map<String, String>> _strings = {
     'fr': {
-      'app_name': 'Clips',
-      'home': 'Accueil',
+      'app_name': 'Savid',
       'categories': 'Catégories',
       'settings': 'Paramètres',
       'add_clip': 'Ajouter',
@@ -624,8 +824,8 @@ class AppL10n {
       'delete': 'Supprimer',
       'share': 'Partager',
       'open': 'Ouvrir',
-      'no_clips': 'Aucun clip',
-      'no_clips_sub': 'Appuyez sur + pour ajouter votre premier lien vidéo',
+      'no_clips': 'Aucune vidéo',
+      'no_clips_sub': 'Ajoutez votre première vidéo ici',
       'title': 'Titre',
       'tags': 'Tags (séparés par virgules)',
       'category': 'Catégorie',
@@ -649,8 +849,7 @@ class AppL10n {
       'no_category': 'Aucune catégorie',
     },
     'en': {
-      'app_name': 'Clips',
-      'home': 'Home',
+      'app_name': 'Savid',
       'categories': 'Categories',
       'settings': 'Settings',
       'add_clip': 'Add',
@@ -695,7 +894,7 @@ class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {
 
   @override
   bool isSupported(Locale locale) =>
-      ['en', 'fr'].contains(locale.languageCode);
+      ['en', 'fr', 'es', 'de', 'it', 'pt'].contains(locale.languageCode);
 
   @override
   Future<AppL10n> load(Locale locale) async => AppL10n(locale);
@@ -709,38 +908,60 @@ class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {
 // ─────────────────────────────────────────────
 
 class AppTheme {
-  // Palette principale (reprise de l'app jumelle)
-  static const Color orange = Color(0xFFFDAE54);
-  static const Color darkGreen = Color(0xFF153036);
-  static const Color shadowGrey = Color(0xFF597176);
+  // ─── Background gradient ─────────────────────────────
+  static const Color bgTop    = Color(0xFF0A0A0F);
+  static const Color bgBottom = Color(0xFF1A0A2E);
+
+  // ─── Accent gradient (bouton +, highlights) ──────────
+  static const Color accentPurple = Color(0xFF7C3AED);
+  static const Color accentBlue   = Color(0xFF2563EB);
+
+  // ─── Orbes d'arrière-plan ────────────────────────────
+  static const Color orbPurple = Color(0xFF6D28D9);
+  static const Color orbBlue   = Color(0xFF1D4ED8);
+
+  // ─── Couleurs accent par catégorie ───────────────────
+  static const Color recettesAccent = Color(0xFFFF6B6B);
+  static const Color yogaAccent     = Color(0xFF4ECDC4);
+  static const Color motoAccent     = Color(0xFFFFE66D);
+  static const Color voyageAccent   = Color(0xFFA8E6CF);
+  static const Color musiqueAccent  = Color(0xFFC77DFF);
+  static const Color sportAccent    = Color(0xFFFF8B94);
+  static const Color toutAccent     = Color(0xFF74B9FF);
+
+  // ─── Compat legacy ───────────────────────────────────
+  static const Color orange     = accentPurple;
+  static const Color darkGreen  = bgBottom;
+  static const Color shadowGrey = Color(0xFF2D1B69);
 
   static ThemeData light() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: const Color(0xFFF5F5F7),
         colorScheme: ColorScheme.fromSeed(
-          seedColor: orange,
+          seedColor: accentPurple,
           brightness: Brightness.light,
-          primary: orange,
-          secondary: darkGreen,
+          primary: accentPurple,
+          secondary: accentBlue,
           surface: Colors.white,
         ),
-        textTheme: const TextTheme().apply(
-          bodyColor: darkGreen,
-          displayColor: darkGreen,
-        ),
       );
+  static ThemeData dark()  => _darkTheme();
 
-  static ThemeData dark() => ThemeData(
+  static ThemeData _darkTheme() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: darkGreen,
+        scaffoldBackgroundColor: bgTop,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: orange,
+          seedColor: accentPurple,
           brightness: Brightness.dark,
-          primary: orange,
-          secondary: orange,
-          surface: darkGreen,
+          primary: accentPurple,
+          secondary: accentBlue,
+          surface: bgTop,
+        ),
+        textTheme: const TextTheme().apply(
+          bodyColor: Colors.white,
+          displayColor: Colors.white,
         ),
       );
 }
@@ -762,7 +983,7 @@ class GlassCard extends StatelessWidget {
     this.borderRadius = 20,
     this.padding,
     this.onTap,
-    this.blur = 10,
+    this.blur = 20,
   });
 
   @override
@@ -776,29 +997,23 @@ class GlassCard extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: isDark
-                    ? [
-                        Colors.white.withValues(alpha: 0.08),
-                        AppTheme.orange.withValues(alpha: 0.12),
-                      ]
-                    : [
-                        Colors.white.withValues(alpha: 0.92),
-                        AppTheme.orange.withValues(alpha: 0.15),
-                      ],
-              ),
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.white.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(borderRadius),
               border: Border.all(
-                color: AppTheme.orange.withValues(alpha: 0.3),
-                width: 1.2,
+                color: isDark
+                    ? Colors.white.withValues(alpha: 0.10)
+                    : Colors.black.withValues(alpha: 0.08),
+                width: 1,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.shadowGrey.withValues(alpha: 0.15),
-                  blurRadius: 32,
-                  offset: const Offset(0, 8),
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.30)
+                      : Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 6),
                 ),
               ],
             ),
@@ -846,20 +1061,62 @@ class ClipsApp extends StatefulWidget {
 }
 
 class _ClipsAppState extends State<ClipsApp> {
-  ThemeMode _themeMode = ThemeMode.system;
-  Locale _locale = const Locale('fr');
+  final ValueNotifier<ThemeMode> _themeModeNotifier =
+      ValueNotifier(ThemeMode.system);
+  Locale? _locale;
+  bool _notifications = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
 
-  ThemeMode get themeMode => _themeMode;
-  Locale get locale => _locale;
+  ThemeMode get themeMode => _themeModeNotifier.value;
+  ValueNotifier<ThemeMode> get themeModeNotifier => _themeModeNotifier;
+  Locale? get locale => _locale;
+  bool get notifications => _notifications;
 
-  void setThemeMode(ThemeMode mode) => setState(() => _themeMode = mode);
-  void setLocale(Locale locale) => setState(() => _locale = locale);
+  void setThemeMode(ThemeMode mode) {
+    _themeModeNotifier.value = mode;
+    SharedPreferences.getInstance()
+        .then((p) => p.setString('theme_mode', mode.name));
+  }
+
+  void setLocale(Locale? locale) {
+    setState(() => _locale = locale);
+    SharedPreferences.getInstance().then((p) {
+      if (locale == null) {
+        p.remove('locale');
+      } else {
+        p.setString('locale', locale.languageCode);
+      }
+    });
+  }
+
+  void setNotifications(bool value) {
+    setState(() => _notifications = value);
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool('notifications', value));
+  }
+
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final themeStr = prefs.getString('theme_mode');
+    final localeStr = prefs.getString('locale');
+    final notifs = prefs.getBool('notifications') ?? false;
+    if (mounted) {
+      _themeModeNotifier.value = ThemeMode.values.firstWhere(
+        (m) => m.name == themeStr,
+        orElse: () => ThemeMode.system,
+      );
+      setState(() {
+        _locale = localeStr != null ? Locale(localeStr) : null;
+        _notifications = notifs;
+      });
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    _loadPrefs();
     _initShareIntent();
   }
 
@@ -870,12 +1127,20 @@ class _ClipsAppState extends State<ClipsApp> {
       ReceiveSharingIntent.instance.getInitialMedia().then((files) {
         _handleSharedFiles(files);
         ReceiveSharingIntent.instance.reset();
+      }).catchError((e) {
+        debugPrint('Share intent unsupported on this platform: $e');
       });
       // Warm shares (app already running)
-      _shareSub =
-          ReceiveSharingIntent.instance.getMediaStream().listen((files) {
-        _handleSharedFiles(files);
-      });
+      try {
+        _shareSub =
+            ReceiveSharingIntent.instance.getMediaStream().listen((files) {
+          _handleSharedFiles(files);
+        }, onError: (e) {
+          debugPrint('Share intent stream unsupported on this platform: $e');
+        });
+      } catch (e) {
+        debugPrint('Share intent stream unsupported on this platform: $e');
+      }
     } catch (e) {
       debugPrint('Share intent unsupported on this platform: $e');
     }
@@ -909,6 +1174,7 @@ class _ClipsAppState extends State<ClipsApp> {
 
   @override
   void dispose() {
+    _themeModeNotifier.dispose();
     _shareSub?.cancel();
     super.dispose();
   }
@@ -916,16 +1182,27 @@ class _ClipsAppState extends State<ClipsApp> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: widget.state,
+      listenable: Listenable.merge([widget.state, _themeModeNotifier]),
       builder: (context, _) => MaterialApp(
-        title: 'Clips',
+        title: 'Savid',
         debugShowCheckedModeBanner: false,
         navigatorKey: _navigatorKey,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        themeMode: _themeMode,
+        theme: ThemeData.light().copyWith(
+          scaffoldBackgroundColor: const Color(0xFFF5F5F5),
+          colorScheme: const ColorScheme.light(primary: Color(0xFF7C3AED)),
+          cardColor: Colors.white,
+        ),
+        darkTheme: ThemeData.dark().copyWith(
+          scaffoldBackgroundColor: const Color(0xFF0A0A1F),
+          colorScheme: const ColorScheme.dark(primary: Color(0xFF7C3AED)),
+          cardColor: const Color(0xFF1A1A2E),
+        ),
+        themeMode: _themeModeNotifier.value,
         locale: _locale,
-        supportedLocales: const [Locale('fr'), Locale('en')],
+        supportedLocales: const [
+          Locale('fr'), Locale('en'), Locale('es'),
+          Locale('de'), Locale('it'), Locale('pt'),
+        ],
         localizationsDelegates: const [
           AppL10n.delegate,
           GlobalMaterialLocalizations.delegate,
@@ -964,113 +1241,125 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF08081A) : const Color(0xFFF0EFFF);
 
     return Scaffold(
-      backgroundColor: bg,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       extendBody: true,
       body: Stack(
         children: [
-          _GradientBackground(isDark: isDark),
+          const _GradientBackground(isDark: true),
           IndexedStack(
             index: _index,
             children: [
               HomeScreen(state: widget.state),
               CategoriesScreen(state: widget.state),
-              const SettingsScreen(),
+              SettingsScreen(state: widget.state),
             ],
           ),
         ],
       ),
       floatingActionButton: _index == 0
-          ? FloatingActionButton.extended(
-              onPressed: () => _openAddSheet(context),
-              icon: const Icon(Icons.add_rounded),
-              label: Text(l.t('add_clip')),
-              elevation: 2,
+          ? Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF7C3AED), Color(0xFF2563EB)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF7C3AED).withValues(alpha: 0.55),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(18),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: () => _openAddSheet(context),
+                  child: const Center(
+                    child: Icon(Icons.add_rounded,
+                        color: Colors.white, size: 30),
+                  ),
+                ),
+              ),
             )
           : null,
-      bottomNavigationBar: _buildNavBar(l, isDark),
+      bottomNavigationBar: _buildNavBar(l),
     );
   }
 
-  Widget _buildNavBar(AppL10n l, bool isDark) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: isDark
-                  ? [
-                      AppTheme.darkGreen.withValues(alpha: 0.9),
-                      AppTheme.orange.withValues(alpha: 0.15),
-                    ]
-                  : [
-                      Colors.white.withValues(alpha: 0.92),
-                      AppTheme.orange.withValues(alpha: 0.15),
-                    ],
+  Widget _buildNavBar(AppL10n l) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final navBgColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.white.withValues(alpha: 0.85);
+    final navBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.10)
+        : Colors.black.withValues(alpha: 0.08);
+    final labelColor = isDark ? Colors.white.withValues(alpha: 0.45) : Colors.black54;
+    final selectedColor = isDark ? Colors.white : Colors.black87;
+    final unselectedColor =
+        isDark ? Colors.white.withValues(alpha: 0.40) : Colors.black45;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Container(
+            decoration: BoxDecoration(
+              color: navBgColor,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: navBorderColor, width: 1),
             ),
-            border: Border(
-              top: BorderSide(
-                color: AppTheme.orange.withValues(alpha: 0.3),
-                width: 1,
+            child: NavigationBarTheme(
+              data: NavigationBarThemeData(
+                indicatorColor: AppTheme.accentPurple.withValues(alpha: 0.20),
+                labelTextStyle: WidgetStatePropertyAll(
+                  TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: labelColor,
+                  ),
+                ),
+                iconTheme: WidgetStateProperty.resolveWith((states) {
+                  final selected = states.contains(WidgetState.selected);
+                  return IconThemeData(
+                    color: selected ? selectedColor : unselectedColor,
+                    size: 22,
+                  );
+                }),
               ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.shadowGrey.withValues(alpha: 0.15),
-                blurRadius: 32,
-                offset: const Offset(0, -4),
+              child: NavigationBar(
+                selectedIndex: _index,
+                onDestinationSelected: (i) => setState(() => _index = i),
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                destinations: [
+                  NavigationDestination(
+                    icon: const Icon(Icons.home_outlined),
+                    selectedIcon: const Icon(Icons.home_rounded),
+                    label: 'Accueil',
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.folder_outlined),
+                    selectedIcon: const Icon(Icons.folder_rounded),
+                    label: l.t('categories'),
+                  ),
+                  NavigationDestination(
+                    icon: const Icon(Icons.settings_outlined),
+                    selectedIcon: const Icon(Icons.settings_rounded),
+                    label: l.t('settings'),
+                  ),
+                ],
               ),
-            ],
-          ),
-          child: NavigationBarTheme(
-            data: NavigationBarThemeData(
-              indicatorColor: AppTheme.orange.withValues(alpha: 0.25),
-              labelTextStyle: WidgetStatePropertyAll(
-                TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: isDark ? Colors.white : AppTheme.darkGreen,
-                ),
-              ),
-              iconTheme: WidgetStateProperty.resolveWith((states) {
-                final selected = states.contains(WidgetState.selected);
-                return IconThemeData(
-                  color: selected
-                      ? AppTheme.orange
-                      : (isDark
-                          ? Colors.white.withValues(alpha: 0.7)
-                          : AppTheme.darkGreen.withValues(alpha: 0.6)),
-                );
-              }),
-            ),
-            child: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (i) => setState(() => _index = i),
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              destinations: [
-                NavigationDestination(
-                  icon: const Icon(Icons.home_outlined),
-                  selectedIcon: const Icon(Icons.home_rounded),
-                  label: l.t('home'),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.folder_outlined),
-                  selectedIcon: const Icon(Icons.folder_rounded),
-                  label: l.t('categories'),
-                ),
-                NavigationDestination(
-                  icon: const Icon(Icons.settings_outlined),
-                  selectedIcon: const Icon(Icons.settings_rounded),
-                  label: l.t('settings'),
-                ),
-              ],
             ),
           ),
         ),
@@ -1089,58 +1378,51 @@ class _MainShellState extends State<MainShell> {
 }
 
 class _GradientBackground extends StatelessWidget {
+  // isDark kept for API compat but unused — always dark design
   final bool isDark;
-
   const _GradientBackground({required this.isDark});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    if (!isDark) {
+      return const Positioned.fill(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFFF5F5F5), Color(0xFFEDE9FF)],
+            ),
+          ),
+        ),
+      );
+    }
     return Positioned.fill(
       child: DecoratedBox(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? const [
-                    Color(0xFF0E1F23),
-                    Color(0xFF153036),
-                    Color(0xFF1F4248),
-                  ]
-                : const [
-                    Colors.white,
-                    Color(0xFFFFF6EC),
-                    Colors.white,
-                  ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppTheme.bgTop, AppTheme.bgBottom],
           ),
         ),
         child: Stack(
           children: [
             Positioned(
-              top: -120,
-              right: -80,
+              top: -100,
+              left: -80,
               child: _Orb(
-                size: 360,
-                color: AppTheme.orange
-                    .withValues(alpha: isDark ? 0.28 : 0.35),
+                size: 420,
+                color: AppTheme.orbPurple.withValues(alpha: 0.45),
               ),
             ),
             Positioned(
-              top: 220,
-              left: -120,
+              bottom: 60,
+              right: -100,
               child: _Orb(
-                size: 300,
-                color: AppTheme.orange
-                    .withValues(alpha: isDark ? 0.18 : 0.22),
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              right: -60,
-              child: _Orb(
-                size: 280,
-                color: AppTheme.darkGreen
-                    .withValues(alpha: isDark ? 0.4 : 0.08),
+                size: 380,
+                color: AppTheme.orbBlue.withValues(alpha: 0.35),
               ),
             ),
           ],
@@ -1266,9 +1548,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (i == 0) {
                         return _CategoryTile(
                           name: l.t('all'),
-                          color: AppTheme.orange,
-                          emoji: '📱',
+                          color: AppTheme.toutAccent,
+                          icon: Icons.apps_rounded,
                           count: widget.state.totalCount,
+                          lastClip: widget.state.lastClipFor(null),
                           onTap: () =>
                               _openCategory(context, null, l.t('all')),
                         );
@@ -1286,9 +1569,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       return _CategoryTile(
                         name: cat.name,
                         color: cat.color,
-                        emoji: DatabaseHelper.categoryEmojis[cat.id],
                         icon: cat.icon,
                         count: widget.state.countForCategory(cat.id),
+                        lastClip: widget.state.lastClipFor(cat.id),
                         onTap: () =>
                             _openCategory(context, cat.id, cat.name),
                       );
@@ -1314,6 +1597,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   SliverAppBar _buildAppBar(AppL10n l, List<Clip> clips) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final fgColor = isDark ? Colors.white : Colors.black87;
     return SliverAppBar(
       floating: true,
       snap: true,
@@ -1323,18 +1608,19 @@ class _HomeScreenState extends State<HomeScreen> {
       flexibleSpace: FlexibleSpaceBar(
         titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
         title: Text(
-          l.t('app_name'),
-          style: const TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 30,
+          'Savid',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 32,
             letterSpacing: -1,
+            color: fgColor,
           ),
         ),
       ),
       actions: [
         if (clips.isNotEmpty)
           IconButton(
-            icon: const Icon(Icons.ios_share_rounded),
+            icon: Icon(Icons.ios_share_rounded, color: fgColor),
             tooltip: l.t('share_list'),
             onPressed: () {
               final text =
@@ -1355,20 +1641,20 @@ class _HomeScreenState extends State<HomeScreen> {
 class _CategoryTile extends StatefulWidget {
   final String name;
   final Color color;
-  final IconData? icon;
-  final String? emoji;
+  final IconData icon;
   final int count;
   final VoidCallback onTap;
   final bool isAdd;
+  final Clip? lastClip;
 
   const _CategoryTile({
     required this.name,
     required this.color,
+    required this.icon,
     required this.count,
     required this.onTap,
-    this.icon,
-    this.emoji,
     this.isAdd = false,
+    this.lastClip,
   });
 
   factory _CategoryTile.add({
@@ -1378,7 +1664,7 @@ class _CategoryTile extends StatefulWidget {
       _CategoryTile(
         name: label,
         color: AppTheme.orange,
-        emoji: '➕',
+        icon: Icons.add_rounded,
         count: 0,
         onTap: onTap,
         isAdd: true,
@@ -1389,144 +1675,223 @@ class _CategoryTile extends StatefulWidget {
 }
 
 class _CategoryTileState extends State<_CategoryTile> {
-  bool _hover = false;
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final tintColor = widget.color;
+    final resolvedThumbUrl = widget.lastClip != null
+        ? OEmbedService.bestThumbnailUrl(
+            widget.lastClip!.url, widget.lastClip!.thumbnailUrl)
+        : null;
+    final hasThumbnail =
+        !widget.isAdd && (resolvedThumbUrl?.isNotEmpty ?? false);
+    final platform = widget.lastClip != null
+        ? SocialPlatform.detect(widget.lastClip!.url)
+        : null;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hover = true),
-      onExit: (_) => setState(() => _hover = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..translate(0.0, _hover ? -4.0 : 0.0)
-            ..scale(_hover ? 1.03 : 1.0),
-          transformAlignment: Alignment.center,
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: widget.color.withValues(alpha: 0.30),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+            ],
+          ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(22),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Stack(
-                children: [
-                  // Fond glass : gradient blanc → teinte couleur catégorie
-                  Container(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(22),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: isDark
-                            ? [
-                                Colors.white.withValues(alpha: 0.10),
-                                tintColor.withValues(alpha: 0.22),
-                              ]
-                            : [
-                                Colors.white.withValues(alpha: 0.92),
-                                tintColor.withValues(alpha: 0.18),
-                              ],
-                      ),
-                      border: Border.all(
-                        color: isDark
-                            ? Colors.white.withValues(alpha: 0.25)
-                            : Colors.white.withValues(alpha: 0.55),
-                        width: 2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.shadowGrey
-                              .withValues(alpha: _hover ? 0.22 : 0.14),
-                          blurRadius: _hover ? 36 : 28,
-                          offset: Offset(0, _hover ? 12 : 8),
-                        ),
-                      ],
-                    ),
-                  ),
-                  // Reflet interne (RadialGradient) en haut à gauche
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(22),
-                          gradient: RadialGradient(
-                            center: const Alignment(-0.7, -0.8),
-                            radius: 0.9,
-                            colors: [
-                              Colors.white.withValues(alpha: 0.55),
-                              Colors.white.withValues(alpha: 0.0),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  // Contenu : emoji + label
-                  Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Spacer(),
-                        // Icône emoji 38px avec drop-shadow
-                        Text(
-                          widget.emoji ?? '📁',
-                          style: TextStyle(
-                            fontSize: 38,
-                            height: 1,
-                            shadows: [
-                              Shadow(
-                                color: AppTheme.shadowGrey
-                                    .withValues(alpha: 0.35),
-                                blurRadius: 6,
-                                offset: const Offset(0, 3),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        // Label 13px / w900 / UPPERCASE / #153036
-                        Text(
-                          widget.name.toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13,
-                            letterSpacing: 0.4,
-                            color: isDark
-                                ? Colors.white
-                                : AppTheme.darkGreen,
-                          ),
-                        ),
-                        if (!widget.isAdd) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            '${widget.count}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.55)
-                                  : AppTheme.darkGreen
-                                      .withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ],
-                        const Spacer(),
-                      ],
-                    ),
-                  ),
-                ],
+            borderRadius: BorderRadius.circular(24),
+            child: hasThumbnail
+                ? _buildThumbnailTile(resolvedThumbUrl!, platform)
+                : _buildEmptyTile(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildThumbnailTile(String thumbUrl, SocialPlatform? platform) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Miniature en plein fond
+        Image.network(
+          thumbUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => Container(
+            color: const Color(0xFF1A0A2E),
+            child: Center(
+              child: Icon(
+                platform?.icon ?? widget.icon,
+                color: platform?.color ?? widget.color,
+                size: 32,
               ),
             ),
           ),
+        ),
+        // Dégradé sombre bas
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.30, 1.0],
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.82),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+        // Logo plateforme — haut droite
+        if (platform != null && platform.id != 'other')
+          Positioned(
+            top: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.55),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(platform.icon, color: platform.color, size: 14),
+            ),
+          ),
+        // Nom + compteur — bas gauche
+        Positioned(
+          left: 10,
+          right: 10,
+          bottom: 10,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                widget.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                  letterSpacing: -0.2,
+                  shadows: [
+                    Shadow(
+                        color: Colors.black,
+                        blurRadius: 8,
+                        offset: Offset(0, 1))
+                  ],
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                '${widget.count} vidéo${widget.count > 1 ? 's' : ''}',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.60),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmptyTile() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark
+        ? Colors.white.withValues(alpha: 0.06)
+        : Colors.white.withValues(alpha: 0.70);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.08);
+    final contentColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor =
+        isDark ? Colors.white.withValues(alpha: 0.50) : Colors.black45;
+    return BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+      child: Container(
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          border: Border.all(color: borderColor, width: 1),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // Teinte accent
+            Positioned.fill(
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        widget.color.withValues(alpha: 0.18),
+                        widget.color.withValues(alpha: 0.04),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            // Contenu centré
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(widget.icon, size: 22, color: contentColor),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.name.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 9,
+                      letterSpacing: 1.0,
+                      color: contentColor,
+                    ),
+                  ),
+                  if (!widget.isAdd) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'Ajouter une vidéo',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: subtitleColor,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -1556,6 +1921,41 @@ class CategoryDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
+      floatingActionButton: Container(
+        width: 56,
+        height: 56,
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7C3AED), Color(0xFF2563EB)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.55),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => AddClipSheet(state: state),
+            ),
+            child: const Center(
+              child: Icon(Icons.add_rounded, color: Colors.white, size: 30),
+            ),
+          ),
+        ),
+      ),
       body: Stack(
         children: [
           _GradientBackground(isDark: isDark),
@@ -1570,9 +1970,10 @@ class CategoryDetailScreen extends StatelessWidget {
                   SliverAppBar(
                     floating: true,
                     backgroundColor: Colors.transparent,
+                    foregroundColor: Colors.white,
                     elevation: 0,
                     leading: IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
                       onPressed: () => Navigator.pop(context),
                     ),
                     title: Text(
@@ -1601,15 +2002,44 @@ class CategoryDetailScreen extends StatelessWidget {
                   else
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (ctx, i) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child:
-                                ClipCard(clip: clips[i], state: state),
-                          ),
-                          childCount: clips.length,
-                        ),
+                      sliver: SliverReorderableList(
+                        itemCount: clips.length,
+                        proxyDecorator: (child, index, animation) {
+                          return AnimatedBuilder(
+                            animation: animation,
+                            child: child,
+                            builder: (context, child) {
+                              final scale =
+                                  1.0 + 0.05 * animation.value;
+                              return Transform.scale(
+                                scale: scale,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  elevation: 12 * animation.value,
+                                  shadowColor: Colors.black54,
+                                  borderRadius: BorderRadius.circular(16),
+                                  child: child,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                        itemBuilder: (ctx, i) {
+                          final clip = clips[i];
+                          return ReorderableDelayedDragStartListener(
+                            key: ValueKey(clip.id),
+                            index: i,
+                            child: Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: ClipCard(clip: clip, state: state),
+                            ),
+                          );
+                        },
+                        onReorder: (oldIndex, newIndex) {
+                          if (newIndex > oldIndex) newIndex--;
+                          state.reorderClips(
+                              oldIndex, newIndex, categoryId);
+                        },
                       ),
                     ),
                 ],
@@ -1640,29 +2070,57 @@ class _SearchBar extends StatefulWidget {
 class _SearchBarState extends State<_SearchBar> {
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      blur: 16,
-      child: TextField(
-        controller: widget.controller,
-        onChanged: (v) {
-          widget.onChanged(v);
-          setState(() {});
-        },
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          border: InputBorder.none,
-          icon: const Icon(Icons.search_rounded),
-          suffixIcon: widget.controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () {
-                    widget.controller.clear();
-                    widget.onChanged('');
-                    setState(() {});
-                  },
-                )
-              : null,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : Colors.black.withValues(alpha: 0.06);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.10)
+        : Colors.black.withValues(alpha: 0.10);
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor =
+        isDark ? Colors.white.withValues(alpha: 0.40) : Colors.black38;
+    final iconColor =
+        isDark ? Colors.white.withValues(alpha: 0.70) : Colors.black54;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: TextField(
+            controller: widget.controller,
+            style: TextStyle(color: textColor),
+            onChanged: (v) {
+              widget.onChanged(v);
+              setState(() {});
+            },
+            decoration: InputDecoration(
+              hintText: widget.hint,
+              hintStyle: TextStyle(color: hintColor),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: iconColor,
+                size: 22,
+              ),
+              suffixIcon: widget.controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: Icon(Icons.clear_rounded, color: iconColor),
+                      onPressed: () {
+                        widget.controller.clear();
+                        widget.onChanged('');
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+          ),
         ),
       ),
     );
@@ -1790,34 +2248,94 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final iconColor = isDark
+        ? Colors.white.withValues(alpha: 0.20)
+        : Colors.black.withValues(alpha: 0.20);
+    final subtitleColor =
+        isDark ? Colors.white.withValues(alpha: 0.45) : Colors.black54;
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.videocam_off_rounded,
-            size: 72,
-            color: Colors.grey.withValues(alpha: 0.35),
-          ),
+          Icon(Icons.videocam_off_rounded, size: 72, color: iconColor),
           const SizedBox(height: 16),
           Text(
             l.t('no_clips'),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            style: TextStyle(
+                fontSize: 20, fontWeight: FontWeight.w700, color: textColor),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 48),
             child: Text(
               l.t('no_clips_sub'),
-              style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.7),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: subtitleColor, fontSize: 14),
               textAlign: TextAlign.center,
             ),
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// CLIP CARD
+// ─────────────────────────────────────────────
+
+// ─────────────────────────────────────────────
+// THUMBNAIL BANNER — 16:9, Image.network + fallback icône
+// ─────────────────────────────────────────────
+
+class _ThumbnailBanner extends StatelessWidget {
+  final String? thumbUrl;
+  final SocialPlatform platform;
+
+  const _ThumbnailBanner({required this.thumbUrl, required this.platform});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: thumbUrl != null
+            ? Image.network(
+                thumbUrl!,
+                fit: BoxFit.cover,
+                // Loader
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return _fallback(shimmer: true);
+                },
+                // Erreur → icône plateforme
+                errorBuilder: (_, __, ___) => _fallback(),
+              )
+            : _fallback(),
+      ),
+    );
+  }
+
+  Widget _fallback({bool shimmer = false}) {
+    return Container(
+      color: platform.color.withValues(alpha: 0.12),
+      child: shimmer
+          ? const Center(
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          : Center(
+              child: Icon(
+                platform.icon,
+                color: platform.color.withValues(alpha: 0.6),
+                size: 48,
+              ),
+            ),
     );
   }
 }
@@ -1838,6 +2356,8 @@ class ClipCard extends StatelessWidget {
     final platform = SocialPlatform.detect(clip.url);
     final category = state.categoryById(clip.categoryId);
     final lang = Localizations.localeOf(context).languageCode;
+    final thumbUrl =
+        OEmbedService.bestThumbnailUrl(clip.url, clip.thumbnailUrl);
 
     return GlassCard(
       padding: EdgeInsets.zero,
@@ -1845,21 +2365,25 @@ class ClipCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Miniature 16:9 ──────────────────────────────────────────
+          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform),
+          // ── Infos principales ───────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Logo réseau social
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 36,
+                  height: 36,
                   decoration: BoxDecoration(
                     color: platform.color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(platform.icon, color: platform.color, size: 24),
+                  child: Icon(platform.icon, color: platform.color, size: 20),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1868,13 +2392,17 @@ class ClipCard extends StatelessWidget {
                         clip.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
-                          fontSize: 15,
-                          height: 1.3,
+                          fontSize: 14,
+                          height: 1.35,
+                          color: Theme.of(context).brightness ==
+                                  Brightness.dark
+                              ? Colors.white
+                              : Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 4),
                       Row(
                         children: [
                           Container(
@@ -1890,7 +2418,7 @@ class ClipCard extends StatelessWidget {
                             platform.name,
                             style: TextStyle(
                               color: platform.color,
-                              fontSize: 12,
+                              fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1899,7 +2427,7 @@ class ClipCard extends StatelessWidget {
                             DateFormat.yMMMd(lang).format(clip.addedAt),
                             style: TextStyle(
                               color: Colors.grey.withValues(alpha: 0.65),
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
@@ -1937,9 +2465,10 @@ class ClipCard extends StatelessWidget {
               ],
             ),
           ),
+          // ── Badges catégorie + tags ──────────────────────────────────
           if (clip.tags.isNotEmpty || category != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
               child: Wrap(
                 spacing: 6,
                 runSpacing: 6,
@@ -1956,7 +2485,9 @@ class ClipCard extends StatelessWidget {
                       )),
                 ],
               ),
-            ),
+            )
+          else
+            const SizedBox(height: 10),
         ],
       ),
     );
@@ -2124,16 +2655,59 @@ class _AddClipSheetState extends State<AddClipSheet> {
       if (fetchedTitle.isNotEmpty && _titleCtrl.text.isEmpty) {
         _titleCtrl.text = fetchedTitle;
       }
-      // 🤖 Auto-suggest a category from the fetched title (only if the user
-      // hasn't already picked one manually).
-      if (_selectedCategoryId == null && fetchedTitle.isNotEmpty) {
-        final suggested = CategoryClassifier.suggest(
-            fetchedTitle, widget.state.categories);
-        if (suggested != null) {
-          _selectedCategoryId = suggested;
-          _wasAutoSuggested = true;
-        }
-      }
+    });
+    if (fetchedTitle.isNotEmpty && _selectedCategoryId == null) {
+      await _proposeCategory(fetchedTitle);
+    }
+  }
+
+  /// Affiche la popup IA de confirmation de catégorie.
+  Future<void> _proposeCategory(String title) async {
+    final suggestion = CategoryClassifier.suggestDetailed(title);
+    final existingId = CategoryClassifier.matchExisting(
+        suggestion, widget.state.categories);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _CategorySuggestionDialog(
+        suggestion: suggestion,
+        hasExisting: existingId != null,
+      ),
+    );
+    if (!mounted) return;
+    if (confirmed == true) {
+      await _applySuggestion(suggestion, existingId);
+    }
+  }
+
+  Future<void> _applySuggestion(
+      CategorySuggestion s, String? existingId) async {
+    if (s.isUnclassified) {
+      setState(() {
+        _selectedCategoryId = null;
+        _wasAutoSuggested = false;
+      });
+      return;
+    }
+    if (existingId != null) {
+      setState(() {
+        _selectedCategoryId = existingId;
+        _wasAutoSuggested = true;
+      });
+      return;
+    }
+    // Nouvelle catégorie automatique → création à la volée.
+    final newCat = ClipCategory(
+      id: s.aiCategoryId,
+      name: s.name,
+      color: s.color,
+      icon: s.icon,
+    );
+    await widget.state.addCategory(newCat);
+    if (!mounted) return;
+    setState(() {
+      _selectedCategoryId = newCat.id;
+      _wasAutoSuggested = true;
     });
   }
 
@@ -2175,29 +2749,36 @@ class _AddClipSheetState extends State<AddClipSheet> {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final scheme = Theme.of(context).colorScheme;
-
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark
+        ? const Color(0xFF0A0A0F).withValues(alpha: 0.85)
+        : Colors.white.withValues(alpha: 0.97);
+    final borderTopColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.08);
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final handleColor = isDark
+        ? Colors.white.withValues(alpha: 0.25)
+        : Colors.black.withValues(alpha: 0.20);
+    final cancelFgColor = isDark ? Colors.white : Colors.black87;
+    final cancelBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.25)
+        : Colors.black.withValues(alpha: 0.25);
     return Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
           child: Container(
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withValues(alpha: 0.72)
-                  : Colors.white.withValues(alpha: 0.88),
+              color: sheetBg,
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border(
-                top: BorderSide(
-                  color: isDark
-                      ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.06),
-                ),
+                top: BorderSide(color: borderTopColor),
               ),
             ),
             child: SafeArea(
@@ -2212,22 +2793,23 @@ class _AddClipSheetState extends State<AddClipSheet> {
                         height: 4,
                         margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
-                          color: Colors.grey.withValues(alpha: 0.4),
+                          color: handleColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
                     Text(
                       l.t('add_clip'),
-                      style: const TextStyle(
-                          fontSize: 22, fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: titleColor),
                     ),
                     const SizedBox(height: 20),
                     _SheetField(
                       controller: _urlCtrl,
                       hint: l.t('paste_url'),
                       icon: Icons.link_rounded,
-                      isDark: isDark,
                       onChanged: _onUrlChanged,
                       prefixWidget: _detectedPlatform != null
                           ? Container(
@@ -2235,7 +2817,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                               padding: const EdgeInsets.all(5),
                               decoration: BoxDecoration(
                                 color: _detectedPlatform!.color
-                                    .withValues(alpha: 0.15),
+                                    .withValues(alpha: 0.20),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Icon(_detectedPlatform!.icon,
@@ -2250,7 +2832,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
                           controller: _titleCtrl,
                           hint: l.t('title'),
                           icon: Icons.title_rounded,
-                          isDark: isDark,
                         ),
                         if (_isFetchingTitle)
                           Positioned(
@@ -2270,14 +2851,15 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       controller: _tagsCtrl,
                       hint: l.t('tags'),
                       icon: Icons.tag_rounded,
-                      isDark: isDark,
                     ),
                     const SizedBox(height: 18),
                     Row(
                       children: [
                         Text(l.t('category'),
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w600, fontSize: 14)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 14,
+                                color: titleColor)),
                         if (_wasAutoSuggested) ...[
                           const SizedBox(width: 8),
                           Container(
@@ -2324,6 +2906,8 @@ class _AddClipSheetState extends State<AddClipSheet> {
                           child: OutlinedButton(
                             onPressed: () => Navigator.pop(context),
                             style: OutlinedButton.styleFrom(
+                              foregroundColor: cancelFgColor,
+                              side: BorderSide(color: cancelBorderColor),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 15),
                               shape: RoundedRectangleBorder(
@@ -2335,15 +2919,47 @@ class _AddClipSheetState extends State<AddClipSheet> {
                         const SizedBox(width: 12),
                         Expanded(
                           flex: 2,
-                          child: FilledButton(
-                            onPressed: _submit,
-                            style: FilledButton.styleFrom(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 15),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14)),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  Color(0xFF7C3AED),
+                                  Color(0xFF2563EB)
+                                ],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(0xFF7C3AED)
+                                      .withValues(alpha: 0.45),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
                             ),
-                            child: Text(l.t('add')),
+                            child: Material(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(14),
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(14),
+                                onTap: _submit,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      vertical: 15),
+                                  child: Center(
+                                    child: Text(
+                                      l.t('add'),
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 15),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -2359,11 +2975,195 @@ class _AddClipSheetState extends State<AddClipSheet> {
   }
 }
 
+/// Popup IA "On a détecté : 🍳 Food — confirmer ?"
+class _CategorySuggestionDialog extends StatelessWidget {
+  final CategorySuggestion suggestion;
+  final bool hasExisting;
+
+  const _CategorySuggestionDialog({
+    required this.suggestion,
+    required this.hasExisting,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final dialogBg = isDark
+        ? const Color(0xFF0A0A0F).withValues(alpha: 0.90)
+        : Colors.white.withValues(alpha: 0.97);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : Colors.black.withValues(alpha: 0.08);
+    final titleColor = isDark ? Colors.white : Colors.black87;
+    final subtitleColor =
+        isDark ? Colors.white.withValues(alpha: 0.60) : Colors.black54;
+    final suggestionTextColor = isDark ? Colors.white : Colors.black87;
+    final suggestionSubColor =
+        isDark ? Colors.white.withValues(alpha: 0.55) : Colors.black45;
+    final isUnclassified = suggestion.isUnclassified;
+    final subtitle = isUnclassified
+        ? 'Aucun mot-clé reconnu dans le titre.'
+        : (hasExisting
+            ? 'Ajouter à cette liste existante ?'
+            : 'Nouvelle liste à créer automatiquement.');
+    final cancelFgColor = isDark ? Colors.white : Colors.black87;
+    final cancelBorderColor = isDark
+        ? Colors.white.withValues(alpha: 0.25)
+        : Colors.black.withValues(alpha: 0.25);
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      shape:
+          RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            decoration: BoxDecoration(
+              color: dialogBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: borderColor),
+            ),
+            padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [
+                          Color(0xFF6C63FF),
+                          Color(0xFFFF6EC7),
+                        ]),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.auto_awesome_rounded,
+                          size: 14, color: Colors.white),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Détection automatique',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: titleColor),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'On a détecté :',
+                  style: TextStyle(fontSize: 13, color: subtitleColor),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: suggestion.color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                        color: suggestion.color.withValues(alpha: 0.40),
+                        width: 1.2),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(suggestion.icon,
+                          color: suggestion.color, size: 32),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              suggestion.name.toUpperCase(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 15,
+                                letterSpacing: 0.5,
+                                color: suggestionTextColor,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: suggestionSubColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: cancelFgColor,
+                          side: BorderSide(color: cancelBorderColor),
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Changer'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(colors: [
+                            Color(0xFF7C3AED),
+                            Color(0xFF2563EB)
+                          ]),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () => Navigator.pop(context, true),
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 13),
+                              child: Center(
+                                child: Text(
+                                  isUnclassified ? 'OK' : 'Confirmer',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _SheetField extends StatelessWidget {
   final TextEditingController controller;
   final String hint;
   final IconData icon;
-  final bool isDark;
   final ValueChanged<String>? onChanged;
   final Widget? prefixWidget;
 
@@ -2371,24 +3171,27 @@ class _SheetField extends StatelessWidget {
     required this.controller,
     required this.hint,
     required this.icon,
-    required this.isDark,
     this.onChanged,
     this.prefixWidget,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor =
+        isDark ? Colors.white.withValues(alpha: 0.07) : Colors.black.withValues(alpha: 0.05);
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.10) : Colors.black.withValues(alpha: 0.10);
+    final iconColor =
+        isDark ? Colors.white.withValues(alpha: 0.55) : Colors.black45;
+    final textColor = isDark ? Colors.white : Colors.black87;
+    final hintColor =
+        isDark ? Colors.white.withValues(alpha: 0.35) : Colors.black38;
     return Container(
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.07)
-            : Colors.black.withValues(alpha: 0.04),
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Row(
         children: [
@@ -2398,14 +3201,16 @@ class _SheetField extends StatelessWidget {
           ] else
             Padding(
               padding: const EdgeInsets.only(left: 14),
-              child: Icon(icon, size: 20, color: Colors.grey),
+              child: Icon(icon, size: 20, color: iconColor),
             ),
           Expanded(
             child: TextField(
               controller: controller,
               onChanged: onChanged,
+              style: TextStyle(color: textColor),
               decoration: InputDecoration(
                 hintText: hint,
+                hintStyle: TextStyle(color: hintColor),
                 border: InputBorder.none,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
@@ -2526,15 +3331,23 @@ class CategoriesScreen extends StatelessWidget {
             backgroundColor: Colors.transparent,
             elevation: 0,
             title: Text(
-              l.t('categories'),
-              style: const TextStyle(
-                  fontWeight: FontWeight.w900,
+              'Catégories',
+              style: TextStyle(
+                  fontWeight: FontWeight.w700,
                   fontSize: 26,
-                  letterSpacing: -0.5),
+                  letterSpacing: -0.5,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87),
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.add_rounded),
+                icon: Icon(
+                  Icons.add_rounded,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black87,
+                ),
                 onPressed: () => _showAddDialog(context),
               ),
               const SizedBox(width: 8),
@@ -2546,7 +3359,10 @@ class CategoriesScreen extends StatelessWidget {
                 child: Text(
                   l.t('no_category'),
                   style: TextStyle(
-                      color: Colors.grey.withValues(alpha: 0.5), fontSize: 16),
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white.withValues(alpha: 0.35)
+                          : Colors.black38,
+                      fontSize: 16),
                 ),
               ),
             )
@@ -2566,7 +3382,7 @@ class CategoriesScreen extends StatelessWidget {
                               width: 46,
                               height: 46,
                               decoration: BoxDecoration(
-                                color: cat.color.withValues(alpha: 0.15),
+                                color: cat.color.withValues(alpha: 0.18),
                                 borderRadius: BorderRadius.circular(13),
                               ),
                               child: Icon(cat.icon,
@@ -2576,14 +3392,18 @@ class CategoriesScreen extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 cat.name,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 16),
+                                    fontSize: 16,
+                                    color: Theme.of(ctx).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black87),
                               ),
                             ),
                             IconButton(
-                              icon:
-                                  const Icon(Icons.delete_outline_rounded),
+                              icon: const Icon(
+                                  Icons.delete_outline_rounded),
                               color: Colors.red.withValues(alpha: 0.75),
                               onPressed: () =>
                                   _confirmDelete(context, cat.id, l),
@@ -2803,12 +3623,319 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
 // SETTINGS SCREEN
 // ─────────────────────────────────────────────
 
-class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+class SettingsScreen extends StatefulWidget {
+  final ClipsState state;
+
+  const SettingsScreen({super.key, required this.state});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _appVersion = '—';
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) {
+        setState(
+            () => _appVersion = '${info.version} (${info.buildNumber})');
+      }
+    }).catchError((_) {
+      if (mounted) setState(() => _appVersion = '1.0.0');
+    });
+  }
+
+  // ─── Section header ─────────────────────────────────────
+  Widget _sectionHeader(String title) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 0, 0, 8),
+        child: Text(
+          title.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white.withValues(alpha: 0.40)
+                : Colors.black45,
+          ),
+        ),
+      );
+
+  // ─── Glass group (multiple tiles) ───────────────────────
+  Widget _glassGroup(List<Widget> tiles) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+                ? Colors.white.withValues(alpha: 0.06)
+                : Colors.white.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isDark
+                  ? Colors.white.withValues(alpha: 0.09)
+                  : Colors.black.withValues(alpha: 0.07),
+            ),
+            boxShadow: isDark
+                ? []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (int i = 0; i < tiles.length; i++) ...[
+                tiles[i],
+                if (i < tiles.length - 1)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 58),
+                    child: Divider(
+                      height: 1,
+                      color: isDark
+                          ? Colors.white.withValues(alpha: 0.07)
+                          : Colors.black.withValues(alpha: 0.06),
+                    ),
+                  ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Single tile row ────────────────────────────────────
+  Widget _tile({
+    required IconData icon,
+    Color? iconColor,
+    required String label,
+    String? value,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: (iconColor ?? AppTheme.accentPurple)
+                      .withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon,
+                    size: 17,
+                    color: iconColor ?? AppTheme.accentPurple),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black87,
+                  ),
+                ),
+              ),
+              if (value != null) ...[
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: 0.45)
+                        : Colors.black45,
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
+              if (trailing != null)
+                trailing
+              else if (onTap != null)
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.30)
+                      : Colors.black26,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── Helpers ────────────────────────────────────────────
+  String _themeName(ThemeMode mode) => switch (mode) {
+        ThemeMode.light => 'Clair',
+        ThemeMode.dark => 'Sombre',
+        ThemeMode.system => 'Auto',
+      };
+
+  String _localeName(Locale? locale) => switch (locale?.languageCode) {
+        'fr' => 'Français',
+        'en' => 'English',
+        'es' => 'Español',
+        'de' => 'Deutsch',
+        'it' => 'Italiano',
+        'pt' => 'Português',
+        _ => 'Auto',
+      };
+
+  void _showLanguagePicker(
+      BuildContext ctx, _ClipsAppState appState) {
+    final opts = <(Locale?, String)>[
+      (null, 'Auto (système)'),
+      (const Locale('fr'), 'Français'),
+      (const Locale('en'), 'English'),
+      (const Locale('es'), 'Español'),
+      (const Locale('de'), 'Deutsch'),
+      (const Locale('it'), 'Italiano'),
+      (const Locale('pt'), 'Português'),
+    ];
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ClipRRect(
+        borderRadius:
+            const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+          child: Builder(
+            builder: (innerCtx) {
+              final isDark =
+                  Theme.of(innerCtx).brightness == Brightness.dark;
+              final sheetBg = isDark
+                  ? const Color(0xFF120828).withValues(alpha: 0.97)
+                  : Colors.white.withValues(alpha: 0.97);
+              final borderColor = isDark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : Colors.black.withValues(alpha: 0.08);
+              final handleColor = isDark
+                  ? Colors.white.withValues(alpha: 0.20)
+                  : Colors.black.withValues(alpha: 0.15);
+              final textColor = isDark ? Colors.white : Colors.black87;
+              final unselectedTextColor =
+                  isDark ? Colors.white.withValues(alpha: 0.60) : Colors.black54;
+              final unselectedIconColor =
+                  isDark ? Colors.white.withValues(alpha: 0.60) : Colors.black45;
+              return Container(
+                decoration: BoxDecoration(
+                  color: sheetBg,
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(24)),
+                  border: Border.all(color: borderColor),
+                ),
+                child: SafeArea(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: handleColor,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ...opts.map((o) {
+                        final (loc, name) = o;
+                        final selected = appState.locale?.languageCode ==
+                            loc?.languageCode;
+                        return ListTile(
+                          leading: Icon(
+                            loc == null
+                                ? Icons.phone_android_rounded
+                                : Icons.language_rounded,
+                            color: selected
+                                ? AppTheme.accentPurple
+                                : unselectedIconColor,
+                          ),
+                          title: Text(
+                            name,
+                            style: TextStyle(
+                              color: selected
+                                  ? AppTheme.accentPurple
+                                  : textColor,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                          trailing: selected
+                              ? const Icon(Icons.check_rounded,
+                                  color: AppTheme.accentPurple)
+                              : null,
+                          onTap: () {
+                            appState.setLocale(loc);
+                            Navigator.pop(ctx);
+                          },
+                        );
+                      }),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportData(BuildContext ctx) async {
+    final clips = widget.state.allClips;
+    final jsonStr = const JsonEncoder.withIndent('  ')
+        .convert(clips.map((c) => c.toMap()).toList());
+    await Share.share(jsonStr, subject: 'Savid Export');
+  }
+
+  void _clearCache(BuildContext ctx) {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      const SnackBar(
+        content: Text('Cache des miniatures vidé ✓'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _launchUri(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final l = AppL10n.of(context);
     final appState = ClipsApp.of(context)!;
 
     return CustomScrollView(
@@ -2818,73 +3945,213 @@ class SettingsScreen extends StatelessWidget {
           backgroundColor: Colors.transparent,
           elevation: 0,
           title: Text(
-            l.t('settings'),
-            style: const TextStyle(
-                fontWeight: FontWeight.w900,
+            'Paramètres',
+            style: TextStyle(
+                fontWeight: FontWeight.w700,
                 fontSize: 26,
-                letterSpacing: -0.5),
+                letterSpacing: -0.5,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Colors.black87),
           ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l.t('theme'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 16)),
-                    const SizedBox(height: 14),
-                    SegmentedButton<ThemeMode>(
-                      segments: [
-                        ButtonSegment(
-                            value: ThemeMode.system,
-                            label: Text(l.t('system')),
-                            icon: const Icon(Icons.brightness_auto_rounded)),
-                        ButtonSegment(
-                            value: ThemeMode.light,
-                            label: Text(l.t('light')),
-                            icon: const Icon(Icons.light_mode_rounded)),
-                        ButtonSegment(
-                            value: ThemeMode.dark,
-                            label: Text(l.t('dark')),
-                            icon: const Icon(Icons.dark_mode_rounded)),
-                      ],
-                      selected: {appState.themeMode},
-                      onSelectionChanged: (s) =>
-                          appState.setThemeMode(s.first),
-                    ),
-                  ],
+              // ══ APPARENCE ══════════════════════════════════
+              _sectionHeader('Apparence'),
+              _glassGroup([
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 32,
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: AppTheme.accentPurple
+                                  .withValues(alpha: 0.20),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                                Icons.brightness_6_rounded,
+                                size: 17,
+                                color: AppTheme.accentPurple),
+                          ),
+                          const SizedBox(width: 14),
+                          const Text('Thème',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                              )),
+                          const Spacer(),
+                          Text(
+                            _themeName(appState.themeMode),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color:
+                                  Theme.of(context).brightness == Brightness.dark
+                                      ? Colors.white.withValues(alpha: 0.45)
+                                      : Colors.black45,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      ValueListenableBuilder<ThemeMode>(
+                        valueListenable: appState.themeModeNotifier,
+                        builder: (context, currentMode, _) =>
+                            SizedBox(
+                          width: double.infinity,
+                          child: SegmentedButton<ThemeMode>(
+                            segments: const [
+                              ButtonSegment(
+                                  value: ThemeMode.light,
+                                  label: Text('Clair',
+                                      style: TextStyle(fontSize: 13))),
+                              ButtonSegment(
+                                  value: ThemeMode.dark,
+                                  label: Text('Sombre',
+                                      style: TextStyle(fontSize: 13))),
+                              ButtonSegment(
+                                  value: ThemeMode.system,
+                                  label: Text('Auto',
+                                      style: TextStyle(fontSize: 13))),
+                            ],
+                            selected: {currentMode},
+                            onSelectionChanged: (s) =>
+                                appState.setThemeMode(s.first),
+                            style: SegmentedButton.styleFrom(
+                              backgroundColor: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white.withValues(alpha: 0.07)
+                                  : Colors.black.withValues(alpha: 0.05),
+                              selectedBackgroundColor: AppTheme.accentPurple,
+                              selectedForegroundColor: Colors.white,
+                              foregroundColor: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white.withValues(alpha: 0.70)
+                                  : Colors.black54,
+                              side: BorderSide(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white.withValues(alpha: 0.12)
+                                    : Colors.black.withValues(alpha: 0.12),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              GlassCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(l.t('language'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 16)),
-                    const SizedBox(height: 14),
-                    SegmentedButton<Locale>(
-                      segments: const [
-                        ButtonSegment(
-                            value: Locale('fr'),
-                            label: Text('Français'),
-                            icon: Icon(Icons.language_rounded)),
-                        ButtonSegment(
-                            value: Locale('en'),
-                            label: Text('English'),
-                            icon: Icon(Icons.language_rounded)),
-                      ],
-                      selected: {appState.locale},
-                      onSelectionChanged: (s) => appState.setLocale(s.first),
-                    ),
-                  ],
+              ]),
+              const SizedBox(height: 24),
+
+              // ══ LANGUE ══════════════════════════════════════
+              _sectionHeader('Langue'),
+              _glassGroup([
+                _tile(
+                  icon: Icons.language_rounded,
+                  iconColor: const Color(0xFF4ECDC4),
+                  label: 'Langue de l\'app',
+                  value: _localeName(appState.locale),
+                  onTap: () => _showLanguagePicker(context, appState),
                 ),
-              ),
+              ]),
+              const SizedBox(height: 24),
+
+              // ══ NOTIFICATIONS ════════════════════════════════
+              _sectionHeader('Notifications'),
+              _glassGroup([
+                _tile(
+                  icon: Icons.notifications_outlined,
+                  iconColor: const Color(0xFFFFE66D),
+                  label: 'Rappels',
+                  trailing: Switch.adaptive(
+                    value: appState.notifications,
+                    activeColor: AppTheme.accentPurple,
+                    onChanged: (v) => appState.setNotifications(v),
+                  ),
+                ),
+              ]),
+              const SizedBox(height: 24),
+
+              // ══ MES DONNÉES ══════════════════════════════════
+              _sectionHeader('Mes données'),
+              _glassGroup([
+                _tile(
+                  icon: Icons.download_rounded,
+                  iconColor: const Color(0xFF4ECDC4),
+                  label: 'Exporter mes vidéos',
+                  onTap: () => _exportData(context),
+                ),
+                _tile(
+                  icon: Icons.image_not_supported_outlined,
+                  iconColor: const Color(0xFFFF8B94),
+                  label: 'Vider le cache miniatures',
+                  onTap: () => _clearCache(context),
+                ),
+              ]),
+              const SizedBox(height: 24),
+
+              // ══ LÉGAL ════════════════════════════════════════
+              _sectionHeader('Légal'),
+              _glassGroup([
+                _tile(
+                  icon: Icons.shield_outlined,
+                  iconColor: const Color(0xFF74B9FF),
+                  label: 'Politique de confidentialité',
+                  onTap: () =>
+                      _launchUri('https://example.com/savid/privacy'),
+                ),
+                _tile(
+                  icon: Icons.description_outlined,
+                  iconColor: const Color(0xFF74B9FF),
+                  label: 'Conditions d\'utilisation',
+                  onTap: () =>
+                      _launchUri('https://example.com/savid/terms'),
+                ),
+                _tile(
+                  icon: Icons.mail_outline_rounded,
+                  iconColor: const Color(0xFFA8E6CF),
+                  label: 'Contact / Support',
+                  onTap: () => _launchUri('mailto:support@savid.app'),
+                ),
+              ]),
+              const SizedBox(height: 24),
+
+              // ══ À PROPOS ══════════════════════════════════════
+              _sectionHeader('À propos'),
+              _glassGroup([
+                _tile(
+                  icon: Icons.info_outline_rounded,
+                  iconColor: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white.withValues(alpha: 0.45)
+                      : Colors.black45,
+                  label: 'Version',
+                  value: _appVersion,
+                ),
+                _tile(
+                  icon: Icons.star_border_rounded,
+                  iconColor: const Color(0xFFFFE66D),
+                  label: 'Noter l\'app',
+                  onTap: () => _launchUri(
+                      'https://apps.apple.com/app/id000000000'),
+                ),
+                _tile(
+                  icon: Icons.ios_share_rounded,
+                  iconColor: const Color(0xFFC77DFF),
+                  label: 'Partager avec un ami',
+                  onTap: () => Share.share(
+                    'Découvrez Savid, l\'app pour sauvegarder tes vidéos préférées ! 🎬',
+                  ),
+                ),
+              ]),
             ]),
           ),
         ),
