@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -36,6 +37,7 @@ class ClipsAppState extends State<ClipsApp> {
   bool _prefsLoaded = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
+  StreamSubscription<Uri>? _deepLinkSub;
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
@@ -57,6 +59,7 @@ class ClipsAppState extends State<ClipsApp> {
     super.initState();
     _loadPrefs();
     _initShareIntent();
+    _initDeepLinks();
   }
 
   Future<void> _loadPrefs() async {
@@ -77,6 +80,34 @@ class ClipsAppState extends State<ClipsApp> {
       if (lang != null) {
         _locale = Locale(lang);
       }
+    });
+  }
+
+  void _initDeepLinks() {
+    if (kIsWeb) return;
+    final appLinks = AppLinks();
+    // Cold start : URI qui a lancé l'app
+    appLinks.getInitialLink().then((uri) {
+      if (uri != null) _handleDeepLink(uri);
+    });
+    // App déjà en cours d'exécution
+    _deepLinkSub = appLinks.uriLinkStream.listen(_handleDeepLink);
+  }
+
+  void _handleDeepLink(Uri uri) {
+    if (uri.scheme != 'reelr' || uri.host != 'add') return;
+    final encoded = uri.queryParameters['url'];
+    if (encoded == null || encoded.isEmpty) return;
+    final url = Uri.decodeComponent(encoded);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx == null) return;
+      showModalBottomSheet(
+        context: ctx,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (_) => AddClipSheet(state: widget.state, initialUrl: url),
+      );
     });
   }
 
@@ -127,6 +158,7 @@ class ClipsAppState extends State<ClipsApp> {
   @override
   void dispose() {
     _shareSub?.cancel();
+    _deepLinkSub?.cancel();
     super.dispose();
   }
 

@@ -15,91 +15,10 @@ import '../services/classifier.dart';
 import '../services/database.dart';
 import '../services/oembed.dart';
 import '../state/clips_state.dart';
+import '../widgets/background.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/main_shell.dart';
-
-// Copie locale — _GradientBackground est privé dans main.dart
-// (aussi utilisé par _MainShellState qui reste dans main.dart)
-class _GradientBackground extends StatelessWidget {
-  final bool isDark;
-
-  const _GradientBackground({required this.isDark});
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned.fill(
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? const [
-                    Color(0xFF0E1F23),
-                    Color(0xFF153036),
-                    Color(0xFF1F4248),
-                  ]
-                : const [
-                    Colors.white,
-                    Color(0xFFFFF6EC),
-                    Colors.white,
-                  ],
-          ),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -120,
-              right: -80,
-              child: _Orb(
-                size: 360,
-                color: AppTheme.orange
-                    .withValues(alpha: isDark ? 0.28 : 0.35),
-              ),
-            ),
-            Positioned(
-              top: 220,
-              left: -120,
-              child: _Orb(
-                size: 300,
-                color: AppTheme.orange
-                    .withValues(alpha: isDark ? 0.18 : 0.22),
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              right: -60,
-              child: _Orb(
-                size: 280,
-                color: AppTheme.darkGreen
-                    .withValues(alpha: isDark ? 0.4 : 0.08),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _Orb extends StatelessWidget {
-  final double size;
-  final Color color;
-
-  const _Orb({required this.size, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(colors: [color, Colors.transparent]),
-      ),
-    );
-  }
-}
+import '../widgets/sheet_field.dart';
 
 // ─────────────────────────────────────────────
 // HOME SCREEN
@@ -145,7 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     '${widget.state.totalCount} vidéo${widget.state.totalCount > 1 ? 's' : ''} sauvegardée${widget.state.totalCount > 1 ? 's' : ''}',
                     style: TextStyle(
                       fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.45),
+                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -229,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
                       final cat = widget.state.categories[i - 1];
-                      final _catClips =
+                      final catClips =
                           widget.state.clipsForCategory(cat.id);
                       return _CategoryTile(
                         name: cat.name,
@@ -238,9 +157,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         count: widget.state.countForCategory(cat.id),
                         onTap: () =>
                             _openCategory(context, cat.id, cat.name),
-                        thumbnailUrl: _catClips.isEmpty
+                        thumbnailUrl: catClips.isEmpty
                             ? null
-                            : _catClips.last.thumbnailUrl
+                            : catClips.last.thumbnailUrl
                                 ?.replaceAll('hqdefault.jpg', 'mqdefault.jpg')
                                 .replaceAll('sddefault.jpg', 'mqdefault.jpg'),
                       );
@@ -366,9 +285,8 @@ class _CategoryTileState extends State<_CategoryTile> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOut,
-          transform: Matrix4.identity()
-            ..translate(0.0, _hover ? -4.0 : 0.0)
-            ..scale(_hover ? 1.03 : 1.0),
+          transform: Matrix4.translationValues(0.0, _hover ? -4.0 : 0.0, 0.0)
+            ..scaleByDouble(_hover ? 1.03 : 1.0, _hover ? 1.03 : 1.0, 1.0, 1.0),
           transformAlignment: Alignment.center,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -718,7 +636,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           ),
           body: Stack(
             children: [
-              _GradientBackground(isDark: isDark),
+              GradientBackground(isDark: isDark),
               Column(
                 children: [
                   SizedBox(height: topPad),
@@ -873,7 +791,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                             right: 20),
                                         decoration: BoxDecoration(
                                           color: Colors.red
-                                              .withOpacity(0.8),
+                                              .withValues(alpha: 0.8),
                                           borderRadius:
                                               BorderRadius.circular(
                                                   16),
@@ -1371,79 +1289,6 @@ class _SuggestionsList extends StatelessWidget {
   }
 }
 
-class _CategoryFilter extends StatelessWidget {
-  final ClipsState state;
-  final AppL10n l;
-
-  const _CategoryFilter({required this.state, required this.l});
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return SizedBox(
-      height: 38,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          _Chip(
-            label: l.t('all'),
-            color: primary,
-            selected: state.selectedCategoryId == null,
-            onTap: () => state.setCategory(null),
-          ),
-          ...state.categories.map((cat) => Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: _Chip(
-                  label: cat.name,
-                  color: cat.color,
-                  selected: state.selectedCategoryId == cat.id,
-                  onTap: () => state.setCategory(cat.id),
-                ),
-              )),
-        ],
-      ),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Chip({
-    required this.label,
-    required this.color,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? color : color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? Colors.white : color,
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _EmptyState extends StatelessWidget {
   final AppL10n l;
 
@@ -1513,7 +1358,7 @@ class _ThumbnailBanner extends StatelessWidget {
                   return _fallback(shimmer: true);
                 },
                 // Erreur → icône plateforme
-                errorBuilder: (_, __, ___) => _fallback(),
+                errorBuilder: (_, __, ___) => _fallback(), // ignore: unnecessary_underscores
               )
             : _fallback(),
       ),
@@ -1897,7 +1742,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
     }
     final existingId = CategoryClassifier.matchExisting(
         suggestion, widget.state.categories);
-    final confirmed = await showDialog<bool>(
+    final result = await showDialog<Object?>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _CategorySuggestionDialog(
@@ -1906,8 +1751,23 @@ class _AddClipSheetState extends State<AddClipSheet> {
       ),
     );
     if (!mounted) return;
-    if (confirmed == true) {
+    if (result == true) {
       await _applySuggestion(suggestion, existingId);
+      if (mounted) await _submit();
+    } else if (result is String && result.isNotEmpty) {
+      final newCat = ClipCategory(
+        id: const Uuid().v4(),
+        name: result,
+        color: const Color(0xFF7C3AED),
+        icon: Icons.folder_outlined,
+      );
+      await widget.state.addCategory(newCat);
+      if (!mounted) return;
+      setState(() {
+        _selectedCategoryId = newCat.id;
+        _wasAutoSuggested = false;
+      });
+      if (mounted) await _submit();
     }
   }
 
@@ -1986,7 +1846,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
       title: _titleCtrl.text.trim().isEmpty
           ? l.t('no_title')
           : _titleCtrl.text.trim(),
-      platform: SocialPlatform.detect(url).id,
+      platform: (_detectedPlatform ?? SocialPlatform.detect(url)).id,
       categoryId: categoryId,
       tags: tags,
       addedAt: DateTime.now(),
@@ -2056,7 +1916,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    _SheetField(
+                    SheetField(
                       controller: _urlCtrl,
                       hint: l.t('paste_url'),
                       icon: Icons.link_rounded,
@@ -2097,7 +1957,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       const SizedBox(height: 10),
                     Stack(
                       children: [
-                        _SheetField(
+                        SheetField(
                           controller: _titleCtrl,
                           hint: l.t('title'),
                           icon: Icons.title_rounded,
@@ -2117,7 +1977,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    _SheetField(
+                    SheetField(
                       controller: _tagsCtrl,
                       hint: l.t('tags'),
                       icon: Icons.tag_rounded,
@@ -2164,9 +2024,9 @@ class _AddClipSheetState extends State<AddClipSheet> {
                     ),
                     const SizedBox(height: 10),
                     if (_showNewCategoryField)
-                      _SheetField(
+                      SheetField(
                         controller: _newCategoryCtrl,
-                        hint: 'Ex: Cuisine, Voyage, Sport...',
+                        hint: 'Dans quelle catégorie ?',
                         icon: Icons.folder_outlined,
                         isDark: isDark,
                       )
@@ -2206,7 +2066,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(14)),
                             ),
-                            child: Text(l.t('add')),
+                            child: Text(_showNewCategoryField ? 'Créer' : l.t('add')),
                           ),
                         ),
                       ],
@@ -2222,8 +2082,8 @@ class _AddClipSheetState extends State<AddClipSheet> {
   }
 }
 
-/// Popup IA "On a détecté : 🍳 Food — confirmer ?"
-class _CategorySuggestionDialog extends StatelessWidget {
+
+class _CategorySuggestionDialog extends StatefulWidget {
   final CategorySuggestion suggestion;
   final bool hasExisting;
 
@@ -2233,181 +2093,125 @@ class _CategorySuggestionDialog extends StatelessWidget {
   });
 
   @override
+  State<_CategorySuggestionDialog> createState() =>
+      _CategorySuggestionDialogState();
+}
+
+class _CategorySuggestionDialogState
+    extends State<_CategorySuggestionDialog> {
+  bool _showCustom = false;
+  final _customCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _customCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isUnclassified = suggestion.isUnclassified;
-    final subtitle = isUnclassified
-        ? 'Aucun mot-clé reconnu dans le titre.'
-        : (hasExisting
-            ? 'Ajouter à cette liste existante ?'
-            : 'Nouvelle liste à créer automatiquement.');
+    final s = widget.suggestion;
     return Dialog(
-      backgroundColor: Colors.white,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [
-                      Color(0xFF6C63FF),
-                      Color(0xFFFF6EC7),
-                    ]),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.auto_awesome_rounded,
-                      size: 14, color: Colors.white),
-                ),
-                const SizedBox(width: 8),
-                const Text(
-                  'Détection automatique',
-                  style:
-                      TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'On a détecté :',
-              style: TextStyle(fontSize: 13, color: Colors.black54),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              decoration: BoxDecoration(
-                color: suggestion.color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                    color: suggestion.color.withValues(alpha: 0.45),
-                    width: 1.2),
+            if (!_showCustom) ...[  
+              Icon(s.icon, size: 40, color: s.color),
+              const SizedBox(height: 12),
+              Text(
+                s.name,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w800),
               ),
-              child: Row(
+              const SizedBox(height: 6),
+              Text(
+                'Cette vidéo ressemble à du ${s.name}',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: s.color,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: Text('Ajouter dans ${s.name}'),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => setState(() => _showCustom = true),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                  child: const Text('Autre catégorie'),
+                ),
+              ),
+            ] else ...[  
+              TextField(
+                controller: _customCtrl,
+                autofocus: true,
+                decoration: InputDecoration(
+                  hintText: 'Nom de la catégorie...',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 12),
+                ),
+                onSubmitted: (v) {
+                  final name = v.trim();
+                  if (name.isNotEmpty) Navigator.pop(context, name);
+                },
+              ),
+              const SizedBox(height: 12),
+              Row(
                 children: [
-                  Icon(suggestion.icon, size: 32, color: suggestion.color),
-                  const SizedBox(width: 14),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          suggestion.name.toUpperCase(),
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
-                            fontSize: 15,
-                            letterSpacing: 0.5,
-                            color: Color(0xFF153036),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black.withValues(alpha: 0.6),
-                          ),
-                        ),
-                      ],
+                    child: OutlinedButton(
+                      onPressed: () => setState(() {
+                        _showCustom = false;
+                        _customCtrl.clear();
+                      }),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Annuler'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        final name = _customCtrl.text.trim();
+                        if (name.isNotEmpty) Navigator.pop(context, name);
+                      },
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 13),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Créer'),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Changer'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: Text(isUnclassified ? 'OK' : 'Confirmer'),
-                  ),
-                ),
-              ],
-            ),
+            ],
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _SheetField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool isDark;
-  final ValueChanged<String>? onChanged;
-  final Widget? prefixWidget;
-
-  const _SheetField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.isDark,
-    this.onChanged,
-    this.prefixWidget,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.07)
-            : Colors.black.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          if (prefixWidget != null) ...[
-            const SizedBox(width: 12),
-            prefixWidget!,
-          ] else
-            Padding(
-              padding: const EdgeInsets.only(left: 14),
-              child: Icon(icon, size: 20, color: Colors.grey),
-            ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -2608,14 +2412,14 @@ class _EditClipSheetState extends State<EditClipSheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    _SheetField(
+                    SheetField(
                       controller: _titleCtrl,
                       hint: l.t('title'),
                       icon: Icons.title_rounded,
                       isDark: isDark,
                     ),
                     const SizedBox(height: 10),
-                    _SheetField(
+                    SheetField(
                       controller: _tagsCtrl,
                       hint: l.t('tags'),
                       icon: Icons.tag_rounded,

@@ -7,6 +7,7 @@ import '../core/l10n.dart';
 import '../models/category.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/sheet_field.dart';
 
 // ─────────────────────────────────────────────
 // EDIT CATEGORY SHEET
@@ -135,7 +136,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    _SheetField(
+                    SheetField(
                       controller: _nameCtrl,
                       hint: l.t('category_name'),
                       icon: Icons.label_rounded,
@@ -374,13 +375,6 @@ class CategoriesScreen extends StatelessWidget {
     );
   }
 
-  void _showAddDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => AddCategoryDialog(state: state),
-    );
-  }
-
   void _showEditSheet(BuildContext context, ClipCategory cat) {
     showModalBottomSheet(
       context: context,
@@ -580,62 +574,3 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   }
 }
 
-// Widget de champ texte stylisé (copie locale — _SheetField est privé dans main.dart)
-class _SheetField extends StatelessWidget {
-  final TextEditingController controller;
-  final String hint;
-  final IconData icon;
-  final bool isDark;
-  final ValueChanged<String>? onChanged;
-  final Widget? prefixWidget;
-
-  const _SheetField({
-    required this.controller,
-    required this.hint,
-    required this.icon,
-    required this.isDark,
-    this.onChanged,
-    this.prefixWidget,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.07)
-            : Colors.black.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isDark
-              ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          if (prefixWidget != null) ...[
-            const SizedBox(width: 12),
-            prefixWidget!,
-          ] else
-            Padding(
-              padding: const EdgeInsets.only(left: 14),
-              child: Icon(icon, size: 20, color: Colors.grey),
-            ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              decoration: InputDecoration(
-                hintText: hint,
-                border: InputBorder.none,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

@@ -24,6 +24,7 @@ class ClipCategory {
         id: map['id'] as String,
         name: map['name'] as String,
         color: Color(map['color'] as int),
+        // ignore: non_const_argument_for_const_parameter
         icon: IconData(map['icon'] as int, fontFamily: 'MaterialIcons'),
       );
 }

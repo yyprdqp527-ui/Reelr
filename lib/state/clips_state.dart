@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../models/category.dart';
@@ -38,6 +37,7 @@ class SubCategory {
         name: map['name'] as String,
         categoryId: map['categoryId'] as String,
         color: Color(map['color'] as int),
+        // ignore: non_const_argument_for_const_parameter
         icon: IconData(map['icon'] as int, fontFamily: 'MaterialIcons'),
       );
 }
@@ -50,20 +50,14 @@ class ClipsState extends ChangeNotifier {
   List<SubCategory> _subcategories = [];
   Map<String, String> _clipSubcategoryMap = {};
   String _searchQuery = '';
-  String? _selectedCategoryId;
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
-  String? get selectedCategoryId => _selectedCategoryId;
   List<ClipCategory> get categories => _categories;
 
   List<Clip> get clips {
     var result = _clips;
-    if (_selectedCategoryId != null) {
-      result =
-          result.where((c) => c.categoryId == _selectedCategoryId).toList();
-    }
     if (_searchQuery.isNotEmpty) {
       final q = _searchQuery.toLowerCase();
       result = result
@@ -103,11 +97,6 @@ class ClipsState extends ChangeNotifier {
 
   void setSearch(String query) {
     _searchQuery = query;
-    notifyListeners();
-  }
-
-  void setCategory(String? id) {
-    _selectedCategoryId = id;
     notifyListeners();
   }
 

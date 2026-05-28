@@ -41,7 +41,6 @@ class AppTheme {
         secondary: blue,
         surface: isDark ? surface : const Color(0xFFEEECFF),
         onSurface: textPrimary,
-        onBackground: isDark ? Colors.white : const Color(0xFF1A1A2E),
         onPrimary: Colors.white,
         onSecondary: Colors.white,
       ),

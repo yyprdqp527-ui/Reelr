@@ -35,7 +35,7 @@ class CategoryClassifier {
   /// Mots-clés (FR + EN) par bucket de suggestion.
   static const Map<String, List<String>> _keywords = {
     'food': [
-      'recette', 'recettes', 'recipe', 'recipes', 'cuisine', 'cuisiner',
+      'recettes', 'recipe', 'recipes', 'cuisiner',
       'cooking', 'cook', 'food', 'meal', 'dish', 'chef', 'restaurant',
       'repas', 'plat', 'manger', 'boire', 'vin', 'wine', 'cocktail',
       'boulangerie', 'pâtisserie', 'patisserie', 'dessert', 'gâteau',
@@ -148,6 +148,15 @@ class CategoryClassifier {
       'docteur', 'doctor', 'hôpital', 'hopital', 'hospital',
       'nutrition', 'diète', 'diete', 'diet', 'vitamine',
     ],
+    'science': [
+      'astro', 'astronomie', 'espace', 'planète', 'planete', 'étoile',
+      'etoile', 'cosmos', 'nasa', 'science', 'univers', 'galaxie',
+      'comète', 'comete', 'météorite', 'meteorite',
+      'astronomy', 'space', 'planet', 'star', 'universe', 'galaxy', 'comet',
+      'trou noir', 'black hole', 'big bang', 'telescope', 'télescope',
+      'hubble', 'james webb', 'mars', 'jupiter', 'saturne',
+      'exoplanète', 'exoplanete', 'supernova', 'nébuleuse', 'nebuleuse',
+    ],
   };
 
   static const Map<String, CategorySuggestion> _suggestions = {
@@ -247,6 +256,29 @@ class CategoryClassifier {
       color: Color(0xFFFF6B6B),
       icon: Icons.favorite_border,
     ),
+    'science': CategorySuggestion(
+      key: 'science', name: 'Science',
+      color: Color(0xFF4ECDC4),
+      icon: Icons.science_outlined,
+    ),
+  };
+
+  /// Poids par mot-clé (défaut : 1 si absent).
+  /// Permet aux buckets spécialisés de l'emporter sur les buckets génériques
+  /// lorsque le titre est ambigu (ex. "NASA" dans un titre tech vs. science).
+  static const Map<String, int> _weights = {
+    // Science — très spécifiques, poids 3
+    'astro': 3, 'astronomie': 3, 'nasa': 3,
+    'galaxie': 3, 'galaxy': 3, 'cosmos': 3,
+    'trou noir': 3, 'black hole': 3, 'big bang': 3,
+    'telescope': 3, 'télescope': 3, 'hubble': 3, 'james webb': 3,
+    'mars': 3, 'jupiter': 3, 'saturne': 3,
+    'exoplanète': 3, 'exoplanete': 3,
+    'supernova': 3, 'nébuleuse': 3, 'nebuleuse': 3,
+    // Science — spécifiques, poids 2
+    'planète': 2, 'planete': 2, 'étoile': 2, 'etoile': 2,
+    'comète': 2, 'comete': 2, 'météorite': 2, 'meteorite': 2,
+    'astronomy': 2, 'universe': 2, 'comet': 2,
   };
 
   /// Renvoie la meilleure suggestion pour [title] ou `unclassified`.
@@ -257,7 +289,7 @@ class CategoryClassifier {
     _keywords.forEach((key, kws) {
       int s = 0;
       for (final kw in kws) {
-        if (lower.contains(kw)) s++;
+        if (lower.contains(kw)) s += _weights[kw] ?? 1;
       }
       if (s > 0) scores[key] = s;
     });
@@ -271,18 +303,23 @@ class CategoryClassifier {
   static String? matchExisting(
       CategorySuggestion suggestion, List<ClipCategory> categories) {
     if (suggestion.isUnclassified) return null;
+    final sName = suggestion.name.toLowerCase().trim();
     for (final c in categories) {
       if (c.id == suggestion.defaultCategoryId) return c.id;
       if (c.id == suggestion.aiCategoryId) return c.id;
       final cName = c.name.toLowerCase().trim();
-      final sName = suggestion.name.toLowerCase().trim();
-      if (cName == sName || cName.contains(sName) || sName.contains(cName)) return c.id;
+      if (cName == sName) return c.id;
+      // Évite les faux positifs (ex: "sport" ⊂ "transport")
+      // Le plus court doit représenter >60% du plus long
+      final shorter = cName.length <= sName.length ? cName : sName;
+      final longer  = cName.length >  sName.length ? cName : sName;
+      if (shorter.length >= 5 &&
+          longer.contains(shorter) &&
+          shorter.length / longer.length > 0.6) {
+        return c.id;
+      }
     }
     return null;
   }
 
-  /// Compat legacy : ID d'une catégorie existante si match, sinon null.
-  static String? suggest(String title, List<ClipCategory> categories) {
-    return matchExisting(suggestDetailed(title), categories);
-  }
 }
