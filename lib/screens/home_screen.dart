@@ -1720,6 +1720,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
     final meta = await OEmbedService.fetchMetadata(url);
     if (!mounted || generation != _fetchGeneration) return;
     final fetchedTitle = meta['title'] ?? '';
+    final youtubeCategoryId = meta['youtubeCategoryId'];
     setState(() {
       _isFetchingTitle = false;
       _thumbnailUrl = meta['thumbnailUrl'];
@@ -1728,14 +1729,25 @@ class _AddClipSheetState extends State<AddClipSheet> {
       }
     });
     if (fetchedTitle.isNotEmpty && _selectedCategoryId == null) {
-      await _proposeCategory(fetchedTitle);
+      await _proposeCategory(fetchedTitle, youtubeCategoryId: youtubeCategoryId);
     }
   }
 
   /// Affiche la popup IA de confirmation de catégorie.
-  Future<void> _proposeCategory(String title) async {
-    final suggestion = CategoryClassifier.suggestDetailed(title);
-    // IA sans catégorie reconnue → champ texte inline, pas de dialog.
+  Future<void> _proposeCategory(String title,
+      {String? youtubeCategoryId}) async {
+    // Priorité 1 : IA (Gemini) — la plus précise.
+    final aiSuggestion = await CategoryClassifier.classifyWithAI(
+      title, widget.state.categories,
+    );
+    if (!mounted) return;
+    // Priorité 2 (fallback si IA indisponible) : categoryId YouTube → mots-clés.
+    final CategorySuggestion suggestion = aiSuggestion ??
+        (youtubeCategoryId != null
+            ? CategoryClassifier.categoryFromYouTubeId(youtubeCategoryId)
+            : null) ??
+        CategoryClassifier.suggestDetailed(title);
+    // Toujours aucune catégorie → champ texte inline.
     if (suggestion.isUnclassified) {
       setState(() => _showNewCategoryField = true);
       return;

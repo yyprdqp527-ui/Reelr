@@ -139,14 +139,67 @@ class OEmbedService {
     }
   }
 
+  /// Récupère les métadonnées YouTube via Data API v3 (nécessite YOUTUBE_API_KEY).
+  /// Retourne null si la clé est absente ou si l'appel échoue.
+  static Future<Map<String, String?>?> fetchYouTubeMetadata(
+      String videoId, String apiKey) async {
+    try {
+      final uri = Uri.parse(
+        'https://www.googleapis.com/youtube/v3/videos'
+        '?part=snippet&id=${Uri.encodeComponent(videoId)}&key=${Uri.encodeComponent(apiKey)}',
+      );
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 6));
+      if (response.statusCode != 200) return null;
+      final data = json.decode(response.body) as Map<String, dynamic>;
+      final items = data['items'] as List?;
+      if (items == null || items.isEmpty) return null;
+      final snippet =
+          (items.first as Map<String, dynamic>)['snippet'] as Map<String, dynamic>?;
+      if (snippet == null) return null;
+      final thumbnails = snippet['thumbnails'] as Map<String, dynamic>?;
+      final thumbUrl =
+          (thumbnails?['medium'] as Map<String, dynamic>?)?['url'] as String? ??
+          (thumbnails?['default'] as Map<String, dynamic>?)?['url'] as String?;
+      return {
+        'title': snippet['title'] as String?,
+        'thumbnailUrl': thumbUrl,
+        'youtubeCategoryId': snippet['categoryId'] as String?,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+
   static Future<Map<String, String?>> fetchMetadata(String url) async {
     try {
       final lower = url.toLowerCase();
-      String? oembedUrl;
       if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
-        oembedUrl =
+        const ytApiKey = String.fromEnvironment('YOUTUBE_API_KEY');
+        final videoId = _youtubeVideoId(url);
+        if (videoId != null && ytApiKey.isNotEmpty) {
+          final ytResult = await fetchYouTubeMetadata(videoId, ytApiKey);
+          if (ytResult != null) return ytResult;
+        }
+        // Fallback oEmbed YouTube
+        final oembedUrl =
             'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
-      } else if (lower.contains('vimeo.com')) {
+        final response = await http
+            .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 6));
+        if (response.statusCode == 200) {
+          final data = json.decode(response.body) as Map<String, dynamic>;
+          return {
+            'title': data['title'] as String?,
+            'thumbnailUrl': data['thumbnail_url'] as String?,
+            'youtubeCategoryId': null,
+          };
+        }
+        return {'title': null, 'thumbnailUrl': null, 'youtubeCategoryId': null};
+      }
+      String? oembedUrl;
+      if (lower.contains('vimeo.com')) {
         oembedUrl =
             'https://vimeo.com/api/oembed.json?url=${Uri.encodeComponent(url)}';
       } else if (lower.contains('tiktok.com')) {
@@ -154,19 +207,19 @@ class OEmbedService {
             'https://www.tiktok.com/oembed?url=${Uri.encodeComponent(url)}';
       }
       if (oembedUrl != null) {
-        final response = await http.get(Uri.parse(oembedUrl),
-            headers: {'Accept': 'application/json'}).timeout(
-          const Duration(seconds: 6),
-        );
+        final response = await http
+            .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
+            .timeout(const Duration(seconds: 6));
         if (response.statusCode == 200) {
           final data = json.decode(response.body) as Map<String, dynamic>;
           return {
             'title': data['title'] as String?,
             'thumbnailUrl': data['thumbnail_url'] as String?,
+            'youtubeCategoryId': null,
           };
         }
       }
     } catch (_) {}
-    return {'title': null, 'thumbnailUrl': null};
+    return {'title': null, 'thumbnailUrl': null, 'youtubeCategoryId': null};
   }
 }
