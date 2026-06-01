@@ -1670,6 +1670,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
   final _tagsCtrl = TextEditingController();
   final _newCategoryCtrl = TextEditingController();
   bool _showNewCategoryField = false;
+  bool _isProposeInProgress = false;
   String? _selectedCategoryId;
   SocialPlatform? _detectedPlatform;
   bool _isFetchingTitle = false;
@@ -1718,9 +1719,11 @@ class _AddClipSheetState extends State<AddClipSheet> {
       _urlError = null;
     });
     final meta = await OEmbedService.fetchMetadata(url);
-    if (!mounted || generation != _fetchGeneration) return;
+    if (!mounted || generation != _fetchGeneration) {
+      if (mounted) setState(() => _isFetchingTitle = false);
+      return;
+    }
     final fetchedTitle = meta['title'] ?? '';
-    final youtubeCategoryId = meta['youtubeCategoryId'];
     setState(() {
       _isFetchingTitle = false;
       _thumbnailUrl = meta['thumbnailUrl'];
@@ -1729,57 +1732,62 @@ class _AddClipSheetState extends State<AddClipSheet> {
       }
     });
     if (fetchedTitle.isNotEmpty && _selectedCategoryId == null) {
-      await _proposeCategory(fetchedTitle, youtubeCategoryId: youtubeCategoryId);
+      await _proposeCategory(fetchedTitle);
     }
   }
 
   /// Affiche la popup IA de confirmation de catégorie.
-  Future<void> _proposeCategory(String title,
-      {String? youtubeCategoryId}) async {
-    // Priorité 1 : IA (Gemini) — la plus précise.
-    final aiSuggestion = await CategoryClassifier.classifyWithAI(
-      title, widget.state.categories,
-    );
-    if (!mounted) return;
-    // Priorité 2 (fallback si IA indisponible) : categoryId YouTube → mots-clés.
-    final CategorySuggestion suggestion = aiSuggestion ??
-        (youtubeCategoryId != null
-            ? CategoryClassifier.categoryFromYouTubeId(youtubeCategoryId)
-            : null) ??
-        CategoryClassifier.suggestDetailed(title);
-    // Toujours aucune catégorie → champ texte inline.
-    if (suggestion.isUnclassified) {
-      setState(() => _showNewCategoryField = true);
-      return;
-    }
-    final existingId = CategoryClassifier.matchExisting(
-        suggestion, widget.state.categories);
-    final result = await showDialog<Object?>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _CategorySuggestionDialog(
-        suggestion: suggestion,
-        hasExisting: existingId != null,
-      ),
-    );
-    if (!mounted) return;
-    if (result == true) {
-      await _applySuggestion(suggestion, existingId);
-      if (mounted) await _submit();
-    } else if (result is String && result.isNotEmpty) {
-      final newCat = ClipCategory(
-        id: const Uuid().v4(),
-        name: result,
-        color: const Color(0xFF7C3AED),
-        icon: Icons.folder_outlined,
+  Future<void> _proposeCategory(String title) async {
+    if (_isProposeInProgress) return;
+    _isProposeInProgress = true;
+    try {
+      final suggestion = CategoryClassifier.suggestDetailed(title);
+      // IA sans catégorie reconnue → champ texte inline, pas de dialog.
+      if (suggestion.isUnclassified) {
+        setState(() => _showNewCategoryField = true);
+        return;
+      }
+      final existingId = CategoryClassifier.matchExisting(
+          suggestion, widget.state.categories);
+      final result = await showDialog<Object?>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _CategorySuggestionDialog(
+          suggestion: suggestion,
+          hasExisting: existingId != null,
+        ),
       );
-      await widget.state.addCategory(newCat);
       if (!mounted) return;
-      setState(() {
-        _selectedCategoryId = newCat.id;
-        _wasAutoSuggested = false;
-      });
-      if (mounted) await _submit();
+      if (result == true) {
+        // "Ajouter dans [Catégorie]"
+        await _applySuggestion(suggestion, existingId);
+        if (mounted) await _submit();
+      } else if (result == false) {
+        // "Ajouter sans catégorie"
+        setState(() {
+          _selectedCategoryId = null;
+          _wasAutoSuggested = false;
+        });
+        if (mounted) await _submit();
+      } else if (result is String && result.isNotEmpty) {
+        // Catégorie saisie manuellement
+        final newCat = ClipCategory(
+          id: const Uuid().v4(),
+          name: result,
+          color: const Color(0xFF7C3AED),
+          icon: Icons.folder_outlined,
+        );
+        await widget.state.addCategory(newCat);
+        if (!mounted) return;
+        setState(() {
+          _selectedCategoryId = newCat.id;
+          _wasAutoSuggested = false;
+        });
+        if (mounted) await _submit();
+      }
+      // result == null → dialog fermé sans choix, on laisse la sheet ouverte
+    } finally {
+      if (mounted) setState(() => _isProposeInProgress = false);
     }
   }
 
@@ -2169,6 +2177,15 @@ class _CategorySuggestionDialogState
                         borderRadius: BorderRadius.circular(14)),
                   ),
                   child: const Text('Autre catégorie'),
+                ),
+              ),
+              const SizedBox(height: 4),
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(
+                  'Ajouter sans catégorie',
+                  style: TextStyle(
+                      color: Colors.grey.shade500, fontSize: 13),
                 ),
               ),
             ] else ...[  

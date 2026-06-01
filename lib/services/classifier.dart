@@ -1,7 +1,4 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import '../models/category.dart';
 
@@ -89,6 +86,7 @@ class CategoryClassifier {
       'bébé', 'bebe', 'enfant', 'enfants', 'kids', 'puériculture',
       'puericulture', 'grossesse', 'maternité', 'maternite', 'jouet',
       'jouets', 'école', 'ecole', 'baby', 'toddler', 'parenting',
+      'parents',
     ],
     'humour': [
       'humour', 'drôle', 'drole', 'blague', 'rire', 'comique', 'sketch',
@@ -301,50 +299,6 @@ class CategoryClassifier {
     return _suggestions[best]!;
   }
 
-  /// Renvoie une [CategorySuggestion] à partir d'un categoryId YouTube,
-  /// ou null si l'ID n'est pas mappé.
-  /// Priorité sur la classification par mots-clés dans [suggestDetailed].
-  static CategorySuggestion? categoryFromYouTubeId(String youtubeCategoryId) {
-    switch (youtubeCategoryId) {
-      case '1':  // Film & Animation
-      case '10': // Music
-        return _suggestions['musique'];
-      case '2':  // Cars & Vehicles
-        return _suggestions['moto'];
-      case '15': // Pets & Animals
-        return _suggestions['animaux'];
-      case '17': // Sports
-        return _suggestions['sport'];
-      case '19': // Travel & Events
-        return _suggestions['voyage'];
-      case '20': // Gaming
-        return _suggestions['gaming'];
-      case '23': // Comedy
-      case '24': // Entertainment
-        return _suggestions['humour'];
-      case '27': // Education
-        return _suggestions['science'];
-      case '28': // Science & Technology
-        return _suggestions['tech'];
-      case '22': // People & Blogs
-      case '25': // News & Politics
-      case '29': // Nonprofits & Activism
-        return const CategorySuggestion(
-          key: 'societe', name: 'Société',
-          color: Color(0xFF74B9FF),
-          icon: Icons.public_outlined,
-        );
-      case '26': // Howto & Style
-        return const CategorySuggestion(
-          key: 'maison', name: 'Maison',
-          color: Color(0xFF4ECDC4),
-          icon: Icons.home_outlined,
-        );
-      default:
-        return null;
-    }
-  }
-
   /// Renvoie l'ID d'une catégorie existante correspondant à [suggestion].
   static String? matchExisting(
       CategorySuggestion suggestion, List<ClipCategory> categories) {
@@ -366,81 +320,6 @@ class CategoryClassifier {
       }
     }
     return null;
-  }
-
-  /// Classifie [title] via l'API Gemini.
-  /// Retourne null si la clé est absente ou si l'appel échoue (fallback suggestDetailed).
-  static Future<CategorySuggestion?> classifyWithAI(
-    String title,
-    List<ClipCategory> existingCategories,
-  ) async {
-    if (existingCategories.isEmpty) return null;
-    const apiKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (apiKey.isEmpty) return null;
-
-    try {
-      final response = await http
-          .post(
-            Uri.parse(
-              'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey',
-            ),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({
-              'contents': [
-                {
-                  'parts': [
-                    {
-                      'text':
-                          'Tu es un assistant de classification de vidéos YouTube. '
-                          'Titre: "$title". '
-                          'Propose UNE catégorie courte (1-2 mots max) en français '
-                          'qui correspond le mieux à cette vidéo. '
-                          'Réponds UNIQUEMENT avec le nom de la catégorie, rien d\'autre.',
-                    }
-                  ]
-                }
-              ]
-            }),
-          )
-          .timeout(const Duration(seconds: 8));
-
-      if (response.statusCode != 200) return null;
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final answer =
-          (((data['candidates'] as List).first as Map<String, dynamic>)['content']
-                  as Map<String, dynamic>)['parts'][0]['text']
-              .toString()
-              .trim();
-
-      // Cherche une catégorie existante (insensible à la casse).
-      final candidates = existingCategories.where(
-        (c) => c.name.toLowerCase() == answer.toLowerCase(),
-      );
-
-      if (candidates.isNotEmpty) {
-        // Catégorie existante trouvée.
-        final matched = candidates.first;
-        return CategorySuggestion(
-          key: matched.id,
-          name: matched.name,
-          icon: matched.icon,
-          color: matched.color,
-          defaultCategoryId: matched.id,
-        );
-      } else {
-        // Nouvelle catégorie proposée par Gemini.
-        final key = answer.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_');
-        return CategorySuggestion(
-          key: key,
-          name: answer,
-          icon: Icons.folder_outlined,
-          color: const Color(0xFF7C3AED),
-        );
-      }
-    } catch (_) {
-      return null;
-    }
   }
 
 }

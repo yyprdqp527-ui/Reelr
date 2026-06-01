@@ -29,10 +29,7 @@ class DatabaseHelper {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
-    if (oldVersion < 3) {
-      await db.delete('categories');
-      await _seedDefaultCategories(db);
-    }
+    // ── Migrations structurelles uniquement (jamais de DELETE sur categories) ──
     if (oldVersion < 4) {
       await db.execute(
           'ALTER TABLE clips ADD COLUMN position INTEGER DEFAULT 0');
@@ -52,6 +49,8 @@ class DatabaseHelper {
       ''');
     }
     if (oldVersion < 6) {
+      // Supprime uniquement les anciennes catégories par défaut obsolètes
+      // sans toucher aux catégories créées par l'utilisateur ou l'IA.
       const oldIds = [
         'default_recettes',
         'default_yoga',
@@ -69,8 +68,11 @@ class DatabaseHelper {
               where: 'categoryId = ?', whereArgs: [id]);
         }
       }
-      await _seedDefaultCategories(db);
     }
+    // Seed conditionnel : pose les défauts SEULEMENT si la table est vide.
+    final count = Sqflite.firstIntValue(
+        await db.rawQuery('SELECT COUNT(*) FROM categories'));
+    if ((count ?? 0) == 0) await _seedDefaultCategories(db);
   }
 
   Future<void> _seedDefaultCategories(Database db) async {

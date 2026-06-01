@@ -54,6 +54,12 @@ class ClipsAppState extends State<ClipsApp> {
         .then((p) => p.setString('locale', locale.languageCode));
   }
 
+  void markOnboardingDone() {
+    setState(() => _onboardingDone = true);
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool('onboarding_done', true));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -186,37 +192,6 @@ class ClipsAppState extends State<ClipsApp> {
             : _onboardingDone
                 ? MainShell(state: widget.state)
                 : OnboardingScreen(state: widget.state),
-        // Gère les routes /?url=... envoyées par l'iOS Share Extension
-        // via didPushRouteInformation (home: ne prend en charge que '/').
-        onGenerateRoute: (settings) {
-          final uri = Uri.tryParse(settings.name ?? '');
-          final sharedUrl = uri?.queryParameters['url'];
-          if (sharedUrl != null && sharedUrl.isNotEmpty) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final ctx = _navigatorKey.currentContext;
-              if (ctx == null) return;
-              showModalBottomSheet(
-                context: ctx,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (_) =>
-                    AddClipSheet(state: widget.state, initialUrl: sharedUrl),
-              );
-            });
-          }
-          return MaterialPageRoute<void>(
-            settings: settings,
-            builder: (_) => !_prefsLoaded
-                ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
-                : _onboardingDone
-                    ? MainShell(state: widget.state)
-                    : OnboardingScreen(state: widget.state),
-          );
-        },
-        onUnknownRoute: (settings) => MaterialPageRoute<void>(
-          settings: settings,
-          builder: (_) => MainShell(state: widget.state),
-        ),
       ),
     );
   }

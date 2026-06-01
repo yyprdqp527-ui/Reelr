@@ -204,8 +204,27 @@ class ClipsState extends ChangeNotifier {
 
   int get totalCount => _clips.length;
 
-  bool isDuplicate(String url) =>
-      _clips.any((c) => c.url.trim() == url.trim());
+  /// Normalise une URL pour la déduplication :
+  /// retire les paramètres de tracking (si, utm_*, fbclid)
+  /// tout en conservant l'identifiant vidéo (v=, etc.).
+  static String _normalizeUrl(String url) {
+    try {
+      final uri = Uri.parse(url.trim());
+      final params = Map<String, String>.from(uri.queryParameters)
+        ..removeWhere((k, _) =>
+            k == 'si' || k == 'fbclid' || k.startsWith('utm'));
+      return uri
+          .replace(queryParameters: params.isEmpty ? null : params)
+          .toString();
+    } catch (_) {
+      return url.trim();
+    }
+  }
+
+  bool isDuplicate(String url) {
+    final normalized = _normalizeUrl(url);
+    return _clips.any((c) => _normalizeUrl(c.url) == normalized);
+  }
 
   List<Clip> clipsForCategory(String? categoryId) =>
       _clips.where((c) => c.categoryId == categoryId).toList();

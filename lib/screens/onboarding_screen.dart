@@ -1,10 +1,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app.dart';
 import '../state/clips_state.dart';
-import '../widgets/main_shell.dart';
 
 // ─────────────────────────────────────────────
 // ONBOARDING SCREEN
@@ -51,14 +50,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   ];
 
   Future<void> _complete() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('onboarding_done', true);
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => MainShell(state: widget.state),
-      ),
-    );
+    ClipsApp.of(context)?.markOnboardingDone();
   }
 
   void _skip() => _complete();
