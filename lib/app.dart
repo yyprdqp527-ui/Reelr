@@ -93,6 +93,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      debugPrint("[lifecycle] resumed");
       _drainSilentShareInbox();
     }
   }
@@ -252,7 +253,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       categoryId: null,
       tags: const [],
       addedAt: DateTime.now(),
-      thumbnailUrl: null,
+      thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
     );
     await widget.state.addClip(clip);
     unawaited(_hydrateClip(clip));
@@ -260,17 +261,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   Future<void> _drainSilentShareInbox() async {
     try {
+      debugPrint('[drain] calling drainPendingUrls...');
       final dynamic raw = await _silentShareInboxChannel
           .invokeMethod('drainPendingUrls');
+      debugPrint('[drain] raw result: $raw');
       final urls = (raw is List)
           ? raw.whereType<String>().map((u) => u.trim()).toList()
           : <String>[];
+      debugPrint('[drain] found ${urls.length} urls');
       for (final url in urls) {
         if (!_isValidHttpUrl(url)) continue;
         if (widget.state.isDuplicate(url)) continue;
         await _ingestSharedUrl(url);
       }
-    } catch (_) {}
+    } catch (e) { debugPrint('[drain] error: $e'); }
   }
 
   bool _isValidHttpUrl(String url) {
@@ -281,7 +285,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   Future<void> _hydrateClip(Clip clip) async {
+    debugPrint('[hydrate] starting for: \${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
+    debugPrint('[hydrate] meta: \${meta?.title} / \${meta?.thumbnailUrl}');
     if (meta == null) return;
     final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
