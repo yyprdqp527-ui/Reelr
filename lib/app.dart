@@ -12,7 +12,6 @@ import 'package:uuid/uuid.dart';
 import 'core/l10n.dart';
 import 'core/theme.dart';
 import 'models/clip.dart';
-import 'screens/home_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/oembed.dart';
 import 'widgets/main_shell.dart';
@@ -191,12 +190,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         );
         return;
       }
-      showModalBottomSheet(
-        context: ctx,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (_) => AddClipSheet(state: widget.state, initialUrl: url),
-      );
+      unawaited(_ingestSharedUrl(url));
     });
   }
 
