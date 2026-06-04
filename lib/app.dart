@@ -250,7 +250,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
     );
     await widget.state.addClip(clip);
-    unawaited(_hydrateClip(clip));
+    unawaited(_hydrateAndClassify(clip));
   }
 
   Future<void> _drainSilentShareInbox() async {
@@ -276,6 +276,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     return uri != null &&
         (uri.scheme == 'http' || uri.scheme == 'https') &&
         uri.host.isNotEmpty;
+  }
+
+  Future<void> _hydrateAndClassify(Clip clip) async {
+    await _hydrateClip(clip);
+    final updated = widget.state.allClips.where((c) => c.id == clip.id).firstOrNull ?? clip;
+    await widget.state.classifyClipInBackground(updated);
   }
 
   Future<void> _hydrateClip(Clip clip) async {

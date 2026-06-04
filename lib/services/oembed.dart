@@ -422,6 +422,10 @@ class OEmbedService {
     }
 
     final segments = uri.pathSegments;
+    if (segments.contains('live')) {
+      final index = segments.indexOf('live');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
     if (segments.contains('shorts')) {
       final index = segments.indexOf('shorts');
       if (index + 1 < segments.length) return segments[index + 1];

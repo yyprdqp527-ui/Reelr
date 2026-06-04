@@ -112,7 +112,6 @@ class ClipsState extends ChangeNotifier {
 
   Future<void> addClip(Clip clip) async {
     await DatabaseHelper.instance.insertClip(clip);
-    Future(() => classifyClipInBackground(clip));
     _clips.insert(0, clip);
     notifyListeners();
   }
