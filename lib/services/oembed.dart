@@ -171,53 +171,21 @@ class OEmbedService {
   }
 
   static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
-    final requestUri = Uri.https('www.googleapis.com', '/youtube/v3/videos', {
-      'part': 'snippet,contentDetails,statistics',
-      'id': videoId,
-      'key': _ytApiKey,
-    });
-
     try {
+      final oembedUrl = 'https://www.youtube.com/oembed?url=' + Uri.encodeComponent(videoUri.toString()) + '&format=json';
       final response = await http
-          .get(requestUri, headers: {'Accept': 'application/json'})
+          .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
-
       final payload = json.decode(response.body) as Map<String, dynamic>;
-      final items = payload['items'] as List<dynamic>?;
-      if (items == null || items.isEmpty) return null;
-
-      final item = items.first as Map<String, dynamic>;
-      final snippet = item['snippet'] as Map<String, dynamic>?;
-      if (snippet == null) return null;
-
-      final contentDetails = item['contentDetails'] as Map<String, dynamic>?;
-      final statistics = item['statistics'] as Map<String, dynamic>?;
-      final thumbnails = snippet['thumbnails'] as Map<String, dynamic>?;
-      final thumbnailUrl = _sanitizeMediaUrl(
-        (thumbnails?['maxres'] as Map<String, dynamic>?)?['url'] as String? ??
-            (thumbnails?['standard'] as Map<String, dynamic>?)?['url'] as String? ??
-            (thumbnails?['high'] as Map<String, dynamic>?)?['url'] as String? ??
-            (thumbnails?['medium'] as Map<String, dynamic>?)?['url'] as String? ??
-            (thumbnails?['default'] as Map<String, dynamic>?)?['url'] as String?,
-      );
-
+      final title = (payload['title'] as String?)?.trim() ?? '';
+      final author = (payload['author_name'] as String?)?.trim();
+      final thumbUrl = bestThumbnailUrl(videoUri.toString(), payload['thumbnail_url'] as String?);
       return VideoData(
-        title: (snippet['title'] as String?)?.trim().isNotEmpty == true
-            ? (snippet['title'] as String).trim()
-            : videoUri.toString(),
-        channel: (snippet['channelTitle'] as String?)?.trim(),
-        description: (snippet['description'] as String?)?.trim(),
-        tags: (snippet['tags'] as List<dynamic>?)
-                ?.map((tag) => tag.toString().trim())
-                .where((tag) => tag.isNotEmpty)
-                .toList() ??
-            const [],
-        views: int.tryParse((statistics?['viewCount'] as String?) ?? ''),
-        duration: contentDetails?['duration'] as String?,
-        publishedAt: snippet['publishedAt'] as String?,
+        title: title.isNotEmpty ? title : videoUri.toString(),
+        channel: author,
         platform: 'youtube',
-        thumbnailUrl: thumbnailUrl,
+        thumbnailUrl: thumbUrl,
       );
     } catch (e) {
       debugPrint('[oembed] youtube error: $e');
