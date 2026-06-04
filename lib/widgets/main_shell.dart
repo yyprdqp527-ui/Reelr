@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/l10n.dart';
 import '../screens/categories_screen.dart';
@@ -32,6 +33,24 @@ class _MainShellState extends State<MainShell> {
 
   void setIndex(int i) => setState(() => _index = i);
 
+  Future<void> _handleFabTap(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    final tapCount = prefs.getInt('fab_tap_count') ?? 0;
+    if (tapCount >= 3) return;
+
+    await prefs.setInt('fab_tap_count', tapCount + 1);
+    if (!context.mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Tu regardes une vidéo qui te plaît ?\nAppuie sur ⬆ puis choisis Reelr',
+        ),
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
@@ -62,7 +81,7 @@ class _MainShellState extends State<MainShell> {
               bottom: navBarHeight + 8,
               right: 24,
               child: FloatingActionButton.extended(
-                onPressed: () => _openAddSheet(context),
+                onPressed: () => _handleFabTap(context),
                 icon: const Icon(Icons.add_rounded),
                 label: Text(l.t('add_clip')),
                 elevation: 2,
@@ -132,15 +151,6 @@ class _MainShellState extends State<MainShell> {
           ],
         ),
       ),
-    );
-  }
-
-  void _openAddSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => AddClipSheet(state: widget.state),
     );
   }
 }

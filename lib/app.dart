@@ -117,6 +117,9 @@ class ClipsAppState extends State<ClipsApp> {
     });
   }
 
+  String? _lastSharedUrl;
+  DateTime? _lastSharedAt;
+
   void _initShareIntent() {
     if (kIsWeb) return;
     try {
@@ -147,6 +150,15 @@ class ClipsAppState extends State<ClipsApp> {
       }
     }
     if (url == null) return;
+    // Déduplication : ignore si même URL déjà traitée dans les 2 dernières secondes.
+    final now = DateTime.now();
+    if (url == _lastSharedUrl &&
+        _lastSharedAt != null &&
+        now.difference(_lastSharedAt!).inSeconds < 2) {
+      return;
+    }
+    _lastSharedUrl = url;
+    _lastSharedAt = now;
     // Wait for the navigator to be mounted, then open the sheet.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = _navigatorKey.currentContext;

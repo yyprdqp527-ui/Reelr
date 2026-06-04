@@ -19,13 +19,13 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
-      return openDatabase('clips.db',
-          version: 6, onCreate: _onCreate, onUpgrade: _onUpgrade);
+        return openDatabase('clips.db',
+          version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-        version: 6, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -69,12 +69,45 @@ class DatabaseHelper {
         }
       }
     }
-    // Seed conditionnel : pose les défauts SEULEMENT si la table est vide.
-    final count = Sqflite.firstIntValue(
-        await db.rawQuery('SELECT COUNT(*) FROM categories'));
-    if ((count ?? 0) == 0) await _seedDefaultCategories(db);
+    if (oldVersion < 7) {
+      // Corrige les icônes des catégories créées automatiquement par l'IA
+      // qui avaient été sauvegardées avec l'icône générique folder_outlined.
+      final iconFixes = <String, int>{
+        'Bébé':          Icons.child_care_rounded.codePoint,
+        'Humour':        Icons.sentiment_very_satisfied_rounded.codePoint,
+        'Musique':       Icons.music_note_rounded.codePoint,
+        'Beauté':        Icons.brush_rounded.codePoint,
+        'Voyage':        Icons.flight_takeoff_rounded.codePoint,
+        'Moto/Auto':     Icons.two_wheeler_rounded.codePoint,
+        'Yoga':          Icons.self_improvement_rounded.codePoint,
+        'Tricot/Couture':Icons.content_cut_rounded.codePoint,
+        'Gaming':        Icons.sports_esports_rounded.codePoint,
+        'Sport':         Icons.fitness_center_rounded.codePoint,
+        'Food':          Icons.restaurant_rounded.codePoint,
+      };
+      for (final entry in iconFixes.entries) {
+        await db.update(
+          'categories',
+          {'icon': entry.value},
+          where: 'name = ? AND icon = ?',
+          whereArgs: [entry.key, Icons.folder_outlined.codePoint],
+        );
+      }
+    }
+    if (oldVersion < 8) {
+      await db.execute(
+        'ALTER TABLE clips ADD COLUMN classification_category TEXT');
+      await db.execute(
+        'ALTER TABLE clips ADD COLUMN classification_confidence INTEGER');
+      await db.execute(
+        'ALTER TABLE clips ADD COLUMN classification_reason TEXT');
+      await db.execute(
+        'ALTER TABLE clips ADD COLUMN classification_tags TEXT');
+    }
+    // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
+  // ignore: unused_element
   Future<void> _seedDefaultCategories(Database db) async {
     for (final cat in _defaultCategories) {
       await db.insert('categories', cat.toMap(),
@@ -82,6 +115,7 @@ class DatabaseHelper {
     }
   }
 
+  // ignore: unused_field
   static final List<ClipCategory> _defaultCategories = [
     const ClipCategory(
       id: 'default_food',
@@ -161,7 +195,11 @@ class DatabaseHelper {
         addedAt TEXT NOT NULL,
         thumbnailUrl TEXT,
         position INTEGER DEFAULT 0,
-        subcategoryId TEXT
+        subcategoryId TEXT,
+        classification_category TEXT,
+        classification_confidence INTEGER,
+        classification_reason TEXT,
+        classification_tags TEXT
       )
     ''');
     await db.execute('''
@@ -182,7 +220,7 @@ class DatabaseHelper {
         position INTEGER DEFAULT 0
       )
     ''');
-    await _seedDefaultCategories(db);
+    // Vision Reelr : aucune catégorie pré-créée.
   }
 
   Future<List<Clip>> getAllClips() async {
@@ -205,6 +243,40 @@ class DatabaseHelper {
     final db = await database;
     await db.insert('clips', clip.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> updateClipClassification({
+    required String clipId,
+    required String category,
+    required int confidence,
+    required String reason,
+    required List<String> tags,
+  }) async {
+    final db = await database;
+    await db.update(
+      'clips',
+      {
+        'classification_category': category,
+        'classification_confidence': confidence,
+        'classification_reason': reason,
+        'classification_tags': tags.join(','),
+      },
+      where: 'id = ?',
+      whereArgs: [clipId],
+    );
+  }
+
+  Future<void> updateClip({
+    required String clipId,
+    String? categoryId,
+  }) async {
+    final db = await database;
+    await db.update(
+      'clips',
+      {'categoryId': categoryId},
+      where: 'id = ?',
+      whereArgs: [clipId],
+    );
   }
 
   Future<void> deleteClip(String id) async {
@@ -261,6 +333,30 @@ class DatabaseHelper {
     final db = await database;
     await db.update('clips', {'subcategoryId': subcategoryId},
         where: 'id = ?', whereArgs: [clipId]);
+  }
+
+  Future<void> moveClipsToCategoryBatch({
+    required List<String> clipIds,
+    required String toCategoryId,
+    String? toSubcategoryId,
+  }) async {
+    if (clipIds.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+
+    for (final clipId in clipIds) {
+      batch.update(
+        'clips',
+        {
+          'categoryId': toCategoryId,
+          'subcategoryId': toSubcategoryId,
+        },
+        where: 'id = ?',
+        whereArgs: [clipId],
+      );
+    }
+
+    await batch.commit(noResult: true);
   }
 
   Future<Map<String, String>> getClipSubcategoryMapAll() async {

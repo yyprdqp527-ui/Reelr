@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:uuid/uuid.dart';
 
 import '../models/category.dart';
 import '../models/clip.dart';
+import '../services/classifier.dart';
 import '../services/database.dart';
+import '../services/profile_service.dart';
 
 // ─────────────────────────────────────────────
 // SUBCATEGORY MODEL
@@ -45,6 +48,10 @@ class SubCategory {
 enum SortOrder { chronological, alphabetical, manual }
 
 class ClipsState extends ChangeNotifier {
+  /// Sentinel categoryId used to represent "unclassified" clips in navigation.
+  /// Clips with `categoryId == null` are the actual unclassified clips.
+  static const String unclassifiedSentinel = '__unclassified__';
+
   List<Clip> _clips = [];
   List<ClipCategory> _categories = [];
   List<SubCategory> _subcategories = [];
@@ -95,13 +102,20 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadClips() async {
+    _clips = await DatabaseHelper.instance.getAllClips();
+  }
+
   void setSearch(String query) {
     _searchQuery = query;
     notifyListeners();
   }
 
   Future<void> addClip(Clip clip) async {
+    if (isDuplicate(clip.url)) return;
     await DatabaseHelper.instance.insertClip(clip);
+    // Classification automatique en arrière-plan
+    Future(() => classifyClipInBackground(clip));
     _clips.insert(0, clip);
     notifyListeners();
   }
@@ -119,10 +133,166 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addCategory(ClipCategory category) async {
+  static final RegExp _spacesRegex = RegExp(r'\s+');
+  static final RegExp _nonWordRegex = RegExp(r'[^a-z0-9\s]');
+
+  static String _stripAccents(String input) {
+    const map = {
+      'à': 'a',
+      'á': 'a',
+      'â': 'a',
+      'ä': 'a',
+      'ã': 'a',
+      'å': 'a',
+      'ç': 'c',
+      'è': 'e',
+      'é': 'e',
+      'ê': 'e',
+      'ë': 'e',
+      'ì': 'i',
+      'í': 'i',
+      'î': 'i',
+      'ï': 'i',
+      'ñ': 'n',
+      'ò': 'o',
+      'ó': 'o',
+      'ô': 'o',
+      'ö': 'o',
+      'õ': 'o',
+      'ù': 'u',
+      'ú': 'u',
+      'û': 'u',
+      'ü': 'u',
+      'ý': 'y',
+      'ÿ': 'y',
+      'œ': 'oe',
+      'æ': 'ae',
+    };
+    final sb = StringBuffer();
+    for (final ch in input.split('')) {
+      sb.write(map[ch] ?? ch);
+    }
+    return sb.toString();
+  }
+
+  static String _normalizeCategoryName(String input) {
+    var s = input.toLowerCase().trim();
+    s = _stripAccents(s);
+    s = s.replaceAll("'", ' ');
+    s = s.replaceAll(_nonWordRegex, ' ');
+    s = s.replaceAll(_spacesRegex, ' ').trim();
+    return s;
+  }
+
+  static Set<String> _categoryTokens(String input) {
+    const stopWords = {
+      'l',
+      'le',
+      'la',
+      'les',
+      'de',
+      'du',
+      'des',
+      'd',
+      'the',
+      'a',
+      'an',
+      'et',
+      'and',
+    };
+    return _normalizeCategoryName(input)
+        .split(' ')
+        .where((t) => t.isNotEmpty && !stopWords.contains(t))
+        .toSet();
+  }
+
+  static int _levenshteinDistance(String a, String b) {
+    if (a == b) return 0;
+    if (a.isEmpty) return b.length;
+    if (b.isEmpty) return a.length;
+
+    final prev = List<int>.generate(b.length + 1, (i) => i);
+    final curr = List<int>.filled(b.length + 1, 0);
+
+    for (var i = 1; i <= a.length; i++) {
+      curr[0] = i;
+      for (var j = 1; j <= b.length; j++) {
+        final cost = a[i - 1] == b[j - 1] ? 0 : 1;
+        curr[j] = [
+          prev[j] + 1,
+          curr[j - 1] + 1,
+          prev[j - 1] + cost,
+        ].reduce((x, y) => x < y ? x : y);
+      }
+      for (var j = 0; j <= b.length; j++) {
+        prev[j] = curr[j];
+      }
+    }
+    return prev[b.length];
+  }
+
+  static double _categorySimilarityScore(String rawA, String rawB) {
+    final a = _normalizeCategoryName(rawA);
+    final b = _normalizeCategoryName(rawB);
+    if (a.isEmpty || b.isEmpty) return 0;
+    if (a == b) return 1;
+
+    final aTokens = _categoryTokens(a);
+    final bTokens = _categoryTokens(b);
+    if (aTokens.isNotEmpty && bTokens.isNotEmpty) {
+      if (aTokens.length >= 2 && aTokens.every(bTokens.contains)) {
+        return 0.93;
+      }
+      if (bTokens.length >= 2 && bTokens.every(aTokens.contains)) {
+        return 0.93;
+      }
+    }
+
+    if (a.length >= 5 && b.length >= 5 && (a.contains(b) || b.contains(a))) {
+      return 0.90;
+    }
+
+    final inter = aTokens.intersection(bTokens).length.toDouble();
+    final union = aTokens.union(bTokens).length.toDouble();
+    final jaccard = union == 0 ? 0 : inter / union;
+
+    final dist = _levenshteinDistance(a, b);
+    final maxLen = a.length > b.length ? a.length : b.length;
+    final levScore = maxLen == 0 ? 0 : 1 - (dist / maxLen);
+
+    return (levScore * 0.7) + (jaccard * 0.3);
+  }
+
+  ClipCategory? findBestCategoryMatch(
+    String input, {
+    double minScore = 0.82,
+  }) {
+    final trimmed = input.trim();
+    if (trimmed.isEmpty) return null;
+
+    ClipCategory? best;
+    var bestScore = minScore;
+    for (final cat in _categories) {
+      final score = _categorySimilarityScore(trimmed, cat.name);
+      if (score > bestScore) {
+        bestScore = score;
+        best = cat;
+      }
+    }
+    return best;
+  }
+
+  /// Insert idempotent par nom (case-insensitive). Renvoie la cat\u00e9gorie
+  /// utilis\u00e9e (existante ou nouvellement cr\u00e9\u00e9e).
+  Future<ClipCategory> addCategory(ClipCategory category) async {
+    final target = category.name.toLowerCase().trim();
+    for (final c in _categories) {
+      if (c.name.toLowerCase().trim() == target) return c;
+    }
     await DatabaseHelper.instance.insertCategory(category);
     _categories.add(category);
     notifyListeners();
+    return category;
   }
 
   Future<void> updateCategory(ClipCategory category) async {
@@ -199,31 +369,261 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<int> moveAllClipsToCategory({
+    required String fromCategoryId,
+    required String toCategoryId,
+    String? createSubcategoryName,
+  }) async {
+    if (fromCategoryId == toCategoryId) return 0;
+
+    String? targetSubcategoryId;
+    final subName = createSubcategoryName?.trim();
+    final sourceCategory = categoryById(fromCategoryId);
+    final targetCategory = categoryById(toCategoryId);
+
+    if (subName != null && subName.isNotEmpty) {
+      final existingSub = _subcategories.where((s) =>
+          s.categoryId == toCategoryId &&
+          s.name.toLowerCase().trim() == subName.toLowerCase()).firstOrNull;
+      if (existingSub != null) {
+        targetSubcategoryId = existingSub.id;
+      } else {
+        final sub = SubCategory(
+          id: const Uuid().v4(),
+          name: subName,
+          categoryId: toCategoryId,
+          color: sourceCategory?.color ??
+              targetCategory?.color ??
+              const Color(0xFF7C3AED),
+          icon: sourceCategory?.icon ?? Icons.folder_rounded,
+        );
+        await DatabaseHelper.instance.insertSubCategory(sub.toMap());
+        _subcategories.add(sub);
+        targetSubcategoryId = sub.id;
+      }
+    }
+
+    final toMove = _clips.where((c) => c.categoryId == fromCategoryId).toList();
+    if (toMove.isEmpty) return 0;
+
+    final clipIds = toMove.map((c) => c.id).toList();
+    await DatabaseHelper.instance.moveClipsToCategoryBatch(
+      clipIds: clipIds,
+      toCategoryId: toCategoryId,
+      toSubcategoryId: targetSubcategoryId,
+    );
+
+    for (final clip in toMove) {
+      final updated = clip.copyWith(categoryId: toCategoryId);
+
+      final idx = _clips.indexWhere((c) => c.id == clip.id);
+      if (idx != -1) {
+        _clips[idx] = updated;
+      }
+
+      if (targetSubcategoryId == null) {
+        _clipSubcategoryMap.remove(clip.id);
+      } else {
+        _clipSubcategoryMap[clip.id] = targetSubcategoryId;
+      }
+    }
+
+    notifyListeners();
+    return toMove.length;
+  }
+
   int countForCategory(String? categoryId) =>
       _clips.where((c) => c.categoryId == categoryId).length;
 
   int get totalCount => _clips.length;
 
+  // ── Newly-classified tracking ─────────────────────────────────────────────
+
+  final Set<String> _newlyClassifiedClipIds = {};
+
+  Set<String> get newlyClassifiedClipIds =>
+      Set.unmodifiable(_newlyClassifiedClipIds);
+
+  int newlyClassifiedCountForCategory(String? categoryId) {
+    return _newlyClassifiedClipIds
+        .where((id) {
+          final clip = _clips.where((c) => c.id == id).firstOrNull;
+          return clip != null && clip.categoryId == categoryId;
+        })
+        .length;
+  }
+
+  void markCategoryViewed(String categoryId) {
+    final toRemove = _newlyClassifiedClipIds.where((id) {
+      final clip = _clips.where((c) => c.id == id).firstOrNull;
+      return clip != null && clip.categoryId == categoryId;
+    }).toList();
+    if (toRemove.isEmpty) return;
+    for (final id in toRemove) {
+      _newlyClassifiedClipIds.remove(id);
+    }
+    notifyListeners();
+  }
+
+  Future<void> classifyClipInBackground(Clip clip) async {
+    try {
+      final profile = await ProfileService().loadProfile();
+      final result = await ClaudeClassifier.classify(
+        video: VideoData(
+          title: clip.title,
+          platform: clip.platform,
+          thumbnailUrl: clip.thumbnailUrl,
+        ),
+        profile: profile,
+      );
+      final catName = result.categoriePrincipale;
+      var matchedCat = findBestCategoryMatch(catName);
+      if (matchedCat == null) {
+        final suggestion = CategoryClassifier.suggestDetailed(clip.title);
+        final newCat = ClipCategory(
+          id: suggestion.isUnclassified
+              ? const Uuid().v4()
+              : 'ai_${suggestion.key}',
+          name: catName,
+          color: suggestion.isUnclassified ? Colors.grey : suggestion.color,
+          icon: suggestion.isUnclassified
+              ? Icons.help_outline_rounded
+              : suggestion.icon,
+        );
+        matchedCat = await addCategory(newCat);
+      }
+      final current =
+          _clips.where((c) => c.id == clip.id).firstOrNull ?? clip;
+      // Respect manual classification: only set if still unclassified
+      if (current.categoryId != null) return;
+      final updated = current.copyWith(categoryId: matchedCat.id);
+      await updateClip(updated);
+      _newlyClassifiedClipIds.add(clip.id);
+      notifyListeners();
+    } catch (_) {
+      // Fail silently — clip stays unclassified
+    }
+  }
+
+  static String normalizeUrlForDedup(String url) => _normalizeUrl(url);
+
   /// Normalise une URL pour la déduplication :
-  /// retire les paramètres de tracking (si, utm_*, fbclid)
-  /// tout en conservant l'identifiant vidéo (v=, etc.).
+  /// canonise les plateformes vidéo connues puis retire le tracking générique.
   static String _normalizeUrl(String url) {
     try {
       final uri = Uri.parse(url.trim());
-      final params = Map<String, String>.from(uri.queryParameters)
-        ..removeWhere((k, _) =>
-            k == 'si' || k == 'fbclid' || k.startsWith('utm'));
-      return uri
-          .replace(queryParameters: params.isEmpty ? null : params)
-          .toString();
+      final canonical = _canonicalVideoUrl(uri);
+      if (canonical != null) return canonical;
+
+      final cleanParams = Map<String, String>.from(uri.queryParameters)
+        ..removeWhere((key, _) =>
+            key.startsWith('utm_') ||
+            {
+              'si',
+              'fbclid',
+              'gclid',
+              'igshid',
+              'feature',
+              'pp',
+              'ref',
+              'ref_src',
+            }.contains(key));
+
+      final normalizedHost = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+      final normalizedPath = uri.pathSegments.where((segment) => segment.isNotEmpty).join('/');
+      final sortedEntries = cleanParams.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      final sortedParams = <String, String>{
+        for (final entry in sortedEntries) entry.key: entry.value,
+      };
+
+      return Uri(
+        scheme: uri.scheme.toLowerCase(),
+        host: normalizedHost,
+        path: normalizedPath.isEmpty ? '' : '/$normalizedPath',
+        queryParameters: sortedParams.isEmpty ? null : sortedParams,
+      ).toString().toLowerCase();
     } catch (_) {
-      return url.trim();
+      return url.trim().toLowerCase();
     }
+  }
+
+  static String? _canonicalVideoUrl(Uri uri) {
+    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+    final segments = uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+
+    if (host == 'youtube.com' || host == 'm.youtube.com' || host == 'youtu.be') {
+      final videoId = _youtubeVideoId(uri);
+      if (videoId != null && videoId.isNotEmpty) {
+        return 'youtube:$videoId';
+      }
+    }
+
+    if (host == 'tiktok.com' || host == 'vm.tiktok.com' || host == 'm.tiktok.com') {
+      final videoId = _tiktokVideoId(segments);
+      if (videoId != null && videoId.isNotEmpty) {
+        return 'tiktok:$videoId';
+      }
+    }
+
+    if (host == 'instagram.com' || host == 'm.instagram.com') {
+      final mediaCode = _instagramMediaCode(segments);
+      if (mediaCode != null && mediaCode.isNotEmpty) {
+        return 'instagram:$mediaCode';
+      }
+    }
+
+    return null;
+  }
+
+  static String? _youtubeVideoId(Uri uri) {
+    if (uri.host.toLowerCase().contains('youtu.be')) {
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.contains('shorts')) {
+      final index = segments.indexOf('shorts');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+    if (segments.contains('embed')) {
+      final index = segments.indexOf('embed');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+    return uri.queryParameters['v'];
+  }
+
+  static String? _tiktokVideoId(List<String> segments) {
+    final index = segments.indexOf('video');
+    if (index != -1 && index + 1 < segments.length) {
+      return segments[index + 1];
+    }
+    return null;
+  }
+
+  static String? _instagramMediaCode(List<String> segments) {
+    for (final marker in const ['reel', 'p']) {
+      final index = segments.indexOf(marker);
+      if (index != -1 && index + 1 < segments.length) {
+        return segments[index + 1];
+      }
+    }
+    return null;
   }
 
   bool isDuplicate(String url) {
     final normalized = _normalizeUrl(url);
     return _clips.any((c) => _normalizeUrl(c.url) == normalized);
+  }
+
+  /// Retourne le clip existant dont l'URL normalisée correspond, ou null.
+  Clip? findDuplicate(String url) {
+    final normalized = _normalizeUrl(url);
+    try {
+      return _clips.firstWhere((c) => _normalizeUrl(c.url) == normalized);
+    } catch (_) {
+      return null;
+    }
   }
 
   List<Clip> clipsForCategory(String? categoryId) =>

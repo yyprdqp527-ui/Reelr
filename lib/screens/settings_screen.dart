@@ -20,10 +20,24 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  Rect _sharePositionOrigin(BuildContext context) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize) {
+      final origin = box.localToGlobal(Offset.zero);
+      return origin & box.size;
+    }
+    return const Rect.fromLTWH(0, 0, 1, 1);
+  }
+
   Future<void> _exportClips() async {
     final clips = widget.state.allClips;
     final jsonStr = jsonEncode(clips.map((c) => c.toMap()).toList());
-    await Share.share(jsonStr, subject: 'Mes clips Reelr');
+    if (!mounted) return;
+    await Share.share(
+      jsonStr,
+      subject: 'Mes clips Reelr',
+      sharePositionOrigin: _sharePositionOrigin(context),
+    );
   }
 
   Future<void> _deleteAllData(BuildContext context) async {
@@ -239,7 +253,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('share_app'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Share.share(
-                          'Découvre Reelr — sauvegarde tes vidéos préférées !'),
+                        'Découvre Reelr — sauvegarde tes vidéos préférées !',
+                        sharePositionOrigin: _sharePositionOrigin(context),
+                      ),
                     ),
                   ],
                 ),

@@ -1723,10 +1723,10 @@ class _AddClipSheetState extends State<AddClipSheet> {
       if (mounted) setState(() => _isFetchingTitle = false);
       return;
     }
-    final fetchedTitle = meta['title'] ?? '';
+    final fetchedTitle = meta?.title ?? '';
     setState(() {
       _isFetchingTitle = false;
-      _thumbnailUrl = meta['thumbnailUrl'];
+      _thumbnailUrl = meta?.thumbnailUrl;
       if (fetchedTitle.isNotEmpty && _titleCtrl.text.isEmpty) {
         _titleCtrl.text = fetchedTitle;
       }

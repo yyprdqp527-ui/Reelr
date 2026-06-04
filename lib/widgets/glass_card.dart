@@ -7,6 +7,7 @@ class GlassCard extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double blur;
 
   const GlassCard({
@@ -15,6 +16,7 @@ class GlassCard extends StatelessWidget {
     this.borderRadius = 24,
     this.padding,
     this.onTap,
+    this.onLongPress,
     this.blur = 40,
   });
 
@@ -23,6 +25,7 @@ class GlassCard extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: BackdropFilter(

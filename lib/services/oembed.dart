@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/secrets.dart';
+import 'classifier.dart';
+
 class SocialPlatform {
   final String id;
   final String name;
@@ -20,7 +23,7 @@ class SocialPlatform {
     final lower = url.toLowerCase();
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
       return _platforms['youtube']!;
-    } else if (lower.contains('tiktok.com')) {
+    } else if (lower.contains('tiktok.com') || lower.contains('vm.tiktok.com')) {
       return _platforms['tiktok']!;
     } else if (lower.contains('instagram.com')) {
       return _platforms['instagram']!;
@@ -113,13 +116,15 @@ class SocialPlatform {
 }
 
 class OEmbedService {
-  /// Retourne la meilleure URL de miniature pour un clip.
-  /// Pour YouTube : construction directe (gratuit, sans clé API).
-  /// Pour les autres : on utilise l'URL stockée via oEmbed.
+  static String get _ytApiKey => Secrets.youtubeApiKey;
+  static String get _instagramAccessToken => Secrets.instagramAccessToken;
+  static String get _twitchClientId => Secrets.twitchClientId;
+  static String get _twitchAccessToken => Secrets.twitchAccessToken;
+
   static String? bestThumbnailUrl(String url, String? storedThumbUrl) {
     final lower = url.toLowerCase();
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
-      final id = _youtubeVideoId(url);
+      final id = _youtubeVideoIdFromUrl(url);
       if (id != null) {
         return 'https://img.youtube.com/vi/$id/mqdefault.jpg';
       }
@@ -127,99 +132,408 @@ class OEmbedService {
     return storedThumbUrl;
   }
 
-  static String? _youtubeVideoId(String url) {
-    try {
-      final uri = Uri.parse(url);
-      if (uri.host.contains('youtu.be')) {
-        return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
-      }
-      return uri.queryParameters['v'];
-    } catch (_) {
-      return null;
+  static Future<VideoData?> fetchMetadata(String url) async {
+    final trimmed = url.trim();
+    final lower = trimmed.toLowerCase();
+    final uri = _parseHttpUri(trimmed);
+
+    if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
+      if (uri == null) return null;
+      final videoId = _youtubeVideoIdFromUri(uri);
+      if (videoId == null || videoId.isEmpty) return null;
+      return _fetchYouTubeMetadata(uri, videoId);
     }
+
+    if (lower.contains('tiktok.com') || lower.contains('vm.tiktok.com')) {
+      if (uri == null) return null;
+      return _fetchTikTokMetadata(uri);
+    }
+
+    if (lower.contains('instagram.com')) {
+      if (uri == null) return null;
+      return _fetchInstagramMetadata(uri);
+    }
+
+    if (lower.contains('twitch.tv') || lower.contains('clips.twitch.tv')) {
+      if (uri == null) return null;
+      return _fetchTwitchMetadata(uri);
+    }
+
+    // Plateformes HTTP non couvertes (ex: Facebook): fallback OpenGraph.
+    if (uri != null) {
+      return _fetchOpenGraphMetadata(uri, platformId: SocialPlatform.detect(trimmed).id);
+    }
+
+    return VideoData(
+      title: _filenameTitle(trimmed),
+      platform: 'upload',
+    );
   }
 
-  /// Récupère les métadonnées YouTube via Data API v3 (nécessite YOUTUBE_API_KEY).
-  /// Retourne null si la clé est absente ou si l'appel échoue.
-  static Future<Map<String, String?>?> fetchYouTubeMetadata(
-      String videoId, String apiKey) async {
+  static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
+    final requestUri = Uri.https('www.googleapis.com', '/youtube/v3/videos', {
+      'part': 'snippet,contentDetails,statistics',
+      'id': videoId,
+      'key': _ytApiKey,
+    });
+
     try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/youtube/v3/videos'
-        '?part=snippet&id=${Uri.encodeComponent(videoId)}&key=${Uri.encodeComponent(apiKey)}',
-      );
       final response = await http
-          .get(uri, headers: {'Accept': 'application/json'})
-          .timeout(const Duration(seconds: 6));
+          .get(requestUri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
-      final data = json.decode(response.body) as Map<String, dynamic>;
-      final items = data['items'] as List?;
+
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final items = payload['items'] as List<dynamic>?;
       if (items == null || items.isEmpty) return null;
-      final snippet =
-          (items.first as Map<String, dynamic>)['snippet'] as Map<String, dynamic>?;
+
+      final item = items.first as Map<String, dynamic>;
+      final snippet = item['snippet'] as Map<String, dynamic>?;
       if (snippet == null) return null;
+
+      final contentDetails = item['contentDetails'] as Map<String, dynamic>?;
+      final statistics = item['statistics'] as Map<String, dynamic>?;
       final thumbnails = snippet['thumbnails'] as Map<String, dynamic>?;
-      final thumbUrl =
-          (thumbnails?['medium'] as Map<String, dynamic>?)?['url'] as String? ??
-          (thumbnails?['default'] as Map<String, dynamic>?)?['url'] as String?;
-      return {
-        'title': snippet['title'] as String?,
-        'thumbnailUrl': thumbUrl,
-        'youtubeCategoryId': snippet['categoryId'] as String?,
-      };
-    } catch (_) {
+      final thumbnailUrl = _sanitizeMediaUrl(
+        (thumbnails?['maxres'] as Map<String, dynamic>?)?['url'] as String? ??
+            (thumbnails?['standard'] as Map<String, dynamic>?)?['url'] as String? ??
+            (thumbnails?['high'] as Map<String, dynamic>?)?['url'] as String? ??
+            (thumbnails?['medium'] as Map<String, dynamic>?)?['url'] as String? ??
+            (thumbnails?['default'] as Map<String, dynamic>?)?['url'] as String?,
+      );
+
+      return VideoData(
+        title: (snippet['title'] as String?)?.trim().isNotEmpty == true
+            ? (snippet['title'] as String).trim()
+            : videoUri.toString(),
+        channel: (snippet['channelTitle'] as String?)?.trim(),
+        description: (snippet['description'] as String?)?.trim(),
+        tags: (snippet['tags'] as List<dynamic>?)
+                ?.map((tag) => tag.toString().trim())
+                .where((tag) => tag.isNotEmpty)
+                .toList() ??
+            const [],
+        views: int.tryParse((statistics?['viewCount'] as String?) ?? ''),
+        duration: contentDetails?['duration'] as String?,
+        publishedAt: snippet['publishedAt'] as String?,
+        platform: 'youtube',
+        thumbnailUrl: thumbnailUrl,
+      );
+    } catch (e) {
+      debugPrint('[oembed] youtube error: $e');
       return null;
     }
   }
 
-  static Future<Map<String, String?>> fetchMetadata(String url) async {
+  static Future<VideoData?> _fetchTikTokMetadata(Uri videoUri) async {
+    final requestUri = Uri.https('www.tiktok.com', '/oembed', {
+      'url': videoUri.toString(),
+    });
+
     try {
-      final lower = url.toLowerCase();
-      if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
-        const ytApiKey = String.fromEnvironment('YOUTUBE_API_KEY');
-        final videoId = _youtubeVideoId(url);
-        if (videoId != null && ytApiKey.isNotEmpty) {
-          final ytResult = await fetchYouTubeMetadata(videoId, ytApiKey);
-          if (ytResult != null) return ytResult;
-        }
-        // Fallback oEmbed YouTube
-        final oembedUrl =
-            'https://www.youtube.com/oembed?url=${Uri.encodeComponent(url)}&format=json';
-        final response = await http
-            .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
-            .timeout(const Duration(seconds: 6));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body) as Map<String, dynamic>;
-          return {
-            'title': data['title'] as String?,
-            'thumbnailUrl': data['thumbnail_url'] as String?,
-            'youtubeCategoryId': null,
-          };
-        }
-        return {'title': null, 'thumbnailUrl': null, 'youtubeCategoryId': null};
+      final response = await http
+          .get(requestUri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final title = (payload['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) return null;
+
+      return VideoData(
+        title: title,
+        channel: (payload['author_name'] as String?)?.trim(),
+        platform: 'tiktok',
+        thumbnailUrl: _sanitizeMediaUrl(payload['thumbnail_url'] as String?),
+      );
+    } catch (e) {
+      debugPrint('[oembed] tiktok error: $e');
+      return null;
+    }
+  }
+
+  static Future<VideoData?> _fetchInstagramMetadata(Uri videoUri) async {
+    if (_instagramAccessToken.trim().isEmpty) {
+      debugPrint('[oembed] instagram error: missing access token');
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'instagram');
+    }
+
+    final requestUri = Uri.https('graph.facebook.com', '/v18.0/instagram_oembed', {
+      'url': videoUri.toString(),
+      'access_token': _instagramAccessToken,
+    });
+
+    try {
+      final response = await http
+          .get(requestUri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) return null;
+
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final title = (payload['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) return null;
+
+      return VideoData(
+        title: title,
+        channel: (payload['author_name'] as String?)?.trim(),
+        platform: 'instagram',
+        thumbnailUrl: _sanitizeMediaUrl(payload['thumbnail_url'] as String?),
+      );
+    } catch (e) {
+      debugPrint('[oembed] instagram error: $e');
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'instagram');
+    }
+  }
+
+  static Future<VideoData?> _fetchTwitchMetadata(Uri videoUri) async {
+    final clipId = _twitchClipIdFromUri(videoUri);
+    final videoId = clipId == null ? _twitchVideoIdFromUri(videoUri) : null;
+
+    if (clipId == null && videoId == null) {
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
+    }
+
+    if (_twitchClientId.trim().isEmpty || _twitchAccessToken.trim().isEmpty) {
+      debugPrint('[oembed] twitch error: missing credentials');
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
+    }
+
+    final requestUri = clipId != null
+        ? Uri.https('api.twitch.tv', '/helix/clips', {'id': clipId})
+        : Uri.https('api.twitch.tv', '/helix/videos', {'id': videoId!});
+
+    try {
+      final response = await http.get(
+        requestUri,
+        headers: {
+          'Accept': 'application/json',
+          'Client-Id': _twitchClientId,
+          'Authorization': 'Bearer $_twitchAccessToken',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
       }
-      String? oembedUrl;
-      if (lower.contains('vimeo.com')) {
-        oembedUrl =
-            'https://vimeo.com/api/oembed.json?url=${Uri.encodeComponent(url)}';
-      } else if (lower.contains('tiktok.com')) {
-        oembedUrl =
-            'https://www.tiktok.com/oembed?url=${Uri.encodeComponent(url)}';
+
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final items = payload['data'] as List<dynamic>?;
+      if (items == null || items.isEmpty) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
       }
-      if (oembedUrl != null) {
-        final response = await http
-            .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
-            .timeout(const Duration(seconds: 6));
-        if (response.statusCode == 200) {
-          final data = json.decode(response.body) as Map<String, dynamic>;
-          return {
-            'title': data['title'] as String?,
-            'thumbnailUrl': data['thumbnail_url'] as String?,
-            'youtubeCategoryId': null,
-          };
-        }
+
+      final item = items.first as Map<String, dynamic>;
+      final title = (item['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
       }
-    } catch (_) {}
-    return {'title': null, 'thumbnailUrl': null, 'youtubeCategoryId': null};
+
+      final thumbnailTemplate = item['thumbnail_url'] as String?;
+      final thumbnailUrl = _sanitizeMediaUrl(
+        thumbnailTemplate?.replaceAll('{width}x{height}', '480x270'),
+      );
+
+      return VideoData(
+        title: title,
+        channel: (item['broadcaster_name'] as String?)?.trim(),
+        description: (item['game_name'] as String?)?.trim(),
+        views: item['view_count'] is int
+            ? item['view_count'] as int
+            : int.tryParse('${item['view_count'] ?? ''}'),
+        duration: (item['duration'] as String?)?.trim(),
+        platform: 'twitch',
+        thumbnailUrl: thumbnailUrl,
+      );
+    } catch (e) {
+      debugPrint('[oembed] twitch error: $e');
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
+    }
+  }
+
+  static Future<VideoData?> _fetchOpenGraphMetadata(
+    Uri uri, {
+    required String platformId,
+  }) async {
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) return null;
+
+      final body = response.body;
+      final title = _extractMetaContent(body, property: 'og:title') ??
+          _extractMetaContent(body, name: 'twitter:title') ??
+          _extractHtmlTitle(body);
+      final thumb = _extractMetaContent(body, property: 'og:image') ??
+          _extractMetaContent(body, property: 'og:image:url') ??
+          _extractMetaContent(body, name: 'twitter:image') ??
+          _extractMetaContent(body, name: 'twitter:image:src');
+      final channel = _extractMetaContent(body, property: 'og:site_name');
+
+      final cleanedTitle = (title ?? '').trim();
+      final cleanedThumb = _sanitizeMediaUrl(thumb);
+
+      if (cleanedTitle.isEmpty && cleanedThumb == null && (channel ?? '').trim().isEmpty) {
+        return null;
+      }
+
+      return VideoData(
+        title: cleanedTitle.isEmpty ? SocialPlatform.detect(uri.toString()).name : cleanedTitle,
+        channel: (channel ?? '').trim().isEmpty ? null : channel!.trim(),
+        platform: platformId,
+        thumbnailUrl: cleanedThumb,
+      );
+    } catch (e) {
+      debugPrint('[oembed] og error: $e');
+      return null;
+    }
+  }
+
+  static String? _extractMetaContent(
+    String html, {
+    String? property,
+    String? name,
+  }) {
+    final key = property ?? name;
+    if (key == null) return null;
+
+    final escapedKey = RegExp.escape(key);
+    final patternA = RegExp(
+      '<meta[^>]+(?:property|name)=["\']$escapedKey["\'][^>]+content=["\']([^"\']+)["\']',
+      caseSensitive: false,
+    );
+    final patternB = RegExp(
+      '<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']$escapedKey["\']',
+      caseSensitive: false,
+    );
+
+    final match = patternA.firstMatch(html) ?? patternB.firstMatch(html);
+    if (match == null) return null;
+    return _decodeHtmlEntities(match.group(1)?.trim() ?? '');
+  }
+
+  static String? _extractHtmlTitle(String html) {
+    final match = RegExp(
+      r'<title[^>]*>([^<]+)</title>',
+      caseSensitive: false,
+    ).firstMatch(html);
+    if (match == null) return null;
+    return _decodeHtmlEntities(match.group(1)?.trim() ?? '');
+  }
+
+  static Uri? _parseHttpUri(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme) return null;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return null;
+    if (uri.host.isEmpty) return null;
+    return uri;
+  }
+
+  static String? _youtubeVideoIdFromUrl(String url) {
+    final uri = _parseHttpUri(url);
+    if (uri == null) return null;
+    return _youtubeVideoIdFromUri(uri);
+  }
+
+  static String? _youtubeVideoIdFromUri(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host.contains('youtu.be')) {
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.contains('shorts')) {
+      final index = segments.indexOf('shorts');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+    if (segments.contains('embed')) {
+      final index = segments.indexOf('embed');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+
+    final videoId = uri.queryParameters['v'];
+    if (videoId != null && videoId.isNotEmpty) return videoId;
+    return null;
+  }
+
+  static String? _twitchVideoIdFromUri(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (!host.contains('twitch.tv')) return null;
+
+    final segments = uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+    if (segments.length >= 2 && segments.first == 'videos') {
+      return segments[1].trim().isEmpty ? null : segments[1].trim();
+    }
+    return null;
+  }
+
+  static String? _twitchClipIdFromUri(Uri uri) {
+    final host = uri.host.toLowerCase();
+    final segments = uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+
+    if (host == 'clips.twitch.tv') {
+      if (segments.isEmpty) return null;
+      final clipId = segments.first.trim();
+      return clipId.isEmpty ? null : clipId;
+    }
+
+    if (host.contains('twitch.tv')) {
+      final clipIndex = segments.indexOf('clip');
+      if (clipIndex != -1 && clipIndex + 1 < segments.length) {
+        final clipId = segments[clipIndex + 1].trim();
+        return clipId.isEmpty ? null : clipId;
+      }
+    }
+
+    return null;
+  }
+
+  static String _filenameTitle(String raw) {
+    final uri = Uri.tryParse(raw);
+    final source = (uri?.pathSegments.isNotEmpty ?? false)
+        ? uri!.pathSegments.last
+        : raw.split(RegExp(r'[\\/]')).last;
+    final decoded = Uri.decodeComponent(source);
+    final withoutExtension = decoded.replaceFirst(RegExp(r'\.[^.]+$'), '');
+    final normalized = withoutExtension
+        .replaceAll(RegExp(r'[_-]+'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return normalized.isEmpty ? 'Upload' : normalized;
+  }
+
+  static String? _sanitizeMediaUrl(String? raw) {
+    if (raw == null) return null;
+    final cleaned = _decodeHtmlEntities(raw.trim());
+    final uri = Uri.tryParse(cleaned);
+    if (uri == null || !uri.hasScheme) return null;
+    final scheme = uri.scheme.toLowerCase();
+    if (scheme != 'http' && scheme != 'https') return null;
+    if (uri.host.isEmpty) return null;
+    return cleaned;
+  }
+
+  static String _decodeHtmlEntities(String s) {
+    return s
+        .replaceAll('&amp;', '&')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&apos;', "'")
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&nbsp;', '\u00a0')
+        .replaceAllMapped(
+          RegExp(r'&#x([0-9a-fA-F]+);'),
+          (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)),
+        )
+        .replaceAllMapped(
+          RegExp(r'&#([0-9]+);'),
+          (m) => String.fromCharCode(int.parse(m.group(1)!)),
+        );
   }
 }

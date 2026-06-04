@@ -10,6 +10,247 @@ import '../widgets/glass_card.dart';
 import '../widgets/sheet_field.dart';
 
 // ─────────────────────────────────────────────
+// ICON SUGGESTION BY NAME
+// ─────────────────────────────────────────────
+
+const categoryIconChoices = <IconData>[
+  Icons.folder_rounded,
+  Icons.star_rounded,
+  Icons.bookmark_rounded,
+  Icons.favorite_rounded,
+  Icons.work_rounded,
+  Icons.school_rounded,
+  Icons.sports_esports_rounded,
+  Icons.music_note_rounded,
+  Icons.movie_rounded,
+  Icons.restaurant_rounded,
+  Icons.travel_explore_rounded,
+  Icons.science_rounded,
+  Icons.checkroom_rounded,
+  Icons.face_retouching_natural,
+  Icons.fitness_center_rounded,
+  Icons.business_center_rounded,
+  Icons.account_balance_rounded,
+  Icons.health_and_safety_rounded,
+  Icons.palette_rounded,
+  Icons.home_rounded,
+  Icons.eco_rounded,
+  Icons.pets_rounded,
+  Icons.child_care_rounded,
+  Icons.shopping_bag_rounded,
+  Icons.self_improvement_rounded,
+  Icons.computer_rounded,
+  Icons.camera_alt_rounded,
+  Icons.photo_camera_rounded,
+  Icons.auto_stories_rounded,
+  Icons.menu_book_rounded,
+  Icons.theater_comedy_rounded,
+  Icons.celebration_rounded,
+  Icons.spa_rounded,
+  Icons.local_hospital_rounded,
+  Icons.psychology_rounded,
+  Icons.volunteer_activism_rounded,
+  Icons.diamond_rounded,
+  Icons.wb_sunny_rounded,
+  Icons.nightlight_round,
+  Icons.directions_car_rounded,
+  Icons.flight_takeoff_rounded,
+  Icons.public_rounded,
+  Icons.coffee_rounded,
+  Icons.local_bar_rounded,
+  Icons.fastfood_rounded,
+  Icons.icecream_rounded,
+  Icons.cake_rounded,
+  Icons.laptop_mac_rounded,
+  Icons.smartphone_rounded,
+  Icons.podcasts_rounded,
+  Icons.mic_rounded,
+  Icons.headphones_rounded,
+  Icons.video_library_rounded,
+  Icons.ondemand_video_rounded,
+  Icons.brush_rounded,
+  Icons.architecture_rounded,
+  Icons.handyman_rounded,
+  Icons.park_rounded,
+  Icons.landscape_rounded,
+  Icons.sailing_rounded,
+  Icons.hiking_rounded,
+  Icons.attach_money_rounded,
+  Icons.currency_bitcoin_rounded,
+  Icons.storefront_rounded,
+  Icons.sell_rounded,
+  Icons.groups_rounded,
+  Icons.family_restroom_rounded,
+];
+
+IconData suggestIconForCategoryName(String name) {
+  final n = name.toLowerCase().trim();
+  bool has(List<String> kw) => kw.any((k) => n.contains(k));
+
+  if (has(['photo', 'photographie', 'camera', 'caméra', 'shoot'])) {
+    return Icons.photo_camera_rounded;
+  }
+  if (has(['vidéo', 'video', 'reel', 'montage', 'editing'])) {
+    return Icons.video_library_rounded;
+  }
+  if (has(['podcast', 'interview', 'audio', 'voix'])) {
+    return Icons.podcasts_rounded;
+  }
+  if (has(['livre', 'book', 'lecture', 'roman', 'bibliothèque'])) {
+    return Icons.auto_stories_rounded;
+  }
+  if (has(['humour', 'comédie', 'comedie', 'drôle', 'drole'])) {
+    return Icons.theater_comedy_rounded;
+  }
+  if (has(['événement', 'evenement', 'event', 'fête', 'fete'])) {
+    return Icons.celebration_rounded;
+  }
+  if (has(['mode', 'fashion', 'style', 'vêtement', 'vetement', 'robe',
+      'outfit', 'luxe', 'bijou', 'accessoire'])) {
+    return Icons.checkroom_rounded;
+  }
+  if (has(['beauté', 'beaute', 'beauty', 'makeup', 'maquillage', 'skincare',
+      'soin', 'cosmétique', 'cosmetique'])) {
+    return Icons.face_retouching_natural;
+  }
+  if (has(['cuisine', 'recette', 'food', 'repas', 'gastro', 'manger',
+      'chef', 'cooking', 'pâtisserie', 'patisserie', 'boulangerie'])) {
+    return Icons.restaurant_rounded;
+  }
+  if (has(['café', 'cafe', 'coffee', 'barista'])) {
+    return Icons.coffee_rounded;
+  }
+  if (has(['cocktail', 'vin', 'wine', 'alcool', 'bar'])) {
+    return Icons.local_bar_rounded;
+  }
+  if (has(['dessert', 'glace', 'ice cream', 'gâteau', 'gateau'])) {
+    return Icons.icecream_rounded;
+  }
+  if (has(['sport', 'fitness', 'gym', 'musculation', 'running', 'yoga',
+      'entrainement', 'entraînement', 'pilates', 'crossfit', 'natation'])) {
+    return Icons.fitness_center_rounded;
+  }
+  if (has(['randonnée', 'randonnee', 'hiking', 'trek'])) {
+    return Icons.hiking_rounded;
+  }
+  if (has(['voiture', 'car', 'auto', 'moto', 'motor'])) {
+    return Icons.directions_car_rounded;
+  }
+  if (has(['voyage', 'travel', 'trip', 'vacances', 'aventure', 'destination',
+      'roadtrip', 'expatrié', 'expatrie'])) {
+    return Icons.travel_explore_rounded;
+  }
+  if (has(['avion', 'flight', 'aéroport', 'aeroport'])) {
+    return Icons.flight_takeoff_rounded;
+  }
+  if (has(['musique', 'music', 'son', 'concert', 'playlist', 'chanson',
+      'rap', 'pop', 'jazz', 'dj'])) {
+    return Icons.music_note_rounded;
+  }
+  if (has(['micro', 'chant', 'voice', 'voix'])) {
+    return Icons.mic_rounded;
+  }
+  if (has(['cinéma', 'cinema', 'film', 'série', 'serie', 'movie',
+      'streaming', 'netflix', 'documentaire'])) {
+    return Icons.movie_rounded;
+  }
+  if (has(['gaming', 'jeu', 'game', 'esport', 'gamer',
+      'playstation', 'xbox', 'nintendo', 'twitch'])) {
+    return Icons.sports_esports_rounded;
+  }
+  if (has(['tech', 'technologie', 'informatique', 'code', 'développeur',
+      'developer', 'digital', 'intelligence artificielle'])) {
+    return Icons.computer_rounded;
+  }
+  if (has(['mobile', 'iphone', 'android', 'smartphone'])) {
+    return Icons.smartphone_rounded;
+  }
+  if (has(['business', 'entreprise', 'startup', 'entrepreneuriat',
+      'marketing', 'entrepreneur', 'management', 'leadership'])) {
+    return Icons.business_center_rounded;
+  }
+  if (has(['vente', 'sales', 'crm', 'prospection'])) {
+    return Icons.sell_rounded;
+  }
+  if (has(['finance', 'argent', 'money', 'budget', 'investissement',
+      'bourse', 'crypto', 'épargne', 'epargne'])) {
+    return Icons.account_balance_rounded;
+  }
+  if (has(['bitcoin', 'blockchain', 'web3'])) {
+    return Icons.currency_bitcoin_rounded;
+  }
+  if (has(['santé', 'sante', 'health', 'médical', 'medical', 'bien-être',
+      'bienetre', 'médecine', 'medecine', 'mental', 'psycho'])) {
+    return Icons.health_and_safety_rounded;
+  }
+  if (has(['spa', 'relax', 'méditation', 'meditation'])) {
+    return Icons.spa_rounded;
+  }
+  if (has(['art', 'dessin', 'peinture', 'créatif', 'creatif', 'artiste',
+      'illustration', 'photographie', 'photo', 'graphisme'])) {
+    return Icons.palette_rounded;
+  }
+  if (has(['design', 'architecture', 'archi', 'interior'])) {
+    return Icons.architecture_rounded;
+  }
+  if (has(['maison', 'home', 'déco', 'deco', 'intérieur', 'interieur',
+      'immobilier', 'architecture', 'renovation', 'rénovation'])) {
+    return Icons.home_rounded;
+  }
+  if (has(['bricolage', 'diy', 'outil', 'repair', 'réparation'])) {
+    return Icons.handyman_rounded;
+  }
+  if (has(['nature', 'outdoor', 'jardin', 'garden', 'environnement',
+      'plante', 'écologie', 'ecologie', 'montagne', 'randonnée'])) {
+    return Icons.eco_rounded;
+  }
+  if (has(['mer', 'boat', 'voilier', 'sailing'])) {
+    return Icons.sailing_rounded;
+  }
+  if (has(['animal', 'animaux', 'pet', 'chien', 'chat', 'dog', 'cat',
+      'ferme', 'zoo'])) {
+    return Icons.pets_rounded;
+  }
+  if (has(['bébé', 'bebe', 'baby', 'enfant', 'kid', 'nourrisson',
+      'puériculture', 'puericulture', 'maternité', 'maternite'])) {
+    return Icons.child_care_rounded;
+  }
+  if (has(['famille', 'family', 'parentalité', 'parentalite'])) {
+    return Icons.family_restroom_rounded;
+  }
+  if (has(['éducation', 'education', 'cours', 'formation', 'apprendre',
+      'étude', 'etude', 'scolaire', 'université', 'universite'])) {
+    return Icons.school_rounded;
+  }
+  if (has(['shopping', 'achat', 'boutique', 'shop', 'consommation',
+      'haul', 'unboxing'])) {
+    return Icons.shopping_bag_rounded;
+  }
+  if (has(['ecommerce', 'e-commerce', 'store', 'magasin'])) {
+    return Icons.storefront_rounded;
+  }
+  if (has(['lifestyle', 'routine', 'quotidien', 'well-being',
+      'développement personnel', 'developpement personnel', 'motivation'])) {
+    return Icons.self_improvement_rounded;
+  }
+  if (has(['relation', 'communauté', 'communaute', 'social'])) {
+    return Icons.groups_rounded;
+  }
+  if (has(['science', 'physique', 'chimie', 'biologie', 'recherche',
+      'astronomie', 'espace', 'space'])) {
+    return Icons.science_rounded;
+  }
+  if (has(['sun', 'soleil', 'été', 'ete'])) {
+    return Icons.wb_sunny_rounded;
+  }
+  if (has(['nuit', 'night', 'moon', 'sommeil'])) {
+    return Icons.nightlight_round;
+  }
+
+  return Icons.folder_rounded;
+}
+
+// ─────────────────────────────────────────────
 // EDIT CATEGORY SHEET
 // ─────────────────────────────────────────────
 
@@ -45,20 +286,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
     Color(0xFF3F51B5),
   ];
 
-  static const _icons = [
-    Icons.folder_rounded,
-    Icons.star_rounded,
-    Icons.bookmark_rounded,
-    Icons.favorite_rounded,
-    Icons.work_rounded,
-    Icons.school_rounded,
-    Icons.sports_esports_rounded,
-    Icons.music_note_rounded,
-    Icons.movie_rounded,
-    Icons.restaurant_rounded,
-    Icons.travel_explore_rounded,
-    Icons.science_rounded,
-  ];
+  static const _icons = categoryIconChoices;
 
   @override
   void initState() {
@@ -280,6 +508,14 @@ class CategoriesScreen extends StatelessWidget {
                   letterSpacing: -0.5),
             ),
             actions: [
+              IconButton(
+                icon: const Icon(Icons.add_rounded),
+                tooltip: 'Ajouter une catégorie',
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => AddCategoryDialog(state: state),
+                ),
+              ),
               const SizedBox(width: 8),
             ],
           ),
@@ -426,6 +662,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   final _nameCtrl = TextEditingController();
   Color _color = const Color(0xFF4F8EF7);
   IconData _icon = Icons.folder_rounded;
+  bool _userPickedIcon = false;
 
   static const _colors = [
     Color(0xFF4F8EF7),
@@ -440,20 +677,71 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
     Color(0xFF3F51B5),
   ];
 
-  static const _icons = [
-    Icons.folder_rounded,
-    Icons.star_rounded,
-    Icons.bookmark_rounded,
-    Icons.favorite_rounded,
-    Icons.work_rounded,
-    Icons.school_rounded,
-    Icons.sports_esports_rounded,
-    Icons.music_note_rounded,
-    Icons.movie_rounded,
-    Icons.restaurant_rounded,
-    Icons.travel_explore_rounded,
-    Icons.science_rounded,
-  ];
+  static const _icons = categoryIconChoices;
+
+  Future<bool?> _confirmSimilarCategory(
+    String typedName,
+    ClipCategory suggested,
+  ) {
+    return showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Catégorie similaire détectée'),
+        content: Text(
+          'Vous voulez dire "${suggested.name}" au lieu de "$typedName" ?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, null),
+            child: const Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Garder mon nom'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Utiliser ${suggested.name}'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveCategory() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty) return;
+
+    final near = widget.state.findBestCategoryMatch(name);
+    if (near != null && near.name.toLowerCase().trim() != name.toLowerCase()) {
+      final useExisting = await _confirmSimilarCategory(name, near);
+      if (!mounted || useExisting == null) return;
+      if (useExisting) {
+        if (mounted) Navigator.pop(context);
+        return;
+      }
+    }
+
+    await widget.state.addCategory(ClipCategory(
+      id: const Uuid().v4(),
+      name: name,
+      color: _color,
+      icon: _icon,
+    ));
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl.addListener(() {
+      if (!_userPickedIcon) {
+        final suggested = suggestIconForCategoryName(_nameCtrl.text);
+        if (suggested != _icon) setState(() => _icon = suggested);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -524,7 +812,10 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                 runSpacing: 8,
                 children: _icons
                     .map((ic) => GestureDetector(
-                          onTap: () => setState(() => _icon = ic),
+                          onTap: () => setState(() {
+                            _icon = ic;
+                            _userPickedIcon = true;
+                          }),
                           child: Container(
                             width: 38,
                             height: 38,
@@ -557,16 +848,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
             onPressed: () => Navigator.pop(context),
             child: Text(l.t('cancel'))),
         FilledButton(
-          onPressed: () {
-            if (_nameCtrl.text.trim().isEmpty) return;
-            widget.state.addCategory(ClipCategory(
-              id: const Uuid().v4(),
-              name: _nameCtrl.text.trim(),
-              color: _color,
-              icon: _icon,
-            ));
-            Navigator.pop(context);
-          },
+          onPressed: _saveCategory,
           child: Text(l.t('save')),
         ),
       ],
