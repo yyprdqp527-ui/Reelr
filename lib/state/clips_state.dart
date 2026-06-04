@@ -48,6 +48,7 @@ enum SortOrder { chronological, alphabetical, manual }
 
 class ClipsState extends ChangeNotifier {
   List<Clip> _clips = [];
+  final Set<String> _newlyClassifiedCategoryIds = {};
   List<ClipCategory> _categories = [];
   List<SubCategory> _subcategories = [];
   Map<String, String> _clipSubcategoryMap = {};
@@ -57,6 +58,13 @@ class ClipsState extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
   List<ClipCategory> get categories => _categories;
+
+  Set<String> get newlyClassifiedCategoryIds => Set.unmodifiable(_newlyClassifiedCategoryIds);
+
+  void markCategoryViewed(String categoryId) {
+    _newlyClassifiedCategoryIds.remove(categoryId);
+    notifyListeners();
+  }
 
   List<Clip> get clips {
     var result = _clips;
@@ -157,6 +165,7 @@ class ClipsState extends ChangeNotifier {
       if (current.categoryId != null) return;
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
+      _newlyClassifiedCategoryIds.add(matchedCat.id);
       _categories = await DatabaseHelper.instance.getAllCategories();
       _clips = await DatabaseHelper.instance.getAllClips();
       notifyListeners();

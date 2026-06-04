@@ -152,6 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : catClips.last.thumbnailUrl
                                 ?.replaceAll('hqdefault.jpg', 'mqdefault.jpg')
                                 .replaceAll('sddefault.jpg', 'mqdefault.jpg'),
+                        showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },
                     childCount: widget.state.categories.length + 1,
@@ -230,6 +231,7 @@ class _CategoryTile extends StatefulWidget {
   final bool isAdd;
 
   final String? thumbnailUrl;
+  final bool showBadge;
 
   const _CategoryTile({
     required this.name,
@@ -239,6 +241,7 @@ class _CategoryTile extends StatefulWidget {
     this.icon,
     this.isAdd = false,
     this.thumbnailUrl,
+    this.showBadge = false,
   });
 
   factory _CategoryTile.add({
@@ -356,6 +359,20 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ],
                         ),
                       ),
+                      // Badge rouge si nouvellement classifiée
+                      if (widget.showBadge)
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: Container(
+                            width: 12,
+                            height: 12,
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFFF3B30),
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                        ),
                     ],
                   )
                 // ── Mode glass card : BackdropFilter intact ──
