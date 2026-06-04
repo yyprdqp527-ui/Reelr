@@ -176,7 +176,13 @@ class OEmbedService {
       final response = await http
           .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        return VideoData(
+          title: videoUri.toString(),
+          platform: 'youtube',
+          thumbnailUrl: bestThumbnailUrl(videoUri.toString(), null),
+        );
+      }
       final payload = json.decode(response.body) as Map<String, dynamic>;
       final title = (payload['title'] as String?)?.trim() ?? '';
       final author = (payload['author_name'] as String?)?.trim();
