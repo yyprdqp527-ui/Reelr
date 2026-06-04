@@ -17,7 +17,6 @@ import '../services/oembed.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/glass_card.dart';
-import '../widgets/main_shell.dart';
 import '../widgets/sheet_field.dart';
 
 // ─────────────────────────────────────────────
@@ -138,15 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               _openCategory(context, null, l.t('all')),
                         );
                       }
-                      if (i == widget.state.categories.length + 1) {
-                        return _CategoryTile.add(
-                          label: l.t('add'),
-                          onTap: () {
-                            // Aller à l'onglet « Catégories » pour en créer une
-                            MainShell.switchTab(context, 1);
-                          },
-                        );
-                      }
                       final cat = widget.state.categories[i - 1];
                       final catClips =
                           widget.state.clipsForCategory(cat.id);
@@ -164,7 +154,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 .replaceAll('sddefault.jpg', 'mqdefault.jpg'),
                       );
                     },
-                    childCount: widget.state.categories.length + 2,
+                    childCount: widget.state.categories.length + 1,
                   ),
                 ),
               ),
