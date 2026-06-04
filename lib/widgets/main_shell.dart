@@ -1,9 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../core/l10n.dart';
 import '../screens/categories_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/settings_screen.dart';
@@ -33,31 +31,12 @@ class _MainShellState extends State<MainShell> {
 
   void setIndex(int i) => setState(() => _index = i);
 
-  Future<void> _handleFabTap(BuildContext context) async {
-    final prefs = await SharedPreferences.getInstance();
-    final tapCount = prefs.getInt('fab_tap_count') ?? 0;
-    if (tapCount >= 3) return;
-
-    await prefs.setInt('fab_tap_count', tapCount + 1);
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Tu regardes une vidéo qui te plaît ?\nAppuie sur ⬆ puis choisis Reelr',
-        ),
-        duration: Duration(seconds: 4),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final l = AppL10n.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? const Color(0xFF08081A) : const Color(0xFFF0EFFF);
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navBarHeight = 60 + 16 + safeBottom; // nav + padding + safe area
+    final navBarHeight = 72 + 16 + safeBottom; // dock + padding + safe area
 
     return Scaffold(
       backgroundColor: bg,
@@ -76,22 +55,11 @@ class _MainShellState extends State<MainShell> {
               ],
             ),
           ),
-          if (_index == 0 || _index == 1)
-            Positioned(
-              bottom: navBarHeight + 8,
-              right: 24,
-              child: FloatingActionButton.extended(
-                onPressed: () => _handleFabTap(context),
-                icon: const Icon(Icons.add_rounded),
-                label: Text(l.t('add_clip')),
-                elevation: 2,
-              ),
-            ),
           Positioned(
             bottom: safeBottom + 16,
             left: 16,
             right: 16,
-            child: _buildNavBar(l, isDark),
+            child: _buildNavBar(isDark),
           ),
         ],
       ),
@@ -99,32 +67,52 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavBar(AppL10n l, bool isDark) {
+  Widget _buildNavBar(bool isDark) {
     final bgColor = isDark
-        ? const Color.fromRGBO(10, 14, 31, 0.85)
-        : const Color.fromRGBO(242, 242, 247, 0.95);
+        ? const Color.fromRGBO(24, 29, 45, 0.62)
+        : const Color.fromRGBO(250, 252, 255, 0.72);
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.16)
+        : Colors.white.withValues(alpha: 0.92);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(28),
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
         child: Container(
-          height: 60,
+          height: 72,
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: borderColor, width: 1.1),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.10),
-                blurRadius: 20,
+                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.14),
+                blurRadius: 28,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.white.withValues(alpha: isDark ? 0.04 : 0.55),
+                blurRadius: 22,
+                offset: const Offset(0, -2),
               ),
             ],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _navItem(Icons.home_rounded, Icons.home_outlined, l.t('home'), 0),
-              _navItem(Icons.grid_view_rounded, Icons.grid_view_outlined, l.t('categories'), 1),
-              _navItem(Icons.settings_rounded, Icons.settings_outlined, l.t('settings'), 2),
+              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark),
+              _navItem(
+                Icons.grid_view_rounded,
+                Icons.grid_view_outlined,
+                1,
+                isDark,
+              ),
+              _navItem(
+                Icons.settings_rounded,
+                Icons.settings_outlined,
+                2,
+                isDark,
+              ),
             ],
           ),
         ),
@@ -132,23 +120,46 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _navItem(IconData selIcon, IconData unselIcon, String label, int idx) {
+  Widget _navItem(
+    IconData selIcon,
+    IconData unselIcon,
+    int idx,
+    bool isDark,
+  ) {
     final sel = _index == idx;
-    const activeColor = Color(0xFF7C3AED);
-    const inactiveColor = Colors.grey;
-    final color = sel ? activeColor : inactiveColor;
-    return GestureDetector(
+    final activeColor = isDark
+        ? const Color(0xFF9DC8FF)
+        : const Color(0xFF1967D2);
+    final inactiveColor = isDark
+        ? Colors.white.withValues(alpha: 0.70)
+        : const Color(0xFF5A6575);
+    final activeBg = isDark
+        ? Colors.white.withValues(alpha: 0.12)
+        : const Color(0xFFEAF2FF);
+
+    return InkWell(
       onTap: () => setState(() => _index = idx),
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(sel ? selIcon : unselIcon, color: color, size: 22),
-            const SizedBox(height: 3),
-            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600)),
-          ],
+      borderRadius: BorderRadius.circular(18),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: 58,
+        height: 50,
+        decoration: BoxDecoration(
+          color: sel ? activeBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: sel
+                ? (isDark
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : const Color(0xFFCFE0FF))
+                : Colors.transparent,
+          ),
+        ),
+        child: Icon(
+          sel ? selIcon : unselIcon,
+          color: sel ? activeColor : inactiveColor,
+          size: sel ? 25 : 23,
         ),
       ),
     );
