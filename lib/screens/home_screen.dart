@@ -2165,6 +2165,21 @@ class _AddClipSheetState extends State<AddClipSheet> {
                           }
                         }),
                       ),
+                    if (_showNewCategoryField) ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _newCategoryCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Nom de la catégorie',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() => _showNewCategoryField = false),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     Row(
                       children: [
@@ -2385,7 +2400,7 @@ class _CategoryPicker extends StatelessWidget {
               onTap: () => onChanged(cat.id),
             )),
         _CatChip(
-          label: '+ Créer',
+          label: 'Créer',
           color: const Color(0xFF7C3AED),
           icon: Icons.add_rounded,
           selected: false,
@@ -2461,14 +2476,16 @@ class EditClipSheet extends StatefulWidget {
 class _EditClipSheetState extends State<EditClipSheet> {
   late final TextEditingController _titleCtrl;
   late final TextEditingController _tagsCtrl;
+  late final TextEditingController _newCategoryCtrl;
   late String? _selectedCategoryId;
+  bool _showNewCategoryField = false;
 
   @override
   void initState() {
     super.initState();
     _titleCtrl = TextEditingController(text: widget.clip.title);
-    _tagsCtrl =
-        TextEditingController(text: widget.clip.tags.join(', '));
+    _tagsCtrl = TextEditingController(text: widget.clip.tags.join(', '));
+    _newCategoryCtrl = TextEditingController();
     _selectedCategoryId = widget.clip.categoryId;
   }
 
@@ -2482,12 +2499,24 @@ class _EditClipSheetState extends State<EditClipSheet> {
             .map((t) => t.trim())
             .where((t) => t.isNotEmpty)
             .toList();
+    String? categoryId = _selectedCategoryId;
+    if (_showNewCategoryField && _newCategoryCtrl.text.trim().isNotEmpty) {
+      final newCat = ClipCategory(
+        id: const Uuid().v4(),
+        name: _newCategoryCtrl.text.trim(),
+        color: const Color(0xFF7C3AED),
+        icon: Icons.folder_outlined,
+      );
+      final created = await widget.state.addCategory(newCat);
+      if (!mounted) return;
+      categoryId = created.id;
+    }
     final updated = Clip(
       id: widget.clip.id,
       url: widget.clip.url,
       title: title.isEmpty ? l.t('no_title') : title,
       platform: widget.clip.platform,
-      categoryId: _selectedCategoryId,
+      categoryId: categoryId,
       tags: tags,
       addedAt: widget.clip.addedAt,
       thumbnailUrl: widget.clip.thumbnailUrl,
@@ -2570,9 +2599,29 @@ class _EditClipSheetState extends State<EditClipSheet> {
                       categories: widget.state.categories,
                       selected: _selectedCategoryId,
                       l: l,
-                      onChanged: (id) =>
-                          setState(() => _selectedCategoryId = id),
+                      onChanged: (id) => setState(() {
+                        if (id == '__new__') {
+                          _showNewCategoryField = true;
+                        } else {
+                          _selectedCategoryId = id;
+                        }
+                      }),
                     ),
+                    if (_showNewCategoryField) ...[
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: _newCategoryCtrl,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          labelText: 'Nom de la catégorie',
+                          border: const OutlineInputBorder(),
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.close_rounded),
+                            onPressed: () => setState(() => _showNewCategoryField = false),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     Row(
                       children: [
