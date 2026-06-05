@@ -144,6 +144,7 @@ class ClipsState extends ChangeNotifier {
         profile: profile,
       );
       final catName = result.categoriePrincipale;
+      debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
         final newCat = ClipCategory(
