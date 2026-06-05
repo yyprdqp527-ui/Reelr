@@ -388,8 +388,8 @@ class _CategoryTileState extends State<_CategoryTile> {
                             borderRadius: BorderRadius.circular(22),
                             color: tintColor.withValues(alpha: 0.12),
                             border: Border.all(
-                              color: tintColor.withValues(alpha: 0.25),
-                              width: 1.5,
+                              color: isDark ? tintColor.withValues(alpha: 0.45) : tintColor.withValues(alpha: 0.70),
+                              width: isDark ? 1.2 : 1.8,
                             ),
                             boxShadow: [
                               BoxShadow(

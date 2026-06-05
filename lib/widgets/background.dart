@@ -21,9 +21,9 @@ class GradientBackground extends StatelessWidget {
                     Color(0xFF1A0A2E),
                   ]
                 : const [
-                    Colors.white,
-                    Color(0xFFFFF6EC),
-                    Colors.white,
+                    Color(0xFFF3EEFF),
+                    Color(0xFFEEF2FF),
+                    Color(0xFFFFF0F5),
                   ],
           ),
         ),
@@ -34,7 +34,7 @@ class GradientBackground extends StatelessWidget {
               right: -80,
               child: Orb(
                 size: 360,
-                color: const Color.fromRGBO(124, 58, 237, 0.18),
+                color: Color.fromRGBO(124, 58, 237, isDark ? 0.18 : 0.25),
               ),
             ),
             Positioned(
@@ -42,7 +42,7 @@ class GradientBackground extends StatelessWidget {
               left: -120,
               child: Orb(
                 size: 300,
-                color: const Color.fromRGBO(37, 99, 235, 0.15),
+                color: Color.fromRGBO(37, 99, 235, isDark ? 0.15 : 0.20),
               ),
             ),
             Positioned(
@@ -51,7 +51,7 @@ class GradientBackground extends StatelessWidget {
               child: Orb(
                 size: 280,
                 color: AppTheme.darkGreen
-                    .withValues(alpha: isDark ? 0.4 : 0.08),
+                    .withValues(alpha: isDark ? 0.4 : 0.15),
               ),
             ),
           ],

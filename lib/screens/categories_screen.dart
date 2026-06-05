@@ -18,8 +18,6 @@ const categoryColorChoices = <Color>[
   Color(0xFF2ECC71), Color(0xFF10B981), Color(0xFF84CC16), Color(0xFF4ADE80),
   Color(0xFFFF5252), Color(0xFFE91E63), Color(0xFFF43F5E), Color(0xFFFF6B9D),
   Color(0xFFFF9800), Color(0xFFFFB300), Color(0xFFF97316), Color(0xFFEAB308),
-  Color(0xFF9C27B0), Color(0xFF7C3AED), Color(0xFF8B5CF6), Color(0xFFA855F7),
-  Color(0xFF009688), Color(0xFF14B8A6), Color(0xFF6366F1), Color(0xFFEC4899),
 ];
 
 const categoryIconChoices = <IconData>[
@@ -35,6 +33,7 @@ const categoryIconChoices = <IconData>[
   Icons.restaurant_rounded,
   Icons.travel_explore_rounded,
   Icons.science_rounded,
+  Icons.dry_cleaning_rounded,
   Icons.checkroom_rounded,
   Icons.face_retouching_natural,
   Icons.fitness_center_rounded,
@@ -50,7 +49,6 @@ const categoryIconChoices = <IconData>[
   Icons.self_improvement_rounded,
   Icons.computer_rounded,
   Icons.camera_alt_rounded,
-  Icons.photo_camera_rounded,
   Icons.auto_stories_rounded,
   Icons.menu_book_rounded,
   Icons.theater_comedy_rounded,
@@ -58,7 +56,11 @@ const categoryIconChoices = <IconData>[
   Icons.spa_rounded,
   Icons.local_hospital_rounded,
   Icons.psychology_rounded,
+  Icons.church_rounded,
   Icons.volunteer_activism_rounded,
+  Icons.auto_awesome_rounded,
+  Icons.outdoor_grill_rounded,
+  Icons.policy_rounded,
   Icons.diamond_rounded,
   Icons.wb_sunny_rounded,
   Icons.nightlight_round,
@@ -406,7 +408,10 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                     Text(l.t('icon'),
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 10),
-                    Wrap(
+                    SizedBox(
+                      height: 160,
+                      child: SingleChildScrollView(
+                        child: Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: _icons
@@ -434,6 +439,8 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                                 ),
                               ))
                           .toList(),
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     Row(

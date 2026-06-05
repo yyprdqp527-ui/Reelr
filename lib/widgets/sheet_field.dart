@@ -24,12 +24,12 @@ class SheetField extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark
             ? Colors.white.withValues(alpha: 0.07)
-            : Colors.black.withValues(alpha: 0.04),
+            : const Color.fromRGBO(235, 228, 255, 0.60),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: isDark
               ? Colors.white.withValues(alpha: 0.1)
-              : Colors.black.withValues(alpha: 0.08),
+              : const Color.fromRGBO(200, 185, 255, 0.40),
         ),
       ),
       child: Row(

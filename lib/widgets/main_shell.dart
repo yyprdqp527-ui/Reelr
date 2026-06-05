@@ -70,10 +70,10 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNavBar(bool isDark) {
     final bgColor = isDark
         ? const Color.fromRGBO(24, 29, 45, 0.62)
-        : const Color.fromRGBO(250, 252, 255, 0.72);
+        : const Color.fromRGBO(235, 228, 255, 0.75);
     final borderColor = isDark
         ? Colors.white.withValues(alpha: 0.16)
-        : Colors.white.withValues(alpha: 0.92);
+        : Colors.white.withValues(alpha: 0.50);
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
       child: BackdropFilter(

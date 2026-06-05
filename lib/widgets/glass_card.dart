@@ -46,8 +46,8 @@ class GlassCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        Colors.white.withValues(alpha: 0.90),
-                        Colors.white.withValues(alpha: 0.65),
+                        const Color.fromRGBO(245, 240, 255, 0.92),
+                        const Color.fromRGBO(238, 232, 255, 0.75),
                       ],
                     ),
               borderRadius: BorderRadius.circular(borderRadius),
