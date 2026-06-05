@@ -14,6 +14,7 @@ import '../models/clip.dart';
 import '../services/classifier.dart';
 import '../services/database.dart';
 import '../services/oembed.dart';
+import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/glass_card.dart';
@@ -98,6 +99,8 @@ class _HomeScreenState extends State<HomeScreen> {
               const SliverFillRemaining(
                 child: Center(child: CircularProgressIndicator()),
               )
+            else if (widget.state.totalCount == 0)
+              SliverFillRemaining(child: _EmptyState(l: l))
             else if (searching)
               filtered.isEmpty
                   ? SliverFillRemaining(child: _EmptyState(l: l))
@@ -149,9 +152,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             _openCategory(context, cat.id, cat.name),
                         thumbnailUrl: catClips.isEmpty
                             ? null
-                            : catClips.last.thumbnailUrl
-                                ?.replaceAll('hqdefault.jpg', 'mqdefault.jpg')
-                                .replaceAll('sddefault.jpg', 'mqdefault.jpg'),
+                            : catClips.reversed.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!.replaceAll('hqdefault.jpg', 'mqdefault.jpg').replaceAll('sddefault.jpg', 'mqdefault.jpg')).firstOrNull,
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },
@@ -244,6 +245,7 @@ class _CategoryTile extends StatefulWidget {
     this.showBadge = false,
   });
 
+  // ignore: unused_element
   factory _CategoryTile.add({
     required String label,
     required VoidCallback onTap,
@@ -1296,53 +1298,119 @@ class _SuggestionsList extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatelessWidget {
+class _EmptyState extends StatefulWidget {
   final AppL10n l;
-
   const _EmptyState({required this.l});
-
+  @override
+  State<_EmptyState> createState() => _EmptyStateState();
+}
+class _EmptyStateState extends State<_EmptyState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scroll;
+  late final Animation<double> _shareAppear;
+  late final Animation<double> _arrowBounce;
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(period: const Duration(milliseconds: 4000));
+    _scroll = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.45, curve: Curves.easeInOut));
+    _shareAppear = CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.7, curve: Curves.elasticOut));
+    _arrowBounce = CurvedAnimation(parent: _ctrl, curve: const Interval(0.72, 1.0, curve: Curves.easeInOut));
+  }
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.4);
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.videocam_off_rounded,
-            size: 72,
-            color: Colors.grey.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            l.t('no_clips'),
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              l.t('no_clips_sub'),
-              style: TextStyle(
-                color: Colors.grey.withValues(alpha: 0.7),
-                fontSize: 14,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 160,
+              child: AnimatedBuilder(
+                animation: _ctrl,
+                builder: (context, _) => Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Positioned(top: 0, child: _PhoneMockup(scrollProgress: _scroll.value, isDark: isDark)),
+                    if (_shareAppear.value > 0)
+                      Positioned(
+                        bottom: 10, right: 40,
+                        child: Transform.scale(
+                          scale: _shareAppear.value,
+                          child: Container(
+                            width: 44, height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF7C3AED),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [BoxShadow(color: const Color(0xFF7C3AED).withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
+                            ),
+                            child: const Icon(Icons.ios_share_rounded, color: Colors.white, size: 22),
+                          ),
+                        ),
+                      ),
+                    if (_arrowBounce.value > 0)
+                      Positioned(
+                        bottom: 0, right: 48,
+                        child: Transform.translate(
+                          offset: Offset(0, 6 * (1 - _arrowBounce.value).abs()),
+                          child: Opacity(opacity: _arrowBounce.value, child: const Icon(Icons.arrow_downward_rounded, color: Color(0xFF7C3AED), size: 20)),
+                        ),
+                      ),
+                  ],
+                ),
               ),
-              textAlign: TextAlign.center,
             ),
-          ),
-        ],
+            const SizedBox(height: 28),
+            Text('Tes vidéos préférées,\nenfin au même endroit', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor)),
+            const SizedBox(height: 12),
+            Text('Va sur YouTube, Instagram ou TikTok\nappuie sur  ↑  puis choisis Reelr', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.6, color: subColor)),
+          ],
+        ),
       ),
     );
   }
 }
-
-// ─────────────────────────────────────────────
-// CLIP CARD
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// THUMBNAIL BANNER — 16:9, Image.network + fallback icône
-// ─────────────────────────────────────────────
-
+class _PhoneMockup extends StatelessWidget {
+  final double scrollProgress;
+  final bool isDark;
+  const _PhoneMockup({required this.scrollProgress, required this.isDark});
+  @override
+  Widget build(BuildContext context) {
+    final bg = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5F5);
+    final cardColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
+    return Container(
+      width: 110, height: 130,
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1)),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15),
+        child: Stack(
+          children: [
+            Positioned(
+              top: -60 * scrollProgress + 8, left: 8, right: 8,
+              child: Column(
+                children: List.generate(4, (i) => Container(
+                  height: 28, margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(6)),
+                )),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class _ThumbnailBanner extends StatelessWidget {
   final String? thumbUrl;
   final SocialPlatform platform;
@@ -1683,6 +1751,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
   bool _isFetchingTitle = false;
   String? _thumbnailUrl;
   bool _wasAutoSuggested = false;
+  // ignore: unused_field
   String? _urlError;
   int _fetchGeneration = 0;
 
@@ -1697,6 +1766,31 @@ class _AddClipSheetState extends State<AddClipSheet> {
     } else {
       _tryPaste();
     }
+  }
+
+  String _extractSignalFromUrl(String url) {
+    try {
+      final uri = Uri.parse(url);
+      final host = uri.host.toLowerCase();
+      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+      if (host.contains('instagram.com')) {
+        if (segments.isNotEmpty) return 'instagram ${segments.first}';
+        return 'instagram';
+      }
+      if (host.contains('facebook.com') || host.contains('fb.watch')) {
+        if (segments.isNotEmpty) return 'facebook ${segments.first}';
+        return 'facebook';
+      }
+      if (host.contains('twitch.tv')) {
+        if (segments.isNotEmpty) return 'twitch ${segments.first}';
+        return 'gaming twitch';
+      }
+      if (host.contains('tiktok.com')) {
+        final user = segments.firstWhere((s) => s.startsWith('@'), orElse: () => '');
+        return user.isNotEmpty ? 'tiktok $user' : 'tiktok';
+      }
+    } catch (_) {}
+    return '';
   }
 
   bool _isValidHttpUrl(String url) {
@@ -1738,8 +1832,15 @@ class _AddClipSheetState extends State<AddClipSheet> {
         _titleCtrl.text = fetchedTitle;
       }
     });
-    if (fetchedTitle.isNotEmpty && _selectedCategoryId == null) {
-      await _proposeCategory(fetchedTitle);
+    // Twitch sans credentials → forcer Gaming directement
+    if (url.toLowerCase().contains('twitch.tv') && _selectedCategoryId == null) {
+      final signal = _extractSignalFromUrl(url);
+      await _proposeCategory('gaming streaming twitch $signal');
+      return;
+    }
+    final classifySignal = fetchedTitle.isNotEmpty ? fetchedTitle : _extractSignalFromUrl(url);
+    if (classifySignal.isNotEmpty && _selectedCategoryId == null) {
+      await _proposeCategory(classifySignal);
     }
   }
 
@@ -1749,8 +1850,26 @@ class _AddClipSheetState extends State<AddClipSheet> {
     _isProposeInProgress = true;
     try {
       final suggestion = CategoryClassifier.suggestDetailed(title);
-      // IA sans catégorie reconnue → champ texte inline, pas de dialog.
+      // IA sans catégorie reconnue → appel Claude comme fallback.
       if (suggestion.isUnclassified) {
+        final claudeResult = await ClaudeService.classifyTitle(
+          title: title,
+          categoryNames: widget.state.categories.map((c) => c.name).toList(),
+          platform: _detectedPlatform?.id,
+
+        );
+        if (!mounted) return;
+        if (claudeResult != null && claudeResult.isNotEmpty) {
+          final existing = widget.state.categories.firstWhere(
+            (c) => c.name.toLowerCase() == claudeResult.toLowerCase(),
+            orElse: () => ClipCategory(id: '__new__', name: claudeResult, color: const Color(0xFF7C3AED), icon: Icons.folder_outlined),
+          );
+          final cat = existing.id == '__new__' ? await widget.state.addCategory(existing) : existing;
+          if (!mounted) return;
+          setState(() { _selectedCategoryId = cat.id; _wasAutoSuggested = true; });
+          if (mounted) await _submit();
+          return;
+        }
         setState(() => _showNewCategoryField = true);
         return;
       }
@@ -1943,44 +2062,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    SheetField(
-                      controller: _urlCtrl,
-                      hint: l.t('paste_url'),
-                      icon: Icons.link_rounded,
-                      isDark: isDark,
-                      onChanged: _onUrlChanged,
-                      prefixWidget: _detectedPlatform != null
-                          ? Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.all(5),
-                              decoration: BoxDecoration(
-                                color: _detectedPlatform!.color
-                                    .withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(_detectedPlatform!.icon,
-                                  color: _detectedPlatform!.color, size: 18),
-                            )
-                          : null,
-                    ),
-                    if (_urlError != null) ...[  
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          const Icon(Icons.error_outline_rounded,
-                              size: 14, color: Colors.red),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              _urlError!,
-                              style: const TextStyle(
-                                  color: Colors.red, fontSize: 12),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                    ] else
                       const SizedBox(height: 10),
                     Stack(
                       children: [
@@ -2004,13 +2085,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    SheetField(
-                      controller: _tagsCtrl,
-                      hint: l.t('tags'),
-                      icon: Icons.tag_rounded,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 18),
                     Row(
                       children: [
                         Text(
@@ -2063,8 +2137,12 @@ class _AddClipSheetState extends State<AddClipSheet> {
                         selected: _selectedCategoryId,
                         l: l,
                         onChanged: (id) => setState(() {
-                          _selectedCategoryId = id;
-                          _wasAutoSuggested = false;
+                          if (id == '__new__') {
+                            _showNewCategoryField = true;
+                          } else {
+                            _selectedCategoryId = id;
+                            _wasAutoSuggested = false;
+                          }
                         }),
                       ),
                     const SizedBox(height: 24),
@@ -2286,6 +2364,13 @@ class _CategoryPicker extends StatelessWidget {
               selected: selected == cat.id,
               onTap: () => onChanged(cat.id),
             )),
+        _CatChip(
+          label: '+ Créer',
+          color: const Color(0xFF7C3AED),
+          icon: Icons.add_rounded,
+          selected: false,
+          onTap: () => onChanged('__new__'),
+        ),
       ],
     );
   }
@@ -2455,13 +2540,6 @@ class _EditClipSheetState extends State<EditClipSheet> {
                       isDark: isDark,
                     ),
                     const SizedBox(height: 10),
-                    SheetField(
-                      controller: _tagsCtrl,
-                      hint: l.t('tags'),
-                      icon: Icons.tag_rounded,
-                      isDark: isDark,
-                    ),
-                    const SizedBox(height: 18),
                     Text(
                       l.t('category'),
                       style: const TextStyle(

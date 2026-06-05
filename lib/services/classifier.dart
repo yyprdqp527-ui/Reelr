@@ -122,6 +122,10 @@ class CategoryClassifier {
       'playstation', 'xbox', 'nintendo', 'steam', 'twitch', 'esport',
       'esports', 'gamer', 'gameplay', 'walkthrough', 'speedrun',
       'minecraft', 'fortnite', 'valorant', 'lol', 'league of legends',
+      'stream', 'streaming', 'streamer', 'clip twitch', 'lets play',
+      'fps', 'mmorpg', 'rpg', 'moba', 'battle royale', 'ranked',
+      'genshin', 'apex', 'overwatch', 'pubg', 'fifa', 'cod', 'call of duty',
+      'hearthstone', 'dota', 'cs go', 'csgo', 'counter strike',
     ],
     'cuisine': [
       'grillades', 'barbecue', 'bbq', 'plancha', 'cuisson', 'rôti', 'roti',
@@ -222,6 +226,14 @@ class CategoryClassifier {
       'acteur', 'actrice', 'critique film', 'review film',
       'marvel', 'dc comics', 'star wars', 'anime', 'manga',
     ],
+    'religion': [
+      'messe', 'église', 'eglise', 'prière', 'priere', 'dieu', 'allah',
+      'jésus', 'jesus', 'christ', 'chrétien', 'chretien', 'islam', 'musulman',
+      'catholique', 'protestant', 'évangile', 'evangile', 'bible', 'coran',
+      'foi', 'croyant', 'paroisse', 'sermon', 'culte', 'pasteur', 'imam',
+      'réveil spirituel', 'reveil spirituel', 'live spirituel', 'prêche', 'preche',
+      'temple', 'mosquée', 'mosquee', 'synagogue', 'shabbat', 'ramadan',
+    ],
     'astro_spirituel': [
       'astrologie', 'astrology', 'zodiaque', 'zodiac', 'horoscope',
       'ascendant', 'gémeaux', 'gemeaux', 'taureau', 'vierge', 'scorpion',
@@ -309,7 +321,7 @@ class CategoryClassifier {
     ),
     'gaming': CategorySuggestion(
       key: 'gaming', name: 'Gaming',
-      color: Color(0xFF74B9FF),
+      color: Color(0xFF9B59B6),
       icon: Icons.sports_esports_outlined,
     ),
     'cuisine': CategorySuggestion(
@@ -325,7 +337,7 @@ class CategoryClassifier {
     'tech': CategorySuggestion(
       key: 'tech', name: 'Tech',
       color: Color(0xFF74B9FF),
-      icon: Icons.computer_outlined,
+      icon: Icons.memory_outlined,
     ),
     'nature': CategorySuggestion(
       key: 'nature', name: 'Nature',
@@ -376,6 +388,11 @@ class CategoryClassifier {
       key: 'cinema_series', name: 'Cinéma & Séries',
       color: Color(0xFFEF9A9A),
       icon: Icons.movie_outlined,
+    ),
+    'religion': CategorySuggestion(
+      key: 'religion', name: 'Religion & Foi',
+      color: Color(0xFFB39DDB),
+      icon: Icons.auto_awesome_outlined,
     ),
     'astro_spirituel': CategorySuggestion(
       key: 'astro_spirituel', name: 'Astro & Spirituel',
@@ -588,7 +605,7 @@ class CategoryClassifier {
 
   // ── Influenceurs connus (nom de chaîne exact ou quasi-exact) ──────────────
   static const List<String> _knownInfluencers = [
-    'squeezie', 'zerator', 'gotaga', 'maghla', 'mistermv', 'ponce',
+    'squeezie', 'zerator', 'gotaga', 'solary', 'solaryhs', 'fregepaul', 'domingo', 'alderiate', 'markoonix', 'oxentiel', 'exidil', 'ultia', 'lourlo', 'drakeoz', 'maghla', 'mistermv', 'ponce',
     'kameto', 'mynthos', 'domingo', 'antoine daniel', 'sardoche',
     'joueur du grenier', 'deujna', 'etoiles', 'ultia', 'doigby',
     'mcfly', 'carlito', 'mcfly & carlito', 'mcfly carlito',
@@ -691,7 +708,7 @@ Lis-la comme un humain qui scroll son feed : en une fraction de seconde, l'image
   titre ne dit pas "makeup". Un humain sait immédiatement.
 • Micro, casque audio, deux personnes face à face dans un studio → Podcast
 • Fond noir/neutre, sous-titres stylisés, format long avec invité → Podcast
-• Écran de jeu, manette, headset → Tech & Gaming
+• Écran de jeu, manette, headset → Gaming
 • Paysage, aéroport, sac à dos → Travel
 • Personnes qui rient, caméra cachée, grimace exagérée → Humour
 • Graphisme, dessin, tablette, Procreate → DIY & Créa
@@ -814,9 +831,9 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 CATÉGORIES (choisis celle qui correspond le mieux au RESSENTI de la vidéo, pas juste aux mots-clés) :
-Beauty, Style, Food, Fitness, Tech & Gaming, Travel, Finance & Business, Famille, Humour, Musique,
+Beauty, Style, Food, Fitness, Gaming, Tech, Travel, Finance & Business, Famille, Humour, Musique,
 Wellness, Growth, Actu & Société, DIY & Créa, Pets & Nature, Déco & Home, Auto & Moto,
-Culture, Podcast, True Crime, Documentaire, Cinéma & Séries, Astro & Spirituel, Tricot/Couture
+Culture, Podcast, True Crime, Documentaire, Cinéma & Séries, Astro & Spirituel, Religion & Foi, Tricot/Couture
 
 STYLES DE VIE (celui qui colle à l'ambiance générale du créateur/contenu) :
 Minimaliste, Luxe & Premium, Streetwear / Urban, Sportif / Athleisure, Geek / Gamer, Entrepreneur / Hustle culture, Parent / Famille, Étudiant / Budget, Wellness / Slow life
@@ -854,7 +871,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
     // Construction du contenu (multimodal si thumbnail disponible)
     final dynamic messageContent;
-    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty) {
+    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty && video.platform == 'youtube') {
       messageContent = [
         {
           'type': 'image',

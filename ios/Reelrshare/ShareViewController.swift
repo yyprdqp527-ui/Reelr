@@ -311,6 +311,22 @@ class ShareViewController: UIViewController {
         return matches?.first?.url?.absoluteString
     }
 
+    private func normalizeURL(_ rawURL: String) -> String {
+        guard var components = URLComponents(string: rawURL) else {
+            return rawURL.lowercased()
+        }
+        let removeKeys = ["si", "utm_source", "utm_medium", "utm_campaign",
+                          "fbclid", "igshid", "feature", "pp"]
+        components.queryItems = components.queryItems?.filter {
+            !removeKeys.contains($0.name)
+        }
+        if components.queryItems?.isEmpty == true {
+            components.queryItems = nil
+        }
+        components.fragment = nil
+        return (components.string ?? rawURL).lowercased()
+    }
+
     private func storeSilentlyIfValid(urlString: String?) {
         guard
             let rawURL = urlString,
@@ -322,9 +338,12 @@ class ShareViewController: UIViewController {
             return
         }
 
+        let normalizedURL = normalizeURL(rawURL)
+
         if let defaults = UserDefaults(suiteName: appGroupId) {
             var urls = defaults.stringArray(forKey: silentShareInboxKey) ?? []
-            if !urls.contains(rawURL) {
+            let normalizedExisting = urls.map { normalizeURL($0) }
+            if !normalizedExisting.contains(normalizedURL) {
                 urls.append(rawURL)
                 defaults.set(urls, forKey: silentShareInboxKey)
                 defaults.synchronize()

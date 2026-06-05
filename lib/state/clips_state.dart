@@ -123,7 +123,7 @@ class ClipsState extends ChangeNotifier {
       if (cat.name.trim().toLowerCase() == normalized) return cat;
     }
     for (final cat in _categories) {
-      if (cat.name.trim().toLowerCase().contains(normalized) ||
+      if (cat.name.trim().toLowerCase().contains(normalized) && normalized.length / cat.name.trim().toLowerCase().length > 0.6 ||
           normalized.contains(cat.name.trim().toLowerCase())) {
         return cat;
       }
@@ -137,7 +137,7 @@ class ClipsState extends ChangeNotifier {
       final profile = await ProfileService().loadProfile();
       final result = await ClaudeClassifier.classify(
         video: VideoData(
-          title: clip.title,
+          title: clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title,
           platform: clip.platform,
           thumbnailUrl: clip.thumbnailUrl,
         ),

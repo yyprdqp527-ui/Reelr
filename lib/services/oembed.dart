@@ -116,6 +116,7 @@ class SocialPlatform {
 }
 
 class OEmbedService {
+  // ignore: unused_element
   static String get _ytApiKey => Secrets.youtubeApiKey;
   static String get _instagramAccessToken => Secrets.instagramAccessToken;
   static String get _twitchClientId => Secrets.twitchClientId;
@@ -172,7 +173,7 @@ class OEmbedService {
 
   static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
     try {
-      final oembedUrl = 'https://www.youtube.com/oembed?url=' + Uri.encodeComponent(videoUri.toString()) + '&format=json';
+      final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(videoUri.toString())}&format=json';
       final response = await http
           .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));

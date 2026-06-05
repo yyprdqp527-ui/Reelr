@@ -150,6 +150,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   String? _lastSharedUrl;
   DateTime? _lastSharedAt;
   String? _pendingSharedUrl;
+  final Set<String> _ingestingUrls = {};
 
   /// Met l'URL en file d'attente et tente de l'ouvrir si l'app est prête.
   void _openShareSheetWhenReady(String url) {
@@ -238,6 +239,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
+    final normalized = _normalizeForDedup(url);
+    if (_ingestingUrls.contains(normalized)) return;
+    _ingestingUrls.add(normalized);
+    try {
     final platform = SocialPlatform.detect(url);
     final clip = Clip(
       id: const Uuid().v4(),
@@ -249,8 +254,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       addedAt: DateTime.now(),
       thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
     );
-    await widget.state.addClip(clip);
-    unawaited(_hydrateAndClassify(clip));
+      await widget.state.addClip(clip);
+      unawaited(_hydrateAndClassify(clip));
+    } finally {
+      _ingestingUrls.remove(normalized);
+    }
   }
 
   Future<void> _drainSilentShareInbox() async {
@@ -271,6 +279,21 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     } catch (e) { debugPrint('[drain] error: $e'); }
   }
 
+  static String _normalizeForDedup(String url) {
+    try {
+      final uri = Uri.parse(url.trim());
+      final clean = Map<String, String>.from(uri.queryParameters)
+        ..removeWhere((k, _) => ['si','utm_source','utm_medium',
+            'utm_campaign','fbclid','igshid','feature','pp'].contains(k));
+      return uri.replace(
+        queryParameters: clean.isEmpty ? null : clean,
+        fragment: '',
+      ).toString().toLowerCase();
+    } catch (_) {
+      return url.trim().toLowerCase();
+    }
+  }
+
   bool _isValidHttpUrl(String url) {
     final uri = Uri.tryParse(url.trim());
     return uri != null &&
@@ -287,10 +310,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<void> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] starting for: \${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
-    debugPrint('[hydrate] url=' + clip.url);
-    debugPrint('[hydrate] title=' + (meta?.title ?? 'NULL') + ' thumb=' + (meta?.thumbnailUrl ?? 'NULL'));
     if (meta == null) return;
-    final title = (meta.title ?? '').trim();
+    debugPrint('[hydrate] url=\${clip.url}');
+    debugPrint('[hydrate] title=\${meta.title ?? "NULL"} thumb=\${meta.thumbnailUrl ?? "NULL"}');
+    final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
       return;
@@ -355,7 +378,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             if (url.startsWith('http')) {
               final now = DateTime.now();
               if (!(url == _lastSharedUrl &&
-                  _lastSharedAt != null &&
+
                   now.difference(_lastSharedAt!).inSeconds < 15)) {
                 _lastSharedUrl = url;
                 _lastSharedAt = now;
