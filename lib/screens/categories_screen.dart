@@ -369,7 +369,6 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                       hint: l.t('category_name'),
                       icon: Icons.label_rounded,
                       isDark: isDark,
-                      textCapitalization: TextCapitalization.words,
                     ),
                     const SizedBox(height: 18),
                     Text(l.t('color'),
@@ -759,7 +758,6 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
             children: [
               TextField(
                 controller: _nameCtrl,
-                textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
                   labelText: l.t('category_name'),
                   border: const OutlineInputBorder(),

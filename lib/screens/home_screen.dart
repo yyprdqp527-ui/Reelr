@@ -871,7 +871,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   void _showAddSubcategoryDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
     Color pickedColor = AppTheme.orange;
+    IconData pickedIcon = Icons.label_rounded;
     const colors = categoryColorChoices;
+    const icons = categoryIconChoices;
 
     showDialog(
       context: context,
@@ -922,7 +924,40 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ))
                         .toList(),
                   ),
-
+                  const SizedBox(height: 14),
+                  const Text('Icône',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: icons
+                        .map((ic) => GestureDetector(
+                              onTap: () =>
+                                  setDlgState(() => pickedIcon = ic),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: pickedIcon == ic
+                                      ? pickedColor.withValues(alpha: 0.2)
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: pickedIcon == ic
+                                        ? pickedColor
+                                        : Colors.grey.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                                child: Icon(ic,
+                                    size: 18,
+                                    color: pickedIcon == ic
+                                        ? pickedColor
+                                        : Colors.grey),
+                              ),
+                            ))
+                        .toList(),
+                  ),
                 ],
               ),
             ),
@@ -939,7 +974,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   name: nameCtrl.text.trim(),
                   categoryId: widget.categoryId!,
                   color: pickedColor,
-                  icon: Icons.label_rounded,
+                  icon: pickedIcon,
                 ));
                 Navigator.pop(ctx);
               },
@@ -1279,49 +1314,19 @@ class _ThumbnailBanner extends StatelessWidget {
       aspectRatio: 16 / 9,
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: thumbUrl != null
-                  ? Image.network(
-                      thumbUrl!,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (ctx, child, progress) {
-                        if (progress == null) return child;
-                        return _fallback(shimmer: true);
-                      },
-                      errorBuilder: (_, __, ___) => _fallback(), // ignore: unnecessary_underscores
-                    )
-                  : _fallback(),
-            ),
-            Positioned(
-              bottom: 8,
-              left: 8,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(platform.icon, color: platform.color, size: 12),
-                    const SizedBox(width: 4),
-                    Text(
-                      platform.name,
-                      style: TextStyle(
-                        color: platform.color,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
+        child: thumbUrl != null
+            ? Image.network(
+                thumbUrl!,
+                fit: BoxFit.cover,
+                // Loader
+                loadingBuilder: (ctx, child, progress) {
+                  if (progress == null) return child;
+                  return _fallback(shimmer: true);
+                },
+                // Erreur → icône plateforme
+                errorBuilder: (_, __, ___) => _fallback(), // ignore: unnecessary_underscores
+              )
+            : _fallback(),
       ),
     );
   }
