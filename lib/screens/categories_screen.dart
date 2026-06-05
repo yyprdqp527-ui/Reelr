@@ -13,6 +13,15 @@ import '../widgets/sheet_field.dart';
 // ICON SUGGESTION BY NAME
 // ─────────────────────────────────────────────
 
+const categoryColorChoices = <Color>[
+  Color(0xFF4F8EF7), Color(0xFF2563EB), Color(0xFF0EA5E9), Color(0xFF06B6D4),
+  Color(0xFF2ECC71), Color(0xFF10B981), Color(0xFF84CC16), Color(0xFF4ADE80),
+  Color(0xFFFF5252), Color(0xFFE91E63), Color(0xFFF43F5E), Color(0xFFFF6B9D),
+  Color(0xFFFF9800), Color(0xFFFFB300), Color(0xFFF97316), Color(0xFFEAB308),
+  Color(0xFF9C27B0), Color(0xFF7C3AED), Color(0xFF8B5CF6), Color(0xFFA855F7),
+  Color(0xFF009688), Color(0xFF14B8A6), Color(0xFF6366F1), Color(0xFFEC4899),
+];
+
 const categoryIconChoices = <IconData>[
   Icons.folder_rounded,
   Icons.star_rounded,
@@ -273,18 +282,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   late Color _color;
   late IconData _icon;
 
-  static const _colors = [
-    Color(0xFF4F8EF7),
-    Color(0xFFFF5252),
-    Color(0xFF2ECC71),
-    Color(0xFFFF9800),
-    Color(0xFF9C27B0),
-    Color(0xFF00BCD4),
-    Color(0xFFE91E63),
-    Color(0xFFFFB300),
-    Color(0xFF009688),
-    Color(0xFF3F51B5),
-  ];
+  static const _colors = categoryColorChoices;
 
   static const _icons = categoryIconChoices;
 
@@ -664,18 +662,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   IconData _icon = Icons.folder_rounded;
   bool _userPickedIcon = false;
 
-  static const _colors = [
-    Color(0xFF4F8EF7),
-    Color(0xFFFF5252),
-    Color(0xFF2ECC71),
-    Color(0xFFFF9800),
-    Color(0xFF9C27B0),
-    Color(0xFF00BCD4),
-    Color(0xFFE91E63),
-    Color(0xFFFFB300),
-    Color(0xFF009688),
-    Color(0xFF3F51B5),
-  ];
+  static const _colors = categoryColorChoices;
 
   static const _icons = categoryIconChoices;
 

@@ -19,6 +19,7 @@ import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/sheet_field.dart';
+import 'categories_screen.dart';
 
 // ─────────────────────────────────────────────
 // HOME SCREEN
@@ -871,18 +872,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final nameCtrl = TextEditingController();
     Color pickedColor = AppTheme.orange;
     IconData pickedIcon = Icons.label_rounded;
-    final colors = [
-      const Color(0xFF4F8EF7), const Color(0xFFFF5252), const Color(0xFF2ECC71),
-      const Color(0xFFFF9800), const Color(0xFF9C27B0), const Color(0xFF00BCD4),
-      const Color(0xFFE91E63), const Color(0xFFFFB300), const Color(0xFF009688),
-      AppTheme.orange,
-    ];
-    final icons = [
-      Icons.label_rounded, Icons.star_rounded, Icons.bookmark_rounded,
-      Icons.favorite_rounded, Icons.tag_rounded, Icons.folder_rounded,
-      Icons.movie_rounded, Icons.photo_rounded, Icons.music_note_rounded,
-      Icons.travel_explore_rounded,
-    ];
+    const colors = categoryColorChoices;
+    const icons = categoryIconChoices;
 
     showDialog(
       context: context,
