@@ -173,17 +173,11 @@ class OEmbedService {
 
   static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
     try {
-      final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(videoUri.toString())}&format=json';
+      final oembedUrl = 'https://www.youtube.com/oembed?url=' + Uri.encodeComponent(videoUri.toString()) + '&format=json';
       final response = await http
           .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) {
-        return VideoData(
-          title: videoUri.toString(),
-          platform: 'youtube',
-          thumbnailUrl: bestThumbnailUrl(videoUri.toString(), null),
-        );
-      }
+      if (response.statusCode != 200) return null;
       final payload = json.decode(response.body) as Map<String, dynamic>;
       final title = (payload['title'] as String?)?.trim() ?? '';
       final author = (payload['author_name'] as String?)?.trim();

@@ -308,11 +308,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   Future<void> _hydrateClip(Clip clip) async {
-    debugPrint('[hydrate] starting for: \${clip.url}');
+    debugPrint('[hydrate] starting for: ${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
-    if (meta == null) return;
-    debugPrint('[hydrate] url=\${clip.url}');
-    debugPrint('[hydrate] title=\${meta.title ?? "NULL"} thumb=\${meta.thumbnailUrl ?? "NULL"}');
+    if (meta == null) return; // ignore: dead_code
+    debugPrint('[hydrate] url=${clip.url}');
+    debugPrint('[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}');
     final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {

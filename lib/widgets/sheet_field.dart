@@ -7,6 +7,7 @@ class SheetField extends StatelessWidget {
   final bool isDark;
   final ValueChanged<String>? onChanged;
   final Widget? prefixWidget;
+  final TextCapitalization textCapitalization;
 
   const SheetField({
     super.key,
@@ -16,6 +17,7 @@ class SheetField extends StatelessWidget {
     required this.isDark,
     this.onChanged,
     this.prefixWidget,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -46,6 +48,7 @@ class SheetField extends StatelessWidget {
             child: TextField(
               controller: controller,
               onChanged: onChanged,
+              textCapitalization: textCapitalization,
               decoration: InputDecoration(
                 hintText: hint,
                 border: InputBorder.none,
