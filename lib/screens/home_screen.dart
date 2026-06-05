@@ -630,11 +630,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 ),
               if (widget.categoryId != null) ...[  
                 IconButton(
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  tooltip: 'Suggestions IA',
-                  onPressed: () => _suggestWithAI(context, raw),
-                ),
-                IconButton(
                   icon: const Icon(Icons.add_circle_outline_rounded),
                   tooltip: 'Ajouter une sous-catégorie',
                   onPressed: () => _showAddSubcategoryDialog(context),
@@ -702,7 +697,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                       Expanded(
                                         child: ClipCard(
                                             clip: clips[i],
-                                            state: widget.state),
+                                            state: widget.state,
+                                            currentCategoryId: widget.categoryId),
                                       ),
                                       ReorderableDragStartListener(
                                         index: i,
@@ -855,7 +851,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                               .removeClip(clip.id),
                                       child: ClipCard(
                                           clip: clip,
-                                          state: widget.state),
+                                          state: widget.state,
+                                          currentCategoryId: widget.categoryId),
                                     ),
                                   );
                                 },
@@ -991,103 +988,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 Navigator.pop(ctx);
               },
               child: const Text('Créer'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _suggestWithAI(BuildContext context, List<Clip> rawClips) {
-    if (rawClips.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Aucun clip à analyser.')),
-      );
-      return;
-    }
-    // Groupe les clips par thème via le classifieur
-    final Map<String, List<String>> groups = {};
-    for (final clip in rawClips) {
-      final suggestion = CategoryClassifier.suggestDetailed(clip.title);
-      if (!suggestion.isUnclassified) {
-        groups.putIfAbsent(suggestion.name, () => []).add(clip.title);
-      }
-    }
-    if (groups.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Aucun thème détecté automatiquement.')),
-      );
-      return;
-    }
-    final selected = <String>{};
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlgState) => AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(
-            children: [
-              Icon(Icons.auto_awesome_rounded,
-                  color: AppTheme.orange, size: 22),
-              const SizedBox(width: 8),
-              const Text('Sous-catégories suggérées'),
-            ],
-          ),
-          content: SizedBox(
-            width: 300,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: groups.entries.map((e) {
-                  final isSelected = selected.contains(e.key);
-                  return CheckboxListTile(
-                    value: isSelected,
-                    title: Text(e.key,
-                        style:
-                            const TextStyle(fontWeight: FontWeight.w600)),
-                    subtitle: Text(
-                        '${e.value.length} clip${e.value.length > 1 ? "s" : ""}',
-                        style: const TextStyle(fontSize: 12)),
-                    onChanged: (v) => setDlgState(() {
-                      if (v == true) {
-                        selected.add(e.key);
-                      } else {
-                        selected.remove(e.key);
-                      }
-                    }),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler')),
-            FilledButton(
-              onPressed: selected.isEmpty
-                  ? null
-                  : () {
-                      Navigator.pop(ctx);
-                      for (final name in selected) {
-                        final suggestion =
-                            CategoryClassifier.suggestDetailed(name);
-                        widget.state.addSubCategory(SubCategory(
-                          id: const Uuid().v4(),
-                          name: name,
-                          categoryId: widget.categoryId!,
-                          color: suggestion.isUnclassified
-                              ? AppTheme.orange
-                              : suggestion.color,
-                          icon: suggestion.isUnclassified
-                              ? Icons.label_rounded
-                              : suggestion.icon,
-                        ));
-                      }
-                    },
-              child: const Text('Créer la sélection'),
             ),
           ],
         ),
@@ -1469,8 +1369,9 @@ class _ThumbnailBanner extends StatelessWidget {
 class ClipCard extends StatelessWidget {
   final Clip clip;
   final ClipsState state;
+  final String? currentCategoryId;
 
-  const ClipCard({super.key, required this.clip, required this.state});
+  const ClipCard({super.key, required this.clip, required this.state, this.currentCategoryId});
 
   @override
   Widget build(BuildContext context) {
@@ -1629,6 +1530,23 @@ class ClipCard extends StatelessWidget {
   void _handleAction(BuildContext context, String action, AppL10n l) {
     switch (action) {
       case 'edit':
+        if (currentCategoryId != null) {
+        final subs = state.getSubCategoriesFor(currentCategoryId);
+        final currentSubId = state.subcategoryIdForClip(clip.id);
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (ctx) => _SubcategoryAssignSheet(
+            categoryId: currentCategoryId!,
+            clipId: clip.id,
+            state: state,
+            subcategories: subs,
+            currentSubId: currentSubId,
+          ),
+        );
+        return;
+      }
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
@@ -1664,6 +1582,108 @@ class ClipCard extends StatelessWidget {
           ),
         );
     }
+  }
+}
+
+
+class _SubcategoryAssignSheet extends StatelessWidget {
+  final String categoryId;
+  final String clipId;
+  final ClipsState state;
+  final List<SubCategory> subcategories;
+  final String? currentSubId;
+
+  const _SubcategoryAssignSheet({
+    required this.categoryId,
+    required this.clipId,
+    required this.state,
+    required this.subcategories,
+    required this.currentSubId,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.grey.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const Text('Classer dans...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 16),
+            if (subcategories.isEmpty)
+              Center(
+                child: Text(
+                  'Aucun dossier — crée-en un depuis la vue catégorie',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 13),
+                ),
+              )
+            else
+              Wrap(
+                spacing: 8, runSpacing: 8,
+                children: [
+                  GestureDetector(
+                    onTap: () {
+                      state.setClipSubcategory(clipId, null);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: currentSubId == null ? Colors.grey : Colors.grey.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
+                      ),
+                      child: Text('Aucun', style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ),
+                  ...subcategories.map((s) => GestureDetector(
+                    onTap: () {
+                      state.setClipSubcategory(clipId, s.id);
+                      Navigator.pop(context);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: currentSubId == s.id ? s.color : s.color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: s.color.withValues(alpha: 0.4)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(s.icon, size: 14, color: currentSubId == s.id ? Colors.white : s.color),
+                          const SizedBox(width: 6),
+                          Text(s.name, style: TextStyle(color: currentSubId == s.id ? Colors.white : s.color, fontWeight: FontWeight.w600, fontSize: 13)),
+                        ],
+                      ),
+                    ),
+                  )),
+                ],
+              ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
 
