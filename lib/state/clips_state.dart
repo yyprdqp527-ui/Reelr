@@ -145,6 +145,7 @@ class ClipsState extends ChangeNotifier {
       );
       final catName = result.categoriePrincipale;
       debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+      _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
         final newCat = ClipCategory(

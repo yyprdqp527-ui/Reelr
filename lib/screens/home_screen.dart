@@ -142,8 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       }
                       final cat = widget.state.categories[i - 1];
-                      final catClips =
-                          widget.state.clipsForCategory(cat.id);
+                      final catClips = widget.state.clipsForCategory(cat.id);
                       return _CategoryTile(
                         name: cat.name,
                         color: cat.color,
@@ -151,9 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         count: widget.state.countForCategory(cat.id),
                         onTap: () =>
                             _openCategory(context, cat.id, cat.name),
-                        thumbnailUrl: catClips.isEmpty
-                            ? null
-                            : catClips.reversed.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!.replaceAll('hqdefault.jpg', 'mqdefault.jpg').replaceAll('sddefault.jpg', 'mqdefault.jpg')).firstOrNull,
+                        thumbnailUrl: catClips.isEmpty ? null : catClips.reversed.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },
@@ -284,6 +281,13 @@ class _CategoryTileState extends State<_CategoryTile> {
           transform: Matrix4.translationValues(0.0, _hover ? -4.0 : 0.0, 0.0)
             ..scaleByDouble(_hover ? 1.03 : 1.0, _hover ? 1.03 : 1.0, 1.0, 1.0),
           transformAlignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(
+              color: isDark ? tintColor.withValues(alpha: 0.45) : tintColor.withValues(alpha: 0.70),
+              width: isDark ? 1.2 : 1.8,
+            ),
+          ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
             child: widget.thumbnailUrl != null
@@ -302,62 +306,33 @@ class _CategoryTileState extends State<_CategoryTile> {
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Color(0xB3000000),
-                              ],
+                              colors: [Colors.transparent, Color(0xB3000000)],
                               stops: [0.4, 1.0],
                             ),
                           ),
                         ),
                       ),
-                      // Icône en haut à gauche
                       Positioned(
                         top: 8,
                         left: 8,
                         child: Icon(
                           widget.icon ?? Icons.folder_outlined,
-                          size: 24,
-                          color: Colors.white,
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              blurRadius: 4,
-                            ),
-                          ],
+                          size: 28,
+                          color: tintColor,
+                          shadows: [Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4)],
                         ),
                       ),
-                      // Nom + compteur en bas
                       Positioned(
-                        left: 8,
-                        right: 8,
-                        bottom: 8,
+                        left: 8, right: 8, bottom: 8,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              widget.name.toUpperCase(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
-                                letterSpacing: 0.4,
-                                color: Colors.white,
-                              ),
-                            ),
+                            Text(widget.name.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.4, color: Colors.white)),
                             if (!widget.isAdd) ...[
                               const SizedBox(height: 1),
-                              Text(
-                                '${widget.count}',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color:
-                                      Colors.white.withValues(alpha: 0.75),
-                                ),
-                              ),
+                              Text('${widget.count}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.75))),
                             ],
                           ],
                         ),
@@ -1263,12 +1238,52 @@ class _EmptyStateState extends State<_EmptyState>
             Text('Tes vidéos préférées,\nenfin au même endroit', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor)),
             const SizedBox(height: 12),
             Text('Va sur YouTube, Instagram ou TikTok\nappuie sur  ↑  puis choisis Reelr', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.6, color: subColor)),
+            const SizedBox(height: 28),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _AppShortcut(label: 'YouTube', icon: Icons.play_circle_fill_rounded, color: const Color(0xFFFF0000), url: 'https://www.youtube.com'),
+                const SizedBox(width: 16),
+                _AppShortcut(label: 'TikTok', icon: Icons.music_note_rounded, color: const Color(0xFF010101), url: 'https://www.tiktok.com'),
+                const SizedBox(width: 16),
+                _AppShortcut(label: 'Instagram', icon: Icons.camera_alt_rounded, color: const Color(0xFFE1306C), url: 'https://www.instagram.com'),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 }
+class _AppShortcut extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final String url;
+  const _AppShortcut({required this.label, required this.icon, required this.color, required this.url});
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+      child: Column(
+        children: [
+          Container(
+            width: 56, height: 56,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
+            ),
+            child: Icon(icon, color: Colors.white, size: 26),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
 class _PhoneMockup extends StatelessWidget {
   final double scrollProgress;
   final bool isDark;

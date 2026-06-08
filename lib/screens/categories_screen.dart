@@ -14,10 +14,21 @@ import '../widgets/sheet_field.dart';
 // ─────────────────────────────────────────────
 
 const categoryColorChoices = <Color>[
-  Color(0xFF4F8EF7), Color(0xFF2563EB), Color(0xFF0EA5E9), Color(0xFF06B6D4),
-  Color(0xFF2ECC71), Color(0xFF10B981), Color(0xFF84CC16), Color(0xFF4ADE80),
-  Color(0xFFFF5252), Color(0xFFE91E63), Color(0xFFF43F5E), Color(0xFFFF6B9D),
-  Color(0xFFFF9800), Color(0xFFFFB300), Color(0xFFF97316), Color(0xFFEAB308),
+  Color(0xFF2563EB), // bleu
+  Color(0xFF06B6D4), // cyan
+  Color(0xFF10B981), // vert
+  Color(0xFF84CC16), // vert lime
+  Color(0xFFEAB308), // jaune
+  Color(0xFFF97316), // orange
+  Color(0xFFFF5252), // rouge
+  Color(0xFFE91E63), // rose
+  Color(0xFFB845F5), // violet
+  Color(0xFF7C3AED), // indigo
+  Color(0xFF0F766E), // teal foncé
+  Color(0xFF92400E), // marron
+  Color(0xFF6B7280), // gris
+  Color(0xFF0EA5E9), // bleu ciel
+  Color(0xFF4ADE80), // vert menthe
 ];
 
 const categoryIconChoices = <IconData>[
