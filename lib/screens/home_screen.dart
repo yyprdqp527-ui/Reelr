@@ -892,7 +892,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   TextField(
                     controller: nameCtrl,
                     autofocus: true,
-                    textCapitalization: TextCapitalization.words,
+                    textCapitalization: TextCapitalization.sentences,
                     decoration: const InputDecoration(
                       labelText: 'Nom',
                       border: OutlineInputBorder(),
@@ -2162,7 +2162,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       TextField(
                         controller: _newCategoryCtrl,
                         autofocus: true,
-                        textCapitalization: TextCapitalization.words,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           labelText: 'Nom de la catégorie',
                           border: const OutlineInputBorder(),
@@ -2305,7 +2305,7 @@ class _CategorySuggestionDialogState
               TextField(
                 controller: _customCtrl,
                 autofocus: true,
-                textCapitalization: TextCapitalization.words,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   hintText: 'Nom de la catégorie...',
                   border: OutlineInputBorder(
@@ -2606,7 +2606,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
                       TextField(
                         controller: _newCategoryCtrl,
                         autofocus: true,
-                        textCapitalization: TextCapitalization.words,
+                        textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
                           labelText: 'Nom de la catégorie',
                           border: const OutlineInputBorder(),

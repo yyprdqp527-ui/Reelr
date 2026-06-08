@@ -369,7 +369,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                       hint: l.t('category_name'),
                       icon: Icons.label_rounded,
                       isDark: isDark,
-                      textCapitalization: TextCapitalization.words,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 18),
                     Text(l.t('color'),
