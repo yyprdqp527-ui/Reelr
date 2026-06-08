@@ -316,6 +316,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
+      if (clip.title.isNotEmpty) return;
+      final platform = clip.platform[0].toUpperCase() + clip.platform.substring(1);
+      await widget.state.updateClip(Clip(id: clip.id, url: clip.url, title: platform, platform: clip.platform, categoryId: clip.categoryId, tags: clip.tags, addedAt: clip.addedAt, thumbnailUrl: clip.thumbnailUrl, position: clip.position));
       return;
     }
     await widget.state.updateClip(
