@@ -28,7 +28,8 @@ import 'categories_screen.dart';
 class HomeScreen extends StatefulWidget {
   final ClipsState state;
 
-  const HomeScreen({super.key, required this.state});
+  final Future<void> Function(String url)? onPasteUrl;
+  const HomeScreen({super.key, required this.state, this.onPasteUrl});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -209,6 +210,18 @@ class _HomeScreenState extends State<HomeScreen> {
               final text =
                   clips.map((c) => '${c.title}\n${c.url}').join('\n\n');
               Share.share(text);
+            },
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.add_link_rounded),
+            tooltip: 'Coller un lien',
+            onPressed: () async {
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
+              final url = data?.text?.trim() ?? '';
+              if (url.startsWith('http') && widget.onPasteUrl != null) {
+                await widget.onPasteUrl!(url);
+              }
             },
           ),
           const SizedBox(width: 8),

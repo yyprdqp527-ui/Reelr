@@ -15,7 +15,8 @@ import 'background.dart';
 class MainShell extends StatefulWidget {
   final ClipsState state;
 
-  const MainShell({super.key, required this.state});
+  final Future<void> Function(String url)? onPasteUrl;
+  const MainShell({super.key, required this.state, this.onPasteUrl});
 
   static void switchTab(BuildContext context, int index) {
     final state = context.findAncestorStateOfType<_MainShellState>();
@@ -49,7 +50,7 @@ class _MainShellState extends State<MainShell> {
             child: IndexedStack(
               index: _index,
               children: [
-                HomeScreen(state: widget.state),
+                HomeScreen(state: widget.state, onPasteUrl: widget.onPasteUrl),
                 CategoriesScreen(state: widget.state),
                 SettingsScreen(state: widget.state),
               ],

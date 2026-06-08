@@ -11,7 +11,7 @@
 		<key>NSExtensionAttributes</key>
 		<dict>
 			<key>NSExtensionActivationRule</key>
-			<string>SUBQUERY(extensionItems, $extensionItem, SUBQUERY($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.text" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.property-list").@count > 0).@count > 0</string>
+			<string>SUBQUERY(extensionItems, $extensionItem, SUBQUERY($extensionItem.attachments, $attachment, ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.url" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.plain-text" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.text" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.property-list" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.data" || ANY $attachment.registeredTypeIdentifiers UTI-CONFORMS-TO "public.content").@count > 0).@count > 0</string>
 		</dict>
 		<key>NSExtensionPrincipalClass</key>
 		<string>$(PRODUCT_MODULE_NAME).ShareViewController</string>

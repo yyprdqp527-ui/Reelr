@@ -368,7 +368,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         home: !_prefsLoaded
             ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
             : _onboardingDone
-                ? MainShell(state: widget.state)
+                ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
                 : OnboardingScreen(state: widget.state),
         onGenerateRoute: (settings) {
           // Gère le partage iOS via route "/?url=https://..." en mettant
@@ -393,7 +393,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             builder: (_) => !_prefsLoaded
                 ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
                 : _onboardingDone
-                    ? MainShell(state: widget.state)
+                    ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
                     : OnboardingScreen(state: widget.state),
           );
         },
@@ -401,7 +401,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           builder: (_) => !_prefsLoaded
               ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
               : _onboardingDone
-                  ? MainShell(state: widget.state)
+                  ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
                   : OnboardingScreen(state: widget.state),
         ),
       ),
