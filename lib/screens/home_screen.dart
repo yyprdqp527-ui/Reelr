@@ -221,6 +221,11 @@ class _HomeScreenState extends State<HomeScreen> {
               final url = data?.text?.trim() ?? '';
               if (url.startsWith('http') && widget.onPasteUrl != null) {
                 await widget.onPasteUrl!(url);
+              } else {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Aucun lien valide dans le presse-papier')),
+                );
               }
             },
           ),
