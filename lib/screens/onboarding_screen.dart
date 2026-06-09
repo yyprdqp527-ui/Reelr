@@ -24,28 +24,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   static const _pages = [
     _PageData(
-      icon: Icons.bookmark_add_outlined,
+      icon: Icons.ios_share_rounded,
       iconColor: Color(0xFF7C3AED),
-      title: 'Sauvegarde en un clic',
+      title: 'Partage depuis n\'importe quelle app',
       subtitle:
-          'Colle n\'importe quel lien vidéo et Reelr '
-          'récupère automatiquement le titre et la miniature.',
+          'Sur YouTube, TikTok, Instagram\u2026 '
+          'appuie sur \u2191 Partager \u2192 Reelr. '
+          'La vid\u00e9o est sauvegard\u00e9e instantan\u00e9ment.',
     ),
     _PageData(
-      icon: Icons.grid_view_rounded,
+      icon: Icons.auto_awesome_rounded,
       iconColor: Color(0xFF2563EB),
-      title: 'Organise par catégories',
+      title: 'Class\u00e9e automatiquement par l\'IA',
       subtitle:
-          'Classe tes vidéos par thème. '
-          'L\'IA suggère automatiquement la bonne catégorie.',
+          'Reelr d\u00e9tecte le th\u00e8me et range ta vid\u00e9o '
+          'dans la bonne cat\u00e9gorie. Z\u00e9ro effort.',
     ),
     _PageData(
-      icon: Icons.share_outlined,
+      icon: Icons.video_library_rounded,
       iconColor: Color(0xFF7C3AED),
-      title: 'Partage avec tes amis',
+      title: 'Ta collection, toujours avec toi',
       subtitle:
-          'Partage une vidéo ou toute une catégorie '
-          'en un seul geste.',
+          'Retrouve toutes tes vid\u00e9os favorites '
+          'au m\u00eame endroit, organis\u00e9es et pr\u00eates \u00e0 regarder.',
     ),
   ];
 
