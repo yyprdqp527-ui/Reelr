@@ -210,7 +210,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('settings_contact'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () =>
-                          _launchUrl('mailto:contact@example.com'),
+                          _launchUrl('mailto:hello@myreelr.app'),
                     ),
                   ],
                 ),
