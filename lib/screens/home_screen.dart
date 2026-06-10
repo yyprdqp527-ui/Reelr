@@ -149,8 +149,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         color: cat.color,
                         icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
                         count: widget.state.countForCategory(cat.id),
-                        onTap: () =>
-                            _openCategory(context, cat.id, cat.name),
+                        onTap: () {
+                            widget.state.markCategoryViewed(cat.id);
+                            _openCategory(context, cat.id, cat.name);
+                          },
                         thumbnailUrl: catClips.isEmpty ? null : catClips.reversed.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );

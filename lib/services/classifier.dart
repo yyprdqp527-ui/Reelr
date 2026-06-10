@@ -892,8 +892,14 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
     final body = jsonEncode({
       'model': _model,
-      'max_tokens': 1024,
-      'system': _systemPrompt,
+      'max_tokens': 300,
+      'system': [
+        {
+          'type': 'text',
+          'text': _systemPrompt,
+          'cache_control': {'type': 'ephemeral'},
+        }
+      ],
       'messages': [
         {'role': 'user', 'content': messageContent},
       ],
@@ -904,6 +910,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
       headers: {
         'x-api-key': Secrets.anthropicApiKey,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'prompt-caching-2024-07-31',
         'content-type': 'application/json',
       },
       body: body,
