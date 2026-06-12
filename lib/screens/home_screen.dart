@@ -153,7 +153,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             widget.state.markCategoryViewed(cat.id);
                             _openCategory(context, cat.id, cat.name);
                           },
-                        thumbnailUrl: catClips.isEmpty ? null : catClips.reversed.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
+                        thumbnailUrl: catClips.isEmpty ? null : catClips.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },

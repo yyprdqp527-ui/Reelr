@@ -159,6 +159,10 @@ class OEmbedService {
       if (uri == null) return null;
       return _fetchTwitchMetadata(uri);
     }
+    if (lower.contains('reddit.com')) {
+      if (uri == null) return null;
+      return _fetchRedditMetadata(uri);
+    }
 
     // Plateformes HTTP non couvertes (ex: Facebook): fallback OpenGraph.
     if (uri != null) {
@@ -325,6 +329,72 @@ class OEmbedService {
     }
   }
 
+  static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
+    try {
+      var path = videoUri.path;
+      if (!path.endsWith('/')) path = '$path/';
+      final jsonUri = Uri.https('www.reddit.com', '$path.json');
+      final response = await http.get(
+        jsonUri,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
+          'Accept': 'application/json',
+        },
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      }
+
+      final decoded = json.decode(response.body);
+      if (decoded is! List || decoded.isEmpty) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      }
+      final listing = decoded[0] as Map<String, dynamic>;
+      final children = listing['data']?['children'] as List<dynamic>?;
+      if (children == null || children.isEmpty) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      }
+      final postData = (children.first as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
+      if (postData == null) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      }
+
+      final title = (postData['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      }
+      final subreddit = (postData['subreddit'] as String?)?.trim();
+
+      String? thumb;
+      try {
+        final preview = postData['preview'] as Map<String, dynamic>?;
+        final images = preview?['images'] as List<dynamic>?;
+        if (images != null && images.isNotEmpty) {
+          final source = (images.first as Map<String, dynamic>)['source'] as Map<String, dynamic>?;
+          thumb = source?['url'] as String?;
+        }
+      } catch (_) {}
+      if (thumb == null) {
+        final rawThumb = postData['thumbnail'] as String?;
+        if (rawThumb != null && rawThumb.startsWith('http')) {
+          thumb = rawThumb;
+        }
+      }
+
+      return VideoData(
+        title: title,
+        channel: (subreddit != null && subreddit.isNotEmpty) ? 'r/$subreddit' : null,
+        description: (subreddit != null && subreddit.isNotEmpty) ? 'Subreddit: r/$subreddit' : null,
+        platform: 'reddit',
+        thumbnailUrl: _sanitizeMediaUrl(thumb),
+      );
+    } catch (e) {
+      debugPrint('[oembed] reddit error: $e');
+      return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+    }
+  }
+
   static Future<VideoData?> _fetchOpenGraphMetadata(
     Uri uri, {
     required String platformId,
@@ -350,8 +420,12 @@ class OEmbedService {
           _extractMetaContent(body, name: 'twitter:image:src');
       final channel = _extractMetaContent(body, property: 'og:site_name');
 
-      final cleanedTitle = (title ?? '').trim();
+      var cleanedTitle = (title ?? '').trim();
       final cleanedThumb = _sanitizeMediaUrl(thumb);
+      final lowerTitle = cleanedTitle.toLowerCase();
+      if (lowerTitle.contains('please wait') || lowerTitle.contains('verification')) {
+        cleanedTitle = '';
+      }
 
       if (cleanedTitle.isEmpty && cleanedThumb == null && (channel ?? '').trim().isEmpty) {
         return null;
