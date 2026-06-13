@@ -252,6 +252,9 @@ class ClipsState extends ChangeNotifier {
 
   List<Clip> get allClips => List.unmodifiable(_clips);
 
+  /// Total number of clips saved (used for the free-tier limit).
+  int get totalClipsCount => _clips.length;
+
   // ─────────────────────────────────────────────
   // SUBCATEGORIES
   // ─────────────────────────────────────────────

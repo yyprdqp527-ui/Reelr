@@ -14,6 +14,7 @@ import 'core/theme.dart';
 import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
 import 'services/oembed.dart';
+import 'screens/paywall_screen.dart';
 import 'widgets/main_shell.dart';
 import 'state/clips_state.dart';
 
@@ -40,12 +41,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Locale _locale = const Locale('fr');
   bool _onboardingDone = false;
   bool _prefsLoaded = false;
+  bool _isPremium = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   StreamSubscription<Uri>? _deepLinkSub;
 
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
+  bool get isPremium => _isPremium;
+
+  void setPremium(bool value) {
+    setState(() => _isPremium = value);
+    SharedPreferences.getInstance()
+        .then((p) => p.setBool('is_premium', value));
+  }
 
   void setThemeMode(ThemeMode mode) {
     setState(() => _themeMode = mode);
@@ -103,8 +112,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final lang = p.getString('locale');
     if (!mounted) return;
     final onboarding = p.getBool('onboarding_done') ?? false;
+    final premium = p.getBool('is_premium') ?? false;
     setState(() {
       _onboardingDone = onboarding;
+      _isPremium = premium;
       _prefsLoaded = true;
       if (theme != null) {
         _themeMode = ThemeMode.values.firstWhere(
@@ -237,8 +248,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     unawaited(_ingestSharedUrl(url));
   }
 
+  static const int freeClipsLimit = 50;
+
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
+    if (!_isPremium && widget.state.totalClipsCount >= freeClipsLimit) {
+      _showPaywall();
+      return;
+    }
     final normalized = _normalizeForDedup(url);
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
@@ -259,6 +276,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     } finally {
       _ingestingUrls.remove(normalized);
     }
+  }
+
+  void _showPaywall() {
+    _navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => PaywallScreen(
+          onUpgrade: () {
+            // TODO: wire real in_app_purchase subscription flow.
+            _navigatorKey.currentState?.pop();
+          },
+          onClose: () => _navigatorKey.currentState?.pop(),
+        ),
+      ),
+    );
   }
 
   Future<void> _drainSilentShareInbox() async {
