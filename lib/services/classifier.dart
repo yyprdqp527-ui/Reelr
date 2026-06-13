@@ -113,9 +113,15 @@ class CategoryClassifier {
     ],
     'beaute': [
       'beauté', 'beaute', 'maquillage', 'makeup', 'soin', 'soins',
-      'skincare', 'coiffure', 'mode', 'fashion', 'beauty', 'manucure',
+      'skincare', 'coiffure', 'beauty', 'manucure',
       'nail', 'nails', 'hair', 'cheveux', 'rouge à lèvres',
       'rouge a levres',
+    ],
+    'mode': [
+      'mode', 'fashion', 'tenue', 'outfit', 'ootd', 'lookbook',
+      'streetwear', 'vêtement', 'vetement', 'fringues',
+      'sneaker', 'sneakers', 'tendance mode', 'haul mode',
+      'haul vêtements', 'style vestimentaire',
     ],
     'gaming': [
       'gaming', 'game', 'jeu', 'jeux', 'jeu vidéo', 'jeu video',
@@ -317,6 +323,11 @@ class CategoryClassifier {
     'beaute': CategorySuggestion(
       key: 'beaute', name: 'Beauté',
       color: Color.fromRGBO(240, 150, 180, 1),
+      icon: Icons.brush_outlined,
+    ),
+    'mode': CategorySuggestion(
+      key: 'mode', name: 'Mode',
+      color: Color(0xFFEC4899),
       icon: Icons.style_outlined,
     ),
     'gaming': CategorySuggestion(
@@ -706,6 +717,10 @@ Lis-la comme un humain qui scroll son feed : en une fraction de seconde, l'image
 • Maquillage, palette, gros plan visage — personne qui se touche le visage,
   s'applique quelque chose sur la peau, tient un pinceau → Beauty, même si le
   titre ne dit pas "makeup". Un humain sait immédiatement.
+• Vêtements, tenue, outfit, essayage, lookbook, haul de vêtements, streetwear → Mode.
+  La règle : Beauty = ce qu'on APPLIQUE sur son corps (crème, mascara, fond de teint).
+  Mode = ce qu'on PORTE (fringues, chaussures, accessoires, sacs).
+  Une personne qui s'habille devant la caméra → Mode. Même si elle est jolie.
 • Micro, casque audio, deux personnes face à face dans un studio → Podcast
 • Fond noir/neutre, sous-titres stylisés, format long avec invité → Podcast
 • Écran de jeu, manette, headset → Gaming
@@ -737,6 +752,8 @@ Le FORMAT de la vidéo est le signal le plus fort. Repère ces patterns dès le 
 
 • HAUL / UNBOXING / AVIS / TEST / COMPARATIF
   → Le sujet compte ET potentiellement une marque à détecter
+  → HAUL vêtements / OOTD / lookbook → Mode (pas Beauty)
+  → HAUL makeup / skincare / soins → Beauty (pas Mode)
 
 • VLOG / "une journée" / "avec moi" / "day in my life"
   → Famille ou Travel ou Vibes selon le contexte
@@ -831,7 +848,7 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 CATÉGORIES (choisis celle qui correspond le mieux au RESSENTI de la vidéo, pas juste aux mots-clés) :
-Beauty, Style, Food, Fitness, Gaming, Tech, Travel, Finance & Business, Famille, Humour, Musique,
+Beauty, Mode, Food, Fitness, Gaming, Tech, Travel, Finance & Business, Famille, Humour, Musique,
 Wellness, Growth, Actu & Société, DIY & Créa, Pets & Nature, Déco & Home, Auto & Moto,
 Culture, Podcast, True Crime, Documentaire, Cinéma & Séries, Astro & Spirituel, Religion & Foi, Tricot/Couture
 

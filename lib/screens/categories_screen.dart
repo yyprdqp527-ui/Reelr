@@ -575,7 +575,7 @@ class CategoriesScreen extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    cat.name,
+                                    l.localizeCategory(cat.name),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16),
@@ -589,7 +589,7 @@ class CategoriesScreen extends StatelessWidget {
                                     return Padding(
                                       padding: const EdgeInsets.only(top: 3),
                                       child: Text(
-                                        '${subs.length} sous-cat.',
+                                        l.subcategoriesCount(subs.length),
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: cat.color

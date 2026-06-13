@@ -124,6 +124,52 @@ class AppL10n {
 
   String t(String key) =>
       _strings[locale.languageCode]?[key] ?? _strings['en']![key] ?? key;
+
+  String videosSaved(int count) {
+    if (locale.languageCode == 'en') {
+      return '$count ${count == 1 ? "video" : "videos"} saved';
+    }
+    return '$count vidéo${count > 1 ? "s" : ""} sauvegardée${count > 1 ? "s" : ""}';
+  }
+
+  String subcategoriesCount(int count) {
+    if (locale.languageCode == 'en') {
+      return '$count ${count == 1 ? "subcategory" : "subcategories"}';
+    }
+    return '$count sous-cat.';
+  }
+
+  static const Map<String, String> _categoryNamesEn = {
+    'Musique': 'Music',
+    'Voyage': 'Travel',
+    'Famille': 'Family',
+    'Humour': 'Humor',
+    'Bébé': 'Baby',
+    'Beauté': 'Beauty',
+    'Santé': 'Health',
+    'Animaux': 'Pets',
+    'Tricot/Couture': 'Knitting/Sewing',
+    'DIY & Créa': 'DIY & Craft',
+    'Actu & Société': 'News & Society',
+    'Documentaire': 'Documentary',
+    'Cinéma & Séries': 'Films & Series',
+    'Religion & Foi': 'Religion & Faith',
+    'Astro & Spirituel': 'Astro & Spiritual',
+    'Déco & Home': 'Home Decor',
+    'Moto/Auto': 'Auto & Moto',
+    'Non classé': 'Uncategorized',
+    'Mode': 'Fashion',
+    'Style': 'Fashion',
+    'Cuisine': 'Cooking',
+    'Finance & Business': 'Finance & Business',
+  };
+
+  String localizeCategory(String name) {
+    if (locale.languageCode == 'en') {
+      return _categoryNamesEn[name] ?? name;
+    }
+    return name;
+  }
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

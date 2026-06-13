@@ -177,6 +177,7 @@ class DatabaseHelper {
     'ai_bebe': Icons.child_care_rounded,
     'ai_humour': Icons.sentiment_very_satisfied_rounded,
     'ai_beaute': Icons.brush_rounded,
+    'ai_mode': Icons.style_rounded,
   };
 
   /// Lookup unifié (catégories par défaut + IA).

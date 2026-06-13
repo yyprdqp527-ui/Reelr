@@ -63,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.only(left: 20, bottom: 4),
                   child: Text(
-                    '${widget.state.totalCount} vidéo${widget.state.totalCount > 1 ? 's' : ''} sauvegardée${widget.state.totalCount > 1 ? 's' : ''}',
+                    l.videosSaved(widget.state.totalCount),
                     style: TextStyle(
                       fontSize: 13,
                       color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
@@ -144,14 +144,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       }
                       final cat = widget.state.categories[i - 1];
                       final catClips = widget.state.clipsForCategory(cat.id);
+                      final localizedName = l.localizeCategory(cat.name);
                       return _CategoryTile(
-                        name: cat.name,
+                        name: localizedName,
                         color: cat.color,
                         icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
                         count: widget.state.countForCategory(cat.id),
                         onTap: () {
                             widget.state.markCategoryViewed(cat.id);
-                            _openCategory(context, cat.id, cat.name);
+                            _openCategory(context, cat.id, localizedName);
                           },
                         thumbnailUrl: catClips.isEmpty ? null : catClips.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
@@ -2422,7 +2423,7 @@ class _CategoryPicker extends StatelessWidget {
           onTap: () => onChanged(null),
         ),
         ...categories.map((cat) => _CatChip(
-              label: cat.name,
+              label: l.localizeCategory(cat.name),
               color: cat.color,
               icon: cat.icon,
               selected: selected == cat.id,
