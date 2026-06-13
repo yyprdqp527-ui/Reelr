@@ -369,8 +369,9 @@ class ShareViewController: UIViewController {
             feedbackIcon?.tintColor = UIColor.white.withAlphaComponent(0.95)
             feedbackIcon?.alpha = 1
         }
-        feedbackTitle?.text = "Ajouté à Reelr"
-        feedbackSubtitle?.text = "Inbox mis à jour"
+        let isFrench = Locale.current.languageCode == "fr"
+        feedbackTitle?.text = isFrench ? "Ajouté à Reelr" : "Added to Reelr"
+        feedbackSubtitle?.text = isFrench ? "Inbox mis à jour" : "Inbox updated"
 
         UIView.animate(withDuration: 0.14, delay: 0, options: [.curveEaseOut], animations: {
             wrapper.transform = CGAffineTransform(scaleX: 1.02, y: 1.02)
