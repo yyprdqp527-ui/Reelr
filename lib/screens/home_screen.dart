@@ -154,7 +154,14 @@ class _HomeScreenState extends State<HomeScreen> {
                             widget.state.markCategoryViewed(cat.id);
                             _openCategory(context, cat.id, localizedName);
                           },
-                        thumbnailUrl: catClips.isEmpty ? null : catClips.where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty).map((c) => c.thumbnailUrl!).firstOrNull,
+                        thumbnailUrl: catClips.isEmpty ? null : () {
+                            final order = widget.state.sortOrderFor(cat.id);
+                            final sorted = sortClipsByOrder(catClips, order);
+                            return sorted
+                                .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                                .map((c) => c.thumbnailUrl!)
+                                .firstOrNull;
+                          }(),
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },
@@ -504,23 +511,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   SortOrder _sortOrder = SortOrder.chronological;
   bool _reorderMode = false;
   bool _gridView = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _sortOrder = widget.state.sortOrderFor(widget.categoryId);
+    _gridView = widget.state.gridViewFor(widget.categoryId);
+  }
   String? _selectedSubcategoryId;
 
-  List<Clip> _sorted(List<Clip> src) {
-    final list = List<Clip>.from(src);
-    switch (_sortOrder) {
-      case SortOrder.chronological:
-        list.sort((a, b) => b.addedAt.compareTo(a.addedAt));
-      case SortOrder.alphabetical:
-        list.sort((a, b) => a.title.compareTo(b.title));
-      case SortOrder.manual:
-        list.sort((a, b) {
-          final cmp = a.position.compareTo(b.position);
-          return cmp != 0 ? cmp : b.addedAt.compareTo(a.addedAt);
-        });
-    }
-    return list;
-  }
+  List<Clip> _sorted(List<Clip> src) => sortClipsByOrder(src, _sortOrder);
 
   PopupMenuItem<SortOrder> _sortItem(
       SortOrder order, IconData icon, String label) {
@@ -584,7 +584,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               IconButton(
                 icon: Icon(_gridView ? Icons.list_rounded : Icons.grid_view_rounded),
                 tooltip: _gridView ? 'Vue liste' : 'Vue grille',
-                onPressed: () => setState(() => _gridView = !_gridView),
+                onPressed: () => setState(() {
+                  _gridView = !_gridView;
+                  widget.state.setGridViewFor(widget.categoryId, _gridView);
+                }),
               ),
               // Menu tri
               PopupMenuButton<SortOrder>(
@@ -595,6 +598,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 onSelected: (order) => setState(() {
                   _sortOrder = order;
                   if (order != SortOrder.manual) _reorderMode = false;
+                  widget.state.setSortOrderFor(widget.categoryId, order);
                 }),
                 itemBuilder: (_) => [
                   _sortItem(SortOrder.chronological,

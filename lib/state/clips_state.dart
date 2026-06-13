@@ -46,6 +46,22 @@ class SubCategory {
 
 enum SortOrder { chronological, alphabetical, manual }
 
+List<Clip> sortClipsByOrder(List<Clip> src, SortOrder order) {
+  final list = List<Clip>.from(src);
+  switch (order) {
+    case SortOrder.chronological:
+      list.sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    case SortOrder.alphabetical:
+      list.sort((a, b) => a.title.compareTo(b.title));
+    case SortOrder.manual:
+      list.sort((a, b) {
+        final cmp = a.position.compareTo(b.position);
+        return cmp != 0 ? cmp : b.addedAt.compareTo(a.addedAt);
+      });
+  }
+  return list;
+}
+
 class ClipsState extends ChangeNotifier {
   List<Clip> _clips = [];
   final Set<String> _newlyClassifiedCategoryIds = {};
@@ -54,6 +70,8 @@ class ClipsState extends ChangeNotifier {
   Map<String, String> _clipSubcategoryMap = {};
   String _searchQuery = '';
   bool _isLoading = false;
+  final Map<String, SortOrder> _categorySortOrders = {};
+  final Map<String, bool> _categoryGridViews = {};
 
   bool get isLoading => _isLoading;
   String get searchQuery => _searchQuery;
@@ -320,6 +338,22 @@ class ClipsState extends ChangeNotifier {
   List<Clip> clipsForCategory(String? categoryId) =>
       _clips.where((c) => c.categoryId == categoryId).toList();
 
+  SortOrder sortOrderFor(String? categoryId) =>
+      _categorySortOrders[categoryId ?? '__all__'] ?? SortOrder.chronological;
+
+  void setSortOrderFor(String? categoryId, SortOrder order) {
+    _categorySortOrders[categoryId ?? '__all__'] = order;
+    notifyListeners();
+  }
+
+  bool gridViewFor(String? categoryId) =>
+      _categoryGridViews[categoryId ?? '__all__'] ?? false;
+
+  void setGridViewFor(String? categoryId, bool value) {
+    _categoryGridViews[categoryId ?? '__all__'] = value;
+    notifyListeners();
+  }
+
   /// Réordonne les clips d'une catégorie (drag & drop manuel).
   /// [oldIndex] et [newIndex] sont les indices dans la liste triée par position.
   Future<void> reorderClips(
@@ -345,11 +379,9 @@ class ClipsState extends ChangeNotifier {
     }
     await DatabaseHelper.instance.updateClipPositions(updates);
 
-    // Mettre à jour la liste en mémoire
-    for (final updated in sorted) {
-      final idx = _clips.indexWhere((c) => c.id == updated.id);
-      if (idx != -1) _clips[idx] = updated;
-    }
+    // Recharger depuis la DB — garantit que _clips reflète exactement
+    // les positions persistées, sans risque de mise à jour partielle en mémoire.
+    _clips = await DatabaseHelper.instance.getAllClips();
     notifyListeners();
   }
 }
