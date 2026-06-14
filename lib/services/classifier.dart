@@ -139,10 +139,15 @@ class CategoryClassifier {
       'épices', 'epices', 'assaisonnement', 'grill', 'braise',
     ],
     'finance': [
-      'finance', 'argent', 'money', 'bourse', 'investissement', 'invest',
+      'argent', 'money', 'bourse', 'investissement', 'invest',
       'trading', 'crypto', 'bitcoin', 'ethereum', 'épargne', 'epargne',
-      'budget', 'banque', 'bank', 'immobilier', 'dividende',
-      'action', 'portefeuille', 'retraite', 'patrimoine',
+      'budget', 'banque', 'bank', 'dividende', 'portefeuille', 'retraite', 'patrimoine',
+    ],
+    'business': [
+      'business', 'entreprise', 'entrepreneuriat', 'entrepreneur',
+      'startup', 'marketing', 'management', 'stratégie', 'strategie',
+      'leadership', 'ceo', 'fondateur', 'fondatrice', 'scale', 'scaling',
+      'revenue', 'chiffre affaires', 'client', 'freelance',
     ],
     'tech': [
       'tech', 'technologie', 'technology', 'informatique', 'code',
@@ -166,6 +171,13 @@ class CategoryClassifier {
       'horse', 'lapin', 'rabbit', 'oiseau', 'bird', 'poisson', 'fish',
       'reptile', 'hamster', 'vétérinaire', 'veterinaire', 'vet',
       'pet', 'pets', 'adoption', 'refuge',
+    ],
+    'nature_eco': [
+      'nature', 'forêt', 'foret', 'plante', 'plantes', 'jardin',
+      'jardinage', 'garden', 'gardening', 'fleur', 'fleurs', 'flower',
+      'arbre', 'tree', 'rivière', 'riviere', 'lac', 'lake',
+      'biodiversité', 'biodiversite', 'écologie', 'ecologie', 'environnement',
+      'climate', 'climat', 'réchauffement', 'rechauffement',
     ],
     'sante': [
       'santé', 'sante', 'health', 'médecine', 'medecine', 'médical',
@@ -208,8 +220,15 @@ class CategoryClassifier {
       'parlement', 'assemblée', 'assemblee', 'sénat', 'senat',
       'grève', 'greve', 'manifestation', 'manif', 'syndicat',
       'guerre', 'conflit', 'crise', 'inflation', 'économie', 'economie',
+    ],
+    'societe': [
       'société', 'societe', 'social', 'inégalités', 'inegalites',
       'discrimination', 'racisme', 'féminisme', 'feminisme',
+      'genre', 'identité', 'identite', 'lgbtq', 'queer', 'trans',
+      'précarité', 'precarite', 'pauvreté', 'pauvrete', 'logement',
+      'immigration', 'intégration', 'integration', 'laïcité', 'laicite',
+      'éducation', 'education', 'école', 'ecole', 'université', 'universite',
+      'travail', 'emploi', 'chômage', 'chomage',
     ],
     'true_crime': [
       'true crime', 'crime', 'meurtre', 'murder', 'serial killer',
@@ -345,6 +364,11 @@ class CategoryClassifier {
       color: Color(0xFF4ECDC4),
       icon: Icons.account_balance_outlined,
     ),
+    'business': CategorySuggestion(
+      key: 'business', name: 'Business & Entrepr.',
+      color: Color(0xFF26A69A),
+      icon: Icons.rocket_launch_outlined,
+    ),
     'tech': CategorySuggestion(
       key: 'tech', name: 'Tech',
       color: Color(0xFF74B9FF),
@@ -365,6 +389,11 @@ class CategoryClassifier {
       color: Color(0xFFFFE66D),
       icon: Icons.pets_outlined,
     ),
+    'nature_eco': CategorySuggestion(
+      key: 'nature_eco', name: 'Nature & Écologie',
+      color: Color(0xFF81C784),
+      icon: Icons.park_outlined,
+    ),
     'sante': CategorySuggestion(
       key: 'sante', name: 'Santé',
       color: Color(0xFFFF6B6B),
@@ -381,9 +410,14 @@ class CategoryClassifier {
       icon: Icons.mic_outlined,
     ),
     'actu': CategorySuggestion(
-      key: 'actu', name: 'Actu & Société',
+      key: 'actu', name: 'Actualités',
       color: Color(0xFFB0BEC5),
       icon: Icons.newspaper_outlined,
+    ),
+    'societe': CategorySuggestion(
+      key: 'societe', name: 'Société',
+      color: Color(0xFF90A4AE),
+      icon: Icons.people_outlined,
     ),
     'true_crime': CategorySuggestion(
       key: 'true_crime', name: 'True Crime',
@@ -406,7 +440,7 @@ class CategoryClassifier {
       icon: Icons.auto_awesome_outlined,
     ),
     'astro_spirituel': CategorySuggestion(
-      key: 'astro_spirituel', name: 'Astro & Spirituel',
+      key: 'astro_spirituel', name: 'Astrologie',
       color: Color(0xFFCE93D8),
       icon: Icons.auto_awesome_outlined,
     ),
@@ -861,17 +895,21 @@ cat_musique     → musique, chansons, concerts, clips, artistes
 cat_wellness    → bien-être, méditation, développement spirituel
 cat_podcast     → podcast, interview longue durée, débat, talk-show
 cat_famille     → famille, enfants, bébé, parentalité, vlog famille
-cat_finance     → finance, business, entrepreneuriat, investissement, bourse
-cat_actu        → actualité, news, politique, société, info
+cat_finance     → finance personnelle, investissement, bourse, épargne, budget
+cat_business    → entrepreneuriat, business, startup, marketing, management
+cat_actu        → actualité, news, politique, élections, guerre, faits divers
+cat_societe     → société, féminisme, inégalités, éducation, conditions de vie, débats sociaux
 cat_diy         → DIY, création, art, dessin, procreate, artisanat
 cat_deco        → décoration, intérieur, maison, home, architecture
 cat_auto        → voiture, moto, automobile, conduite, mécanque
 cat_culture     → culture, histoire, littérature, philosophie, éducation
 cat_cinema      → cinéma, séries, films, critiques, Netflix
 cat_growth      → développement personnel, motivation, productivité
-cat_pets        → animaux, chiens, chats, nature, wildlife
+cat_pets        → animaux, chiens, chats, animaux de compagnie, vétérinaire
+cat_nature      → nature, écologie, plantes, jardinage, environnement, biodiversité
 cat_truecrime   → true crime, affaires criminelles, enquêtes, faits divers
-cat_astro       → astrologie, spiritualité, ésotérisme, horoscope
+cat_astro       → astrologie, horoscope, zodiaque, tarot, ésotérisme
+cat_wellness    → bien-être, méditation, mindfulness, spiritualité, développement intérieur
 cat_vibes       → lifestyle, ambiance, esthétique, aesthetic, vibes
 
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
