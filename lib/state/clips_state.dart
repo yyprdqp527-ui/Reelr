@@ -194,10 +194,26 @@ class ClipsState extends ChangeNotifier {
           'cat_pets': Icons.pets_rounded, 'cat_truecrime': Icons.gavel_rounded,
           'cat_astro': Icons.auto_awesome_rounded, 'cat_vibes': Icons.explore_rounded,
         };
+        const catNames = <String, String>{
+          'cat_food': 'Food', 'cat_fitness': 'Fitness',
+          'cat_gaming': 'Gaming', 'cat_beauty': 'Beauté',
+          'cat_mode': 'Mode', 'cat_travel': 'Voyage',
+          'cat_tech': 'Tech', 'cat_humour': 'Humour',
+          'cat_musique': 'Musique', 'cat_wellness': 'Bien-être',
+          'cat_podcast': 'Podcast', 'cat_famille': 'Famille',
+          'cat_finance': 'Finance', 'cat_actu': 'Actualités',
+          'cat_diy': 'DIY & Créa', 'cat_deco': 'Déco & Home',
+          'cat_auto': 'Auto & Moto', 'cat_culture': 'Culture',
+          'cat_cinema': 'Cinéma & Séries', 'cat_growth': 'Croissance perso',
+          'cat_pets': 'Animaux', 'cat_truecrime': 'True Crime',
+          'cat_astro': 'Astrologie', 'cat_vibes': 'Vibes',
+          'cat_societe': 'Société', 'cat_nature': 'Nature & Écologie',
+          'cat_business': 'Business',
+        };
         final isCatId = catName.startsWith('cat_');
         final newCat = ClipCategory(
           id: isCatId ? catName : 'ai_\${DateTime.now().millisecondsSinceEpoch}',
-          name: catName,
+          name: catNames[catName] ?? catName,
           color: catColors[catName] ?? const Color(0xFF7C3AED),
           icon: catIcons[catName] ?? Icons.folder_rounded,
         );
