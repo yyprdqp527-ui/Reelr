@@ -134,18 +134,62 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Mapping explicite : noms retournés par Claude → cat_id stable
+  static const Map<String, String> _claudeCatMap = {
+    'food': 'cat_food', 'cuisine': 'cat_food', 'recette': 'cat_food', 'cooking': 'cat_food',
+    'fitness': 'cat_fitness', 'sport': 'cat_fitness', 'workout': 'cat_fitness', 'sante': 'cat_fitness',
+    'gaming': 'cat_gaming', 'jeu': 'cat_gaming', 'jeux video': 'cat_gaming', 'streaming': 'cat_gaming',
+    'beauty': 'cat_beauty', 'beaute': 'cat_beauty', 'makeup': 'cat_beauty', 'skincare': 'cat_beauty',
+    'mode': 'cat_mode', 'fashion': 'cat_mode', 'style': 'cat_mode', 'vetements': 'cat_mode',
+    'travel': 'cat_travel', 'voyage': 'cat_travel', 'aventure': 'cat_travel',
+    'tech': 'cat_tech', 'technologie': 'cat_tech', 'science': 'cat_tech',
+    'humour': 'cat_humour', 'humor': 'cat_humour', 'comedie': 'cat_humour', 'funny': 'cat_humour',
+    'musique': 'cat_musique', 'music': 'cat_musique', 'concert': 'cat_musique',
+    'wellness': 'cat_wellness', 'bien-etre': 'cat_wellness', 'meditation': 'cat_wellness', 'yoga': 'cat_wellness',
+    'podcast': 'cat_podcast',
+    'famille': 'cat_famille', 'family': 'cat_famille', 'enfants': 'cat_famille', 'bebe': 'cat_famille',
+    'finance & business': 'cat_finance', 'finance': 'cat_finance', 'business': 'cat_finance', 'entrepreneuriat': 'cat_finance',
+    'actu & societe': 'cat_actu', 'actu': 'cat_actu', 'societe': 'cat_actu', 'actualite': 'cat_actu', 'news': 'cat_actu',
+    'diy & crea': 'cat_diy', 'diy': 'cat_diy', 'crea': 'cat_diy', 'creation': 'cat_diy', 'art': 'cat_diy',
+    'deco & home': 'cat_deco', 'deco': 'cat_deco', 'maison': 'cat_deco', 'interieur': 'cat_deco',
+    'auto & moto': 'cat_auto', 'auto': 'cat_auto', 'moto': 'cat_auto', 'voiture': 'cat_auto',
+    'culture': 'cat_culture', 'litterature': 'cat_culture', 'histoire': 'cat_culture',
+    'cinema & series': 'cat_cinema', 'cinema': 'cat_cinema', 'series': 'cat_cinema', 'film': 'cat_cinema',
+    'growth': 'cat_growth', 'developpement personnel': 'cat_growth', 'motivation': 'cat_growth',
+    'pets & nature': 'cat_pets', 'pets': 'cat_pets', 'animaux': 'cat_pets', 'nature': 'cat_pets',
+    'true crime': 'cat_truecrime', 'crime': 'cat_truecrime', 'enquete': 'cat_truecrime',
+    'astro & spirituel': 'cat_astro', 'astro': 'cat_astro', 'spiritualite': 'cat_astro',
+    'vibes': 'cat_vibes', 'lifestyle': 'cat_vibes', 'inspo': 'cat_vibes',
+  };
+
   ClipCategory? findBestCategoryMatch(String name) {
-    final normalized = name.trim().toLowerCase();
+    final normalized = name.trim().toLowerCase()
+        .replaceAll('é', 'e').replaceAll('è', 'e').replaceAll('ê', 'e')
+        .replaceAll('à', 'a').replaceAll('â', 'a')
+        .replaceAll('ô', 'o').replaceAll('û', 'u').replaceAll('ç', 'c');
     if (normalized.isEmpty) return null;
+
+    // 1. Mapping explicite Claude → cat_id
+    final mappedId = _claudeCatMap[normalized];
+    if (mappedId != null) {
+      final cat = _categories.where((c) => c.id == mappedId).firstOrNull;
+      if (cat != null) return cat;
+    }
+
+    // 2. Match exact sur le nom de catégorie
     for (final cat in _categories) {
       if (cat.name.trim().toLowerCase() == normalized) return cat;
     }
+
+    // 3. Match partiel strict (le nom de cat est contenu dans ce que Claude retourne)
     for (final cat in _categories) {
-      if (cat.name.trim().toLowerCase().contains(normalized) && normalized.length / cat.name.trim().toLowerCase().length > 0.6 ||
-          normalized.contains(cat.name.trim().toLowerCase())) {
-        return cat;
-      }
+      final catNorm = cat.name.trim().toLowerCase()
+          .replaceAll('é', 'e').replaceAll('è', 'e').replaceAll('ê', 'e')
+          .replaceAll('à', 'a').replaceAll('â', 'a')
+          .replaceAll('ô', 'o').replaceAll('û', 'u').replaceAll('ç', 'c');
+      if (normalized == catNorm) return cat;
     }
+
     return null;
   }
 

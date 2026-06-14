@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -104,10 +104,9 @@ class DatabaseHelper {
       await db.execute(
         'ALTER TABLE clips ADD COLUMN classification_tags TEXT');
     }
-    // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
+    await _seedDefaultCategories(db);
   }
 
-  // ignore: unused_element
   Future<void> _seedDefaultCategories(Database db) async {
     for (final cat in _defaultCategories) {
       await db.insert('categories', cat.toMap(),
@@ -115,74 +114,61 @@ class DatabaseHelper {
     }
   }
 
-  // ignore: unused_field
   static final List<ClipCategory> _defaultCategories = [
-    const ClipCategory(
-      id: 'default_food',
-      name: 'Food',
-      color: Color(0xFFFF6B6B),
-      icon: Icons.restaurant_outlined,
-    ),
-    const ClipCategory(
-      id: 'default_workout',
-      name: 'Workout',
-      color: Color(0xFF4ECDC4),
-      icon: Icons.fitness_center_outlined,
-    ),
-    const ClipCategory(
-      id: 'default_vibes',
-      name: 'Vibes',
-      color: Color(0xFFFFE66D),
-      icon: Icons.explore_outlined,
-    ),
-    const ClipCategory(
-      id: 'default_wellness',
-      name: 'Wellness',
-      color: Color(0xFFA8E6CF),
-      icon: Icons.self_improvement_outlined,
-    ),
-    const ClipCategory(
-      id: 'default_inspo',
-      name: 'Inspo',
-      color: Color(0xFFC77DFF),
-      icon: Icons.style_outlined,
-    ),
-    const ClipCategory(
-      id: 'default_gaming',
-      name: 'Gaming',
-      color: Color(0xFF74B9FF),
-      icon: Icons.sports_esports_outlined,
-    ),
+    const ClipCategory(id: 'cat_food',      name: 'Food',              color: Color(0xFFFF6B6B), icon: Icons.restaurant_rounded),
+    const ClipCategory(id: 'cat_fitness',   name: 'Fitness',           color: Color(0xFF4ECDC4), icon: Icons.fitness_center_rounded),
+    const ClipCategory(id: 'cat_gaming',    name: 'Gaming',            color: Color(0xFF74B9FF), icon: Icons.sports_esports_rounded),
+    const ClipCategory(id: 'cat_beauty',    name: 'Beauty',            color: Color(0xFFFF85B3), icon: Icons.brush_rounded),
+    const ClipCategory(id: 'cat_mode',      name: 'Mode',              color: Color(0xFFC77DFF), icon: Icons.style_rounded),
+    const ClipCategory(id: 'cat_travel',    name: 'Travel',            color: Color(0xFF81ECEC), icon: Icons.flight_takeoff_rounded),
+    const ClipCategory(id: 'cat_tech',      name: 'Tech',              color: Color(0xFF6C5CE7), icon: Icons.computer_rounded),
+    const ClipCategory(id: 'cat_humour',    name: 'Humour',            color: Color(0xFFFFE66D), icon: Icons.sentiment_very_satisfied_rounded),
+    const ClipCategory(id: 'cat_musique',   name: 'Musique',           color: Color(0xFFFF7675), icon: Icons.music_note_rounded),
+    const ClipCategory(id: 'cat_wellness',  name: 'Wellness',          color: Color(0xFFA8E6CF), icon: Icons.self_improvement_rounded),
+    const ClipCategory(id: 'cat_podcast',   name: 'Podcast',           color: Color(0xFFB2BEC3), icon: Icons.mic_rounded),
+    const ClipCategory(id: 'cat_famille',   name: 'Famille',           color: Color(0xFFFD79A8), icon: Icons.family_restroom_rounded),
+    const ClipCategory(id: 'cat_finance',   name: 'Finance & Business',color: Color(0xFF00B894), icon: Icons.trending_up_rounded),
+    const ClipCategory(id: 'cat_actu',      name: 'Actu & Societe',    color: Color(0xFF636E72), icon: Icons.newspaper_rounded),
+    const ClipCategory(id: 'cat_diy',       name: 'DIY & Crea',        color: Color(0xFFE17055), icon: Icons.brush_outlined),
+    const ClipCategory(id: 'cat_deco',      name: 'Deco & Home',       color: Color(0xFFFAB1A0), icon: Icons.home_rounded),
+    const ClipCategory(id: 'cat_auto',      name: 'Auto & Moto',       color: Color(0xFF2D3436), icon: Icons.directions_car_rounded),
+    const ClipCategory(id: 'cat_culture',   name: 'Culture',           color: Color(0xFF8E44AD), icon: Icons.theater_comedy_rounded),
+    const ClipCategory(id: 'cat_cinema',    name: 'Cinema & Series',   color: Color(0xFF2C3E50), icon: Icons.movie_rounded),
+    const ClipCategory(id: 'cat_growth',    name: 'Growth',            color: Color(0xFF27AE60), icon: Icons.rocket_launch_rounded),
+    const ClipCategory(id: 'cat_pets',      name: 'Pets & Nature',     color: Color(0xFF16A085), icon: Icons.pets_rounded),
+    const ClipCategory(id: 'cat_truecrime', name: 'True Crime',        color: Color(0xFF922B21), icon: Icons.gavel_rounded),
+    const ClipCategory(id: 'cat_astro',     name: 'Astro & Spirituel', color: Color(0xFF1A237E), icon: Icons.auto_awesome_rounded),
+    const ClipCategory(id: 'cat_vibes',     name: 'Vibes',             color: Color(0xFFFFE66D), icon: Icons.explore_rounded),
   ];
 
-  /// Icône Material affichée dans la grille pour chaque catégorie par défaut.
   static const Map<String, IconData> categoryIcons = {
-    'default_food': Icons.restaurant_outlined,
-    'default_workout': Icons.fitness_center_outlined,
-    'default_vibes': Icons.explore_outlined,
-    'default_wellness': Icons.self_improvement_outlined,
-    'default_inspo': Icons.style_outlined,
-    'default_gaming': Icons.sports_esports_outlined,
+    'cat_food':      Icons.restaurant_rounded,
+    'cat_fitness':   Icons.fitness_center_rounded,
+    'cat_gaming':    Icons.sports_esports_rounded,
+    'cat_beauty':    Icons.brush_rounded,
+    'cat_mode':      Icons.style_rounded,
+    'cat_travel':    Icons.flight_takeoff_rounded,
+    'cat_tech':      Icons.computer_rounded,
+    'cat_humour':    Icons.sentiment_very_satisfied_rounded,
+    'cat_musique':   Icons.music_note_rounded,
+    'cat_wellness':  Icons.self_improvement_rounded,
+    'cat_podcast':   Icons.mic_rounded,
+    'cat_famille':   Icons.family_restroom_rounded,
+    'cat_finance':   Icons.trending_up_rounded,
+    'cat_actu':      Icons.newspaper_rounded,
+    'cat_diy':       Icons.brush_outlined,
+    'cat_deco':      Icons.home_rounded,
+    'cat_auto':      Icons.directions_car_rounded,
+    'cat_culture':   Icons.theater_comedy_rounded,
+    'cat_cinema':    Icons.movie_rounded,
+    'cat_growth':    Icons.rocket_launch_rounded,
+    'cat_pets':      Icons.pets_rounded,
+    'cat_truecrime': Icons.gavel_rounded,
+    'cat_astro':     Icons.auto_awesome_rounded,
+    'cat_vibes':     Icons.explore_rounded,
   };
 
-  /// Icônes pour les catégories créées automatiquement par l'IA.
-  static const Map<String, IconData> aiCategoryIcons = {
-    'ai_food': Icons.restaurant_rounded,
-    'ai_sport': Icons.fitness_center_rounded,
-    'ai_yoga': Icons.self_improvement_rounded,
-    'ai_moto': Icons.two_wheeler_rounded,
-    'ai_voyage': Icons.flight_takeoff_rounded,
-    'ai_musique': Icons.music_note_rounded,
-    'ai_tricot': Icons.content_cut_rounded,
-    'ai_bebe': Icons.child_care_rounded,
-    'ai_humour': Icons.sentiment_very_satisfied_rounded,
-    'ai_beaute': Icons.brush_rounded,
-    'ai_mode': Icons.style_rounded,
-  };
-
-  /// Lookup unifié (catégories par défaut + IA).
-  static IconData? iconFor(String id) =>
-      categoryIcons[id] ?? aiCategoryIcons[id];
+  static IconData? iconFor(String id) => categoryIcons[id];
 
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
