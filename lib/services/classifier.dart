@@ -444,6 +444,111 @@ class CategoryClassifier {
       color: Color(0xFFCE93D8),
       icon: Icons.auto_awesome_outlined,
     ),
+    'immo': CategorySuggestion(
+      key: 'immo', name: 'Immobilier',
+      color: Color(0xFFBCAAA4),
+      icon: Icons.apartment_outlined,
+    ),
+    'manga': CategorySuggestion(
+      key: 'manga', name: 'Anime & Manga',
+      color: Color(0xFFFF8A80),
+      icon: Icons.auto_stories_outlined,
+    ),
+    'politique': CategorySuggestion(
+      key: 'politique', name: 'Politique',
+      color: Color(0xFF80CBC4),
+      icon: Icons.account_balance_outlined,
+    ),
+    'crypto': CategorySuggestion(
+      key: 'crypto', name: 'Crypto & Web3',
+      color: Color(0xFFF7DC6F),
+      icon: Icons.currency_bitcoin_outlined,
+    ),
+    'lang': CategorySuggestion(
+      key: 'lang', name: 'Langues',
+      color: Color(0xFF80DEEA),
+      icon: Icons.translate_outlined,
+    ),
+    'histoire': CategorySuggestion(
+      key: 'histoire', name: 'Histoire',
+      color: Color(0xFFA5D6A7),
+      icon: Icons.history_edu_outlined,
+    ),
+    'art_new': CategorySuggestion(
+      key: 'art_new', name: 'Art',
+      color: Color(0xFFE040FB),
+      icon: Icons.palette_outlined,
+    ),
+    'photo': CategorySuggestion(
+      key: 'photo', name: 'Photo & Vidéo',
+      color: Color(0xFF4DD0E1),
+      icon: Icons.camera_alt_outlined,
+    ),
+    'outdoor': CategorySuggestion(
+      key: 'outdoor', name: 'Outdoor & Aventure',
+      color: Color(0xFF69F0AE),
+      icon: Icons.terrain_outlined,
+    ),
+    'psycho': CategorySuggestion(
+      key: 'psycho', name: 'Psychologie',
+      color: Color(0xFFFFAB91),
+      icon: Icons.psychology_outlined,
+    ),
+    'luxe': CategorySuggestion(
+      key: 'luxe', name: 'Luxe & Lifestyle',
+      color: Color(0xFFFFD700),
+      icon: Icons.diamond_outlined,
+    ),
+    'entrepreneuriat': CategorySuggestion(
+      key: 'entrepreneuriat', name: 'Entrepreneuriat',
+      color: Color(0xFF4CAF50),
+      icon: Icons.lightbulb_outlined,
+    ),
+    'education': CategorySuggestion(
+      key: 'education', name: 'Éducation',
+      color: Color(0xFF29B6F6),
+      icon: Icons.school_outlined,
+    ),
+    'cosplay': CategorySuggestion(
+      key: 'cosplay', name: 'Cosplay & Geek',
+      color: Color(0xFFBA68C8),
+      icon: Icons.masks_outlined,
+    ),
+    'dance': CategorySuggestion(
+      key: 'dance', name: 'Danse',
+      color: Color(0xFFFF4081),
+      icon: Icons.music_video_outlined,
+    ),
+    'comedy': CategorySuggestion(
+      key: 'comedy', name: 'Stand-up',
+      color: Color(0xFFFFEB3B),
+      icon: Icons.mic_external_on_outlined,
+    ),
+    'jardin': CategorySuggestion(
+      key: 'jardin', name: 'Jardinage',
+      color: Color(0xFF8BC34A),
+      icon: Icons.yard_outlined,
+    ),
+    'sport_extreme': CategorySuggestion(
+      key: 'sport_extreme', name: 'Sports Extrêmes',
+      color: Color(0xFFFF6D00),
+      icon: Icons.paragliding_outlined,
+    ),
+    'nutrition': CategorySuggestion(
+      key: 'nutrition', name: 'Nutrition & Diète',
+      color: Color(0xFF66BB6A),
+      icon: Icons.restaurant_menu_outlined,
+    ),
+    'vintage': CategorySuggestion(
+      key: 'vintage', name: 'Vintage & Rétro',
+      color: Color(0xFFD7CCC8),
+      icon: Icons.watch_outlined,
+    ),
+    'fail': CategorySuggestion(
+      key: 'fail', name: 'Fails & Compilations',
+      color: Color(0xFFFF5722),
+      icon: Icons.sentiment_very_dissatisfied_outlined,
+    ),
     'langue_culture': CategorySuggestion(
       key: 'langue_culture', name: 'Culture',
       color: Color(0xFF80DEEA),
