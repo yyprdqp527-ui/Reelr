@@ -847,10 +847,34 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-CATÉGORIES (choisis celle qui correspond le mieux au RESSENTI de la vidéo, pas juste aux mots-clés) :
-Beauty, Mode, Food, Fitness, Gaming, Tech, Travel, Finance & Business, Famille, Humour, Musique,
-Wellness, Growth, Actu & Société, DIY & Créa, Pets & Nature, Déco & Home, Auto & Moto,
-Culture, Podcast, True Crime, Documentaire, Cinéma & Séries, Astro & Spirituel, Religion & Foi, Tricot/Couture
+CATÉGORIES — Tu DOIS retourner EXACTEMENT un de ces IDs dans "categorie_principale", rien d'autre :
+
+cat_food        → cuisine, recettes, restaurants, chefs, gastronomie
+cat_fitness     → sport, musculation, yoga, running, santé, nutrition
+cat_gaming      → jeux vidéo, gaming, streaming, esport, Twitch
+cat_beauty      → maquillage, skincare, makeup, soins, beauté
+cat_mode        → vêtements, fashion, style, outfit, haul mode
+cat_travel      → voyage, aventure, tourisme, découverte, destinations
+cat_tech        → technologie, high-tech, science, IA, gadgets
+cat_humour      → humour, comédie, prank, sketch, funny, mdr
+cat_musique     → musique, chansons, concerts, clips, artistes
+cat_wellness    → bien-être, méditation, développement spirituel
+cat_podcast     → podcast, interview longue durée, débat, talk-show
+cat_famille     → famille, enfants, bébé, parentalité, vlog famille
+cat_finance     → finance, business, entrepreneuriat, investissement, bourse
+cat_actu        → actualité, news, politique, société, info
+cat_diy         → DIY, création, art, dessin, procreate, artisanat
+cat_deco        → décoration, intérieur, maison, home, architecture
+cat_auto        → voiture, moto, automobile, conduite, mécanque
+cat_culture     → culture, histoire, littérature, philosophie, éducation
+cat_cinema      → cinéma, séries, films, critiques, Netflix
+cat_growth      → développement personnel, motivation, productivité
+cat_pets        → animaux, chiens, chats, nature, wildlife
+cat_truecrime   → true crime, affaires criminelles, enquêtes, faits divers
+cat_astro       → astrologie, spiritualité, ésotérisme, horoscope
+cat_vibes       → lifestyle, ambiance, esthétique, aesthetic, vibes
+
+RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
 STYLES DE VIE (celui qui colle à l'ambiance générale du créateur/contenu) :
 Minimaliste, Luxe & Premium, Streetwear / Urban, Sportif / Athleisure, Geek / Gamer, Entrepreneur / Hustle culture, Parent / Famille, Étudiant / Budget, Wellness / Slow life
@@ -865,7 +889,7 @@ RÈGLES FINALES :
 
 Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 {
-  "categorie_principale": "...",
+  "categorie_principale": "cat_food",
   "sous_categories": ["...", "..."],
   "influenceur_detecte": "nom ou null",
   "marque_detectee": "nom de la marque ou null",
@@ -909,7 +933,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
     final body = jsonEncode({
       'model': _model,
-      'max_tokens': 300,
+      'max_tokens': 500,
       'system': [
         {
           'type': 'text',
@@ -1000,9 +1024,18 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
   static String _extractJson(String text) {
     final start = text.indexOf('{');
-    final end = text.lastIndexOf('}');
-    if (start == -1 || end == -1 || end <= start) {
+    var end = text.lastIndexOf('}');
+    if (start == -1) {
       throw const FormatException('Aucun JSON trouvé dans la réponse Claude');
+    }
+    // JSON tronqué (max_tokens atteint) : on ferme les accolades manquantes
+    if (end == -1 || end <= start) {
+      var partial = text.substring(start);
+      final opens = partial.split('{').length - 1;
+      final closes = partial.split('}').length - 1;
+      partial += '}' * (opens - closes).clamp(0, 5);
+      end = partial.lastIndexOf('}');
+      return partial.substring(0, end + 1);
     }
     return text.substring(start, end + 1);
   }

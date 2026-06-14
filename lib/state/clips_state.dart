@@ -166,11 +166,40 @@ class ClipsState extends ChangeNotifier {
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
+        const catColors = <String, Color>{
+          'cat_food': Color(0xFFFF6B6B), 'cat_fitness': Color(0xFF4ECDC4),
+          'cat_gaming': Color(0xFF74B9FF), 'cat_beauty': Color(0xFFFF85B3),
+          'cat_mode': Color(0xFFC77DFF), 'cat_travel': Color(0xFF81ECEC),
+          'cat_tech': Color(0xFF6C5CE7), 'cat_humour': Color(0xFFFFE66D),
+          'cat_musique': Color(0xFFFF7675), 'cat_wellness': Color(0xFFA8E6CF),
+          'cat_podcast': Color(0xFFB2BEC3), 'cat_famille': Color(0xFFFD79A8),
+          'cat_finance': Color(0xFF00B894), 'cat_actu': Color(0xFF636E72),
+          'cat_diy': Color(0xFFE17055), 'cat_deco': Color(0xFFFAB1A0),
+          'cat_auto': Color(0xFF2D3436), 'cat_culture': Color(0xFF8E44AD),
+          'cat_cinema': Color(0xFF2C3E50), 'cat_growth': Color(0xFF27AE60),
+          'cat_pets': Color(0xFF16A085), 'cat_truecrime': Color(0xFF922B21),
+          'cat_astro': Color(0xFF1A237E), 'cat_vibes': Color(0xFFFFE66D),
+        };
+        const catIcons = <String, IconData>{
+          'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
+          'cat_gaming': Icons.sports_esports_rounded, 'cat_beauty': Icons.brush_rounded,
+          'cat_mode': Icons.style_rounded, 'cat_travel': Icons.flight_takeoff_rounded,
+          'cat_tech': Icons.computer_rounded, 'cat_humour': Icons.sentiment_very_satisfied_rounded,
+          'cat_musique': Icons.music_note_rounded, 'cat_wellness': Icons.self_improvement_rounded,
+          'cat_podcast': Icons.mic_rounded, 'cat_famille': Icons.family_restroom_rounded,
+          'cat_finance': Icons.trending_up_rounded, 'cat_actu': Icons.newspaper_rounded,
+          'cat_diy': Icons.brush_outlined, 'cat_deco': Icons.home_rounded,
+          'cat_auto': Icons.directions_car_rounded, 'cat_culture': Icons.theater_comedy_rounded,
+          'cat_cinema': Icons.movie_rounded, 'cat_growth': Icons.rocket_launch_rounded,
+          'cat_pets': Icons.pets_rounded, 'cat_truecrime': Icons.gavel_rounded,
+          'cat_astro': Icons.auto_awesome_rounded, 'cat_vibes': Icons.explore_rounded,
+        };
+        final isCatId = catName.startsWith('cat_');
         final newCat = ClipCategory(
-          id: 'ai_${DateTime.now().millisecondsSinceEpoch}',
+          id: isCatId ? catName : 'ai_\${DateTime.now().millisecondsSinceEpoch}',
           name: catName,
-          color: const Color(0xFF7C3AED),
-          icon: Icons.folder_rounded,
+          color: catColors[catName] ?? const Color(0xFF7C3AED),
+          icon: catIcons[catName] ?? Icons.folder_rounded,
         );
         matchedCat = await addCategory(newCat);
       }

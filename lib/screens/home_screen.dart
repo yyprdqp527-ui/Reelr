@@ -142,7 +142,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               _openCategory(context, null, l.t('all')),
                         );
                       }
-                      final cat = widget.state.categories[i - 1];
+                      final cat = widget.state.categories.where((c) => widget.state.countForCategory(c.id) > 0).toList()[i - 1];
                       final catClips = widget.state.clipsForCategory(cat.id);
                       final localizedName = l.localizeCategory(cat.name);
                       return _CategoryTile(
@@ -165,7 +165,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
                       );
                     },
-                    childCount: widget.state.categories.length + 1,
+                    childCount: widget.state.categories.where((c) => widget.state.countForCategory(c.id) > 0).length + 1,
                   ),
                 ),
               ),
@@ -234,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
               } else {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(AppL10n.of(context).t('no_valid_url'))),
+                  const SnackBar(content: Text('Aucun lien valide dans le presse-papier')),
                 );
               }
             },
@@ -632,7 +632,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               if (widget.categoryId != null) ...[  
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline_rounded),
-                  tooltip: AppL10n.of(context).t('add_subcategory'),
+                  tooltip: 'Ajouter une sous-catégorie',
                   onPressed: () => _showAddSubcategoryDialog(context),
                 ),
               ],
@@ -818,8 +818,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                   BorderRadius.circular(
                                                       20),
                                             ),
-                                            title: Text(AppL10n.of(context).t('delete_clip')),
-                                            content: Text(AppL10n.of(context).t('confirm_delete_sub')),
+                                            title: const Text(
+                                                'Supprimer ce clip ?'),
+                                            content: const Text(
+                                                'Cette action est irréversible.'),
                                             actions: [
                                               TextButton(
                                                 onPressed: () =>
@@ -879,7 +881,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         builder: (ctx, setDlgState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(AppL10n.of(context).t('new_subcategory')),
+          title: const Text('Nouvelle sous-catégorie'),
           content: SizedBox(
             width: 300,
             child: SingleChildScrollView(
@@ -1532,7 +1534,7 @@ class ClipCard extends StatelessWidget {
                 children: [
                   if (category != null)
                     _Badge(
-                      label: category.name,
+                      label: AppL10n.of(context).localizeCategory(category.name),
                       color: category.color,
                       icon: category.icon,
                     ),
@@ -1656,12 +1658,12 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                 ),
               ),
             ),
-            Text(AppL10n.of(context).t('classify_in'), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            const Text('Classer dans...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 16),
             if (subcategories.isEmpty)
               Center(
                 child: Text(
-                  AppL10n.of(context).t('no_folder'),
+                  'Aucun dossier — crée-en un depuis la vue catégorie',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 13),
                 ),
@@ -1682,7 +1684,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
                       ),
-                      child: Text(AppL10n.of(context).t('none_label'), style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
+                      child: Text('Aucun', style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ),
                   ...subcategories.map((s) => GestureDetector(
@@ -2314,7 +2316,7 @@ class _CategorySuggestionDialogState
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text('${AppL10n.of(context).t('add_in')} ${s.name}'),
+                  child: Text('Ajouter dans ${s.name}'),
                 ),
               ),
               const SizedBox(height: 8),
@@ -2327,14 +2329,14 @@ class _CategorySuggestionDialogState
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text(AppL10n.of(context).t('other_category')),
+                  child: const Text('Autre catégorie'),
                 ),
               ),
               const SizedBox(height: 4),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: Text(
-                  AppL10n.of(context).t('add_no_category'),
+                  'Ajouter sans catégorie',
                   style: TextStyle(
                       color: Colors.grey.shade500, fontSize: 13),
                 ),
@@ -2345,7 +2347,7 @@ class _CategorySuggestionDialogState
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: AppL10n.of(context).t('category_name_hint2'),
+                  hintText: 'Nom de la catégorie...',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(
