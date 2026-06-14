@@ -19,6 +19,7 @@ class AppL10n {
       'paste_url': 'Coller un lien vidéo…',
       'add': 'Ajouter',
       'cancel': 'Annuler',
+      'move_to_category': 'Déplacer vers...',
       'delete': 'Supprimer',
       'share': 'Partager',
       'open': 'Ouvrir',
@@ -74,6 +75,7 @@ class AppL10n {
       'paste_url': 'Paste a video URL…',
       'add': 'Add',
       'cancel': 'Cancel',
+      'move_to_category': 'Move to...',
       'delete': 'Delete',
       'share': 'Share',
       'open': 'Open',
@@ -100,7 +102,7 @@ class AppL10n {
       'search': 'Search…',
       'all': 'All',
       'no_category': 'No categories yet',
-      'edit': 'Classer',
+      'edit': 'Classify',
       'edit_clip': 'Classer',
       'edit_category': 'Edit category',
       'settings_my_data_section': 'My data',
@@ -284,5 +286,5 @@ class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {
   Future<AppL10n> load(Locale locale) async => AppL10n(locale);
 
   @override
-  bool shouldReload(_AppL10nDelegate old) => false;
+  bool shouldReload(_AppL10nDelegate old) => true;
 }

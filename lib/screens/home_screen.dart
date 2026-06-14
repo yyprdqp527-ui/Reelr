@@ -1478,6 +1478,11 @@ class ClipCard extends StatelessWidget {
                             icon: Icons.open_in_new_rounded,
                             label: l.t('open'))),
                     PopupMenuItem(
+                        value: 'move',
+                        child: _MenuItem(
+                            icon: Icons.drive_file_move_rounded,
+                            label: l.t('move_to_category'))),
+                    PopupMenuItem(
                         value: 'delete',
                         child: _MenuItem(
                             icon: Icons.delete_rounded,
@@ -1554,6 +1559,16 @@ class ClipCard extends StatelessWidget {
         Share.share('${clip.title}\n${clip.url}');
       case 'open':
         _openUrl(clip.url);
+      case 'move':
+        showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (ctx) => _MoveToCategorySheet(
+            clip: clip,
+            state: state,
+          ),
+        );
       case 'delete':
         showDialog(
           context: context,
@@ -1583,6 +1598,89 @@ class ClipCard extends StatelessWidget {
 }
 
 
+class _MoveToCategorySheet extends StatefulWidget {
+  final Clip clip;
+  final ClipsState state;
+  const _MoveToCategorySheet({required this.clip, required this.state});
+  @override
+  State<_MoveToCategorySheet> createState() => _MoveToCategorySheetState();
+}
+class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
+  @override
+  Widget build(BuildContext context) {
+    final categories = widget.state.categories
+        .where((c) => c.id != widget.clip.categoryId)
+        .toList()
+      ..sort((a, b) => a.name.compareTo(b.name));
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40, height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Deplacer vers...',
+            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 12),
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: categories.length,
+              separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
+              itemBuilder: (ctx, i) {
+                final cat = categories[i];
+                return InkWell(
+                  onTap: () async {
+                    final updated = widget.clip.copyWith(categoryId: cat.id);
+                    await widget.state.updateClip(updated);
+                    if (ctx.mounted) Navigator.pop(ctx);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: cat.color.withValues(alpha: 0.25),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(cat.icon, color: cat.color, size: 22),
+                        ),
+                        const SizedBox(width: 14),
+                        Text(
+                          cat.id.startsWith('cat_') ? AppL10n.of(context).localizeCategoryById(cat.id) : AppL10n.of(context).localizeCategory(cat.name),
+                          style: const TextStyle(color: Colors.white, fontSize: 15),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 class _SubcategoryAssignSheet extends StatelessWidget {
   final String categoryId;
   final String clipId;
