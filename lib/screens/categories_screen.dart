@@ -568,7 +568,7 @@ class CategoriesScreen extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    l.localizeCategory(cat.name),
+                                    cat.id.startsWith('cat_') ? l.localizeCategoryById(cat.id) : l.localizeCategory(cat.name),
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16),

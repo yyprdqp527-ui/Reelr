@@ -154,7 +154,7 @@ class AppL10n {
     'cat_podcast':   'Podcast',
     'cat_famille':   'Famille',
     'cat_finance':   'Finance',
-    'cat_business':  'Business & Entrepr.',
+    'cat_business':  'Business',
     'cat_actu':      'Actualités',
     'cat_societe':   'Société',
     'cat_diy':       'DIY & Créa',
@@ -185,12 +185,12 @@ class AppL10n {
     'cat_podcast':   'Podcast',
     'cat_famille':   'Family',
     'cat_finance':   'Finance',
-    'cat_business':  'Business & Entrepr.',
+    'cat_business':  'Business',
     'cat_actu':      'News',
     'cat_societe':   'Society',
     'cat_diy':       'DIY & Craft',
     'cat_deco':      'Home Decor',
-    'cat_auto':      'Auto & Moto',
+    'cat_auto':      'Cars & Bikes',
     'cat_culture':   'Culture',
     'cat_cinema':    'Films & Series',
     'cat_growth':    'Self Growth',
@@ -207,9 +207,17 @@ class AppL10n {
 
   String localizeCategory(String name) {
     if (locale.languageCode == 'en') {
-      return _categoryNamesEn[name] ?? name;
+      return _categoryNamesEn[name] ?? _categoryNamesEn[name.toLowerCase()] ?? name;
     }
-    return _categoryNamesFr[name] ?? name;
+    return _categoryNamesFr[name] ?? _categoryNamesFr[name.toLowerCase()] ?? name;
+  }
+
+  /// Localise par ID de catégorie (cat_xxx)
+  String localizeCategoryById(String id) {
+    if (locale.languageCode == 'en') {
+      return _categoryNamesEn[id] ?? id;
+    }
+    return _categoryNamesFr[id] ?? id;
   }
 }
 

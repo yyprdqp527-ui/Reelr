@@ -173,12 +173,12 @@ class ClipsState extends ChangeNotifier {
           'cat_tech': Color(0xFF6C5CE7), 'cat_humour': Color(0xFFFFE66D),
           'cat_musique': Color(0xFFFF7675), 'cat_wellness': Color(0xFFA8E6CF),
           'cat_podcast': Color(0xFFB2BEC3), 'cat_famille': Color(0xFFFD79A8),
-          'cat_finance': Color(0xFF00B894), 'cat_actu': Color(0xFF636E72),
+          'cat_finance': Color(0xFF00B894), 'cat_actu': Color(0xFF90A4AE),
           'cat_diy': Color(0xFFE17055), 'cat_deco': Color(0xFFFAB1A0),
-          'cat_auto': Color(0xFF2D3436), 'cat_culture': Color(0xFF8E44AD),
-          'cat_cinema': Color(0xFF2C3E50), 'cat_growth': Color(0xFF27AE60),
-          'cat_pets': Color(0xFF16A085), 'cat_truecrime': Color(0xFF922B21),
-          'cat_astro': Color(0xFF1A237E), 'cat_vibes': Color(0xFFFFE66D),
+          'cat_auto': Color(0xFFFFB347), 'cat_culture': Color(0xFF8E44AD),
+          'cat_cinema': Color(0xFFEF9A9A), 'cat_growth': Color(0xFF27AE60),
+          'cat_pets': Color(0xFF16A085), 'cat_truecrime': Color(0xFFE57373),
+          'cat_astro': Color(0xFFCE93D8), 'cat_vibes': Color(0xFFFFE66D),
         };
         const catIcons = <String, IconData>{
           'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
