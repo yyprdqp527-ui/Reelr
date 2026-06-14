@@ -137,12 +137,19 @@ class ClipsState extends ChangeNotifier {
   ClipCategory? findBestCategoryMatch(String name) {
     final normalized = name.trim().toLowerCase();
     if (normalized.isEmpty) return null;
+    // 1. Match exact par ID (cat_xxx)
+    for (final cat in _categories) {
+      if (cat.id == name.trim()) return cat;
+    }
+    // 2. Match exact par nom
     for (final cat in _categories) {
       if (cat.name.trim().toLowerCase() == normalized) return cat;
     }
+    // 3. Match partiel par nom
     for (final cat in _categories) {
-      if (cat.name.trim().toLowerCase().contains(normalized) && normalized.length / cat.name.trim().toLowerCase().length > 0.6 ||
-          normalized.contains(cat.name.trim().toLowerCase())) {
+      final cName = cat.name.trim().toLowerCase();
+      if (cName.contains(normalized) && normalized.length / cName.length > 0.6 ||
+          normalized.contains(cName)) {
         return cat;
       }
     }
