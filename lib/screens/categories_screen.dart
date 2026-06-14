@@ -527,7 +527,7 @@ class CategoriesScreen extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.add_rounded),
-                tooltip: 'Ajouter une catégorie',
+                tooltip: AppL10n.of(context).t('add_category_tooltip'),
                 onPressed: () => showDialog(
                   context: context,
                   builder: (_) => AddCategoryDialog(state: state),
@@ -693,14 +693,14 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Catégorie similaire détectée'),
+        title: Text(AppL10n.of(context).t('similar_category')),
         content: Text(
           'Vous voulez dire "${suggested.name}" au lieu de "$typedName" ?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Annuler'),
+            child: Text(AppL10n.of(context).t('cancel')),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

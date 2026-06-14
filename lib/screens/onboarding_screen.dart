@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../app.dart';
+import '../core/l10n.dart';
 import '../state/clips_state.dart';
 
 // ─────────────────────────────────────────────
@@ -22,33 +23,29 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
-  static const _pages = [
-    _PageData(
-      icon: Icons.ios_share_rounded,
-      iconColor: Color(0xFF7C3AED),
-      title: 'Partage depuis n\'importe quelle app',
-      subtitle:
-          'Sur YouTube, TikTok, Instagram\u2026 '
-          'appuie sur \u2191 Partager \u2192 Reelr. '
-          'La vid\u00e9o est sauvegard\u00e9e instantan\u00e9ment.',
-    ),
-    _PageData(
-      icon: Icons.auto_awesome_rounded,
-      iconColor: Color(0xFF2563EB),
-      title: 'Class\u00e9e automatiquement par l\'IA',
-      subtitle:
-          'Reelr d\u00e9tecte le th\u00e8me et range ta vid\u00e9o '
-          'dans la bonne cat\u00e9gorie. Z\u00e9ro effort.',
-    ),
-    _PageData(
-      icon: Icons.video_library_rounded,
-      iconColor: Color(0xFF7C3AED),
-      title: 'Ta collection, toujours avec toi',
-      subtitle:
-          'Retrouve toutes tes vid\u00e9os favorites '
-          'au m\u00eame endroit, organis\u00e9es et pr\u00eates \u00e0 regarder.',
-    ),
-  ];
+  static List<_PageData> _getPages(BuildContext context) {
+    final l = AppL10n.of(context);
+    return [
+      _PageData(
+        icon: Icons.ios_share_rounded,
+        iconColor: const Color(0xFF7C3AED),
+        title: l.t('onboarding_title_1'),
+        subtitle: l.t('onboarding_sub_1'),
+      ),
+      _PageData(
+        icon: Icons.auto_awesome_rounded,
+        iconColor: const Color(0xFF2563EB),
+        title: l.t('onboarding_title_2'),
+        subtitle: l.t('onboarding_sub_2'),
+      ),
+      _PageData(
+        icon: Icons.video_library_rounded,
+        iconColor: const Color(0xFF7C3AED),
+        title: l.t('onboarding_title_3'),
+        subtitle: l.t('onboarding_sub_3'),
+      ),
+    ];
+  }
 
   Future<void> _complete() async {
     if (!mounted) return;
@@ -72,7 +69,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _currentPage == _pages.length - 1;
+    final isLast = _currentPage == _getPages(context).length - 1;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1F),
@@ -105,8 +102,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             padding: const EdgeInsets.only(right: 16),
                             child: TextButton(
                               onPressed: _skip,
-                              child: const Text(
-                                'Passer',
+                              child: Text(
+                                AppL10n.of(context).t('onboarding_skip'),
                                 style: TextStyle(
                                   color: Colors.white54,
                                   fontSize: 15,
@@ -121,15 +118,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _controller,
-                    itemCount: _pages.length,
+                    itemCount: _getPages(context).length,
                     onPageChanged: (i) => setState(() => _currentPage = i),
                     itemBuilder: (context, index) =>
-                        _OnboardingPage(data: _pages[index]),
+                        _OnboardingPage(data: _getPages(context)[index]),
                   ),
                 ),
 
                 // ── Dot indicators ──
-                _DotIndicator(count: _pages.length, current: _currentPage),
+                _DotIndicator(count: _getPages(context).length, current: _currentPage),
                 const SizedBox(height: 24),
 
                 // ── Action button ──
@@ -139,7 +136,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: double.infinity,
                     height: 54,
                     child: _GlassButton(
-                      label: isLast ? "C'est parti !" : 'Suivant',
+                      label: isLast ? AppL10n.of(context).t('onboarding_start') : AppL10n.of(context).t('onboarding_next'),
                       onPressed: isLast ? _complete : _next,
                     ),
                   ),
