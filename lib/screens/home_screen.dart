@@ -871,9 +871,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   void _showAddSubcategoryDialog(BuildContext context) {
     final nameCtrl = TextEditingController();
     Color pickedColor = AppTheme.orange;
-    IconData pickedIcon = Icons.label_rounded;
     const colors = categoryColorChoices;
-    const icons = categoryIconChoices;
 
     showDialog(
       context: context,
@@ -925,40 +923,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ))
                         .toList(),
                   ),
-                  const SizedBox(height: 14),
-                  const Text('Icône',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: icons
-                        .map((ic) => GestureDetector(
-                              onTap: () =>
-                                  setDlgState(() => pickedIcon = ic),
-                              child: Container(
-                                width: 34,
-                                height: 34,
-                                decoration: BoxDecoration(
-                                  color: pickedIcon == ic
-                                      ? pickedColor.withValues(alpha: 0.2)
-                                      : Colors.transparent,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: pickedIcon == ic
-                                        ? pickedColor
-                                        : Colors.grey.withValues(alpha: 0.3),
-                                  ),
-                                ),
-                                child: Icon(ic,
-                                    size: 18,
-                                    color: pickedIcon == ic
-                                        ? pickedColor
-                                        : Colors.grey),
-                              ),
-                            ))
-                        .toList(),
-                  ),
+
                 ],
               ),
             ),
@@ -975,7 +940,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   name: nameCtrl.text.trim(),
                   categoryId: widget.categoryId!,
                   color: pickedColor,
-                  icon: pickedIcon,
+                  icon: Icons.label_rounded,
                 ));
                 Navigator.pop(ctx);
               },

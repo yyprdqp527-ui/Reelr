@@ -29,6 +29,9 @@ const categoryColorChoices = <Color>[
   Color(0xFF6B7280), // gris
   Color(0xFF0EA5E9), // bleu ciel
   Color(0xFF4ADE80), // vert menthe
+  Color(0xFFFF6B6B), // corail
+  Color(0xFF14B8A6), // turquoise
+  Color(0xFFF43F5E), // framboise
 ];
 
 const categoryIconChoices = <IconData>[
@@ -302,7 +305,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: widget.category.name);
+    _nameCtrl = TextEditingController(text: AppL10n.of(context).localizeCategory(widget.category.name));
     _color = widget.category.color;
     _icon = widget.category.icon;
   }
@@ -311,7 +314,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
     if (_nameCtrl.text.trim().isEmpty) return;
     final updated = ClipCategory(
       id: widget.category.id,
-      name: _nameCtrl.text.trim(),
+      name: () { final t = _nameCtrl.text.trim(); return t.isEmpty ? t : t[0].toUpperCase() + t.substring(1); }(),
       color: _color,
       icon: _icon,
     );
@@ -524,17 +527,7 @@ class CategoriesScreen extends StatelessWidget {
                   fontSize: 26,
                   letterSpacing: -0.5),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'Ajouter une catégorie',
-                onPressed: () => showDialog(
-                  context: context,
-                  builder: (_) => AddCategoryDialog(state: state),
-                ),
-              ),
-              const SizedBox(width: 8),
-            ],
+            actions: const [],
           ),
           if (state.categories.isEmpty)
             SliverFillRemaining(
@@ -716,7 +709,8 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   }
 
   Future<void> _saveCategory() async {
-    final name = _nameCtrl.text.trim();
+    final raw = _nameCtrl.text.trim();
+    final name = raw.isEmpty ? raw : raw[0].toUpperCase() + raw.substring(1);
     if (name.isEmpty) return;
 
     final near = widget.state.findBestCategoryMatch(name);
