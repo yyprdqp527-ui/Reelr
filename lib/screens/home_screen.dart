@@ -234,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
               } else {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Aucun lien valide dans le presse-papier')),
+                  SnackBar(content: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun lien valide dans le presse-papier' : 'No valid link in clipboard')),
                 );
               }
             },
@@ -602,11 +602,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 }),
                 itemBuilder: (_) => [
                   _sortItem(SortOrder.chronological,
-                      Icons.access_time_rounded, 'Chronologique'),
+                      Icons.access_time_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Chronologique' : 'Recent'),
                   _sortItem(SortOrder.alphabetical,
-                      Icons.sort_by_alpha_rounded, 'Alphabétique'),
+                      Icons.sort_by_alpha_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Alphabétique' : 'A-Z'),
                   _sortItem(
-                      SortOrder.manual, Icons.drag_handle_rounded, 'Manuel'),
+                      SortOrder.manual, Icons.drag_handle_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Manuel' : 'Manual'),
                 ],
               ),
               // Toggle réorganiser (visible uniquement en mode Manuel)
@@ -1743,7 +1743,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
                       ),
-                      child: Text('Aucun', style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
+                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun' : 'None', style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                   ),
                   ...subcategories.map((s) => GestureDetector(

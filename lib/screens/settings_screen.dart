@@ -203,7 +203,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('settings_terms'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () =>
-                          _launchUrl('https://example.com/terms'),
+                          _launchUrl('https://www.privacypolicies.com/live/b85682de-7528-4a66-a716-f94c0eab9d3d'),
                     ),
                     _SettingsRow(
                       icon: Icons.mail_outline,

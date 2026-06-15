@@ -346,7 +346,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                 // Barre de confiance
                 Row(
                   children: [
-                    Text('Confiance',
+                    Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Confiance' : 'Confidence',
                         style:
                             TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 8),

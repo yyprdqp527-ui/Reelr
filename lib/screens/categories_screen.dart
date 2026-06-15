@@ -305,9 +305,17 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   @override
   void initState() {
     super.initState();
-    _nameCtrl = TextEditingController(text: AppL10n.of(context).localizeCategory(widget.category.name));
+    _nameCtrl = TextEditingController(text: widget.category.name);
     _color = widget.category.color;
     _icon = widget.category.icon;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_nameCtrl.text == widget.category.name) {
+      _nameCtrl.text = AppL10n.of(context).localizeCategory(widget.category.name);
+    }
   }
 
   Future<void> _submit() async {
