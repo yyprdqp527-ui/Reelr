@@ -818,17 +818,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                   BorderRadius.circular(
                                                       20),
                                             ),
-                                            title: const Text(
-                                                'Supprimer ce clip ?'),
-                                            content: const Text(
-                                                'Cette action est irréversible.'),
+                                            title: Text(Localizations.localeOf(dlgCtx).languageCode == 'fr' ? 'Supprimer ce clip ?' : 'Delete this clip?'),
+                                            content: Text(Localizations.localeOf(dlgCtx).languageCode == 'fr' ? 'Cette action est irréversible.' : 'This action cannot be undone.'),
                                             actions: [
                                               TextButton(
                                                 onPressed: () =>
                                                     Navigator.pop(
                                                         dlgCtx, false),
-                                                child: const Text(
-                                                    'Annuler'),
+                                                child: Text(Localizations.localeOf(dlgCtx).languageCode == 'fr' ? 'Annuler' : 'Cancel'),
                                               ),
                                               FilledButton(
                                                 onPressed: () =>
@@ -839,8 +836,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                   backgroundColor:
                                                       Colors.red,
                                                 ),
-                                                child: const Text(
-                                                    'Supprimer'),
+                                                child: Text(Localizations.localeOf(dlgCtx).languageCode == 'fr' ? 'Supprimer' : 'Delete'),
                                               ),
                                             ],
                                           ),
@@ -879,7 +875,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         builder: (ctx, setDlgState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text('Nouvelle sous-catégorie'),
+          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouvelle sous-catégorie' : 'New subfolder'),
           content: SizedBox(
             width: 300,
             child: SingleChildScrollView(
@@ -891,14 +887,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     controller: nameCtrl,
                     autofocus: true,
                     textCapitalization: TextCapitalization.sentences,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom',
+                    decoration: InputDecoration(
+                      labelText: Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nom' : 'Name',
                       border: OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 14),
-                  const Text('Couleur',
-                      style: TextStyle(fontWeight: FontWeight.w600)),
+                  Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Couleur' : 'Color',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -931,7 +927,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('Annuler')),
+                child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel')),
             FilledButton(
               onPressed: () {
                 if (nameCtrl.text.trim().isEmpty) return;
@@ -944,7 +940,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 ));
                 Navigator.pop(ctx);
               },
-              child: const Text('Créer'),
+              child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Créer' : 'Create'),
             ),
           ],
         ),
@@ -1009,19 +1005,19 @@ class _SubcategoryBar extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Supprimer la sous-catégorie ?'),
-        content: Text('"${sub.name}" sera supprimée.'),
+        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer la sous-catégorie ?' : 'Delete subfolder?'),
+        content: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? '"${sub.name}" sera supprimée.' : '"${sub.name}" will be deleted.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx),
-              child: const Text('Annuler')),
+              child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel')),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () {
               onDelete(sub.id);
               Navigator.pop(ctx);
             },
-            child: const Text('Supprimer'),
+            child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer' : 'Delete'),
           ),
         ],
       ),
@@ -1225,9 +1221,9 @@ class _EmptyStateState extends State<_EmptyState>
               ),
             ),
             const SizedBox(height: 28),
-            Text('Tes vidéos préférées,\nenfin au même endroit', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor)),
+            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Tes vidéos préférées,\nenfin au même endroit' : 'Your favorite videos,\nall in one place', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor)),
             const SizedBox(height: 12),
-            Text('Va sur YouTube, Instagram ou TikTok\nappuie sur  ↑  puis choisis Reelr', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.6, color: subColor)),
+            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Va sur YouTube, Instagram ou TikTok\nappuie sur  ↑  puis choisis Reelr' : 'Go to YouTube, Instagram or TikTok\ntap  ↑  then choose Reelr', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.6, color: subColor)),
             const SizedBox(height: 28),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -1721,12 +1717,12 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                 ),
               ),
             ),
-            const Text('Classer dans...', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Classer dans...' : 'Add to...', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
             const SizedBox(height: 16),
             if (subcategories.isEmpty)
               Center(
                 child: Text(
-                  'Aucun dossier — crée-en un depuis la vue catégorie',
+                  Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun dossier — crée-en un depuis la vue catégorie' : 'No folder — create one from the category view',
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 13),
                 ),
@@ -2204,7 +2200,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                       children: [
                         Text(
                           _showNewCategoryField
-                              ? 'Nouvelle catégorie'
+                              ? (Localizations.localeOf(context).languageCode == 'fr' ? 'Nouvelle catégorie' : 'New category')
                               : l.t('category'),
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 14),
@@ -2242,7 +2238,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                     if (_showNewCategoryField)
                       SheetField(
                         controller: _newCategoryCtrl,
-                        hint: 'Dans quelle catégorie ?',
+                        hint: Localizations.localeOf(context).languageCode == 'fr' ? 'Dans quelle catégorie ?' : 'Which category?',
                         icon: Icons.folder_outlined,
                         isDark: isDark,
                       )
@@ -2267,7 +2263,7 @@ class _AddClipSheetState extends State<AddClipSheet> {
                         autofocus: true,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
-                          labelText: 'Nom de la catégorie',
+                          labelText: Localizations.localeOf(context).languageCode == 'fr' ? 'Nom de la catégorie' : 'Category name',
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: const Icon(Icons.close_rounded),
@@ -2364,7 +2360,7 @@ class _CategorySuggestionDialogState
               ),
               const SizedBox(height: 6),
               Text(
-                'Cette vidéo ressemble à du ${s.name}',
+                Localizations.localeOf(context).languageCode == 'fr' ? 'Cette vidéo ressemble à du \${s.name}' : 'This video looks like \${s.name}',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
               ),
@@ -2379,7 +2375,7 @@ class _CategorySuggestionDialogState
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: Text('Ajouter dans ${s.name}'),
+                  child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Ajouter dans \${s.name}' : 'Add to \${s.name}'),
                 ),
               ),
               const SizedBox(height: 8),
@@ -2392,14 +2388,14 @@ class _CategorySuggestionDialogState
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Autre catégorie'),
+                  child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Autre catégorie' : 'Other category'),
                 ),
               ),
               const SizedBox(height: 4),
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
                 child: Text(
-                  'Ajouter sans catégorie',
+                  Localizations.localeOf(context).languageCode == 'fr' ? 'Ajouter sans catégorie' : 'Add without category',
                   style: TextStyle(
                       color: Colors.grey.shade500, fontSize: 13),
                 ),
@@ -2410,7 +2406,7 @@ class _CategorySuggestionDialogState
                 autofocus: true,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
-                  hintText: 'Nom de la catégorie...',
+                  hintText: Localizations.localeOf(context).languageCode == 'fr' ? 'Nom de la catégorie...' : 'Category name...',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   contentPadding: const EdgeInsets.symmetric(
@@ -2435,7 +2431,7 @@ class _CategorySuggestionDialogState
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Annuler'),
+                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Annuler' : 'Cancel'),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -2450,7 +2446,7 @@ class _CategorySuggestionDialogState
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: const Text('Créer'),
+                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Créer' : 'Create'),
                     ),
                   ),
                 ],
@@ -2711,7 +2707,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
                         autofocus: true,
                         textCapitalization: TextCapitalization.sentences,
                         decoration: InputDecoration(
-                          labelText: 'Nom de la catégorie',
+                          labelText: Localizations.localeOf(context).languageCode == 'fr' ? 'Nom de la catégorie' : 'Category name',
                           border: const OutlineInputBorder(),
                           suffixIcon: IconButton(
                             icon: const Icon(Icons.close_rounded),

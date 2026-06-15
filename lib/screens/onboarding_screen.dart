@@ -22,31 +22,30 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
   int _currentPage = 0;
 
-  static const _pages = [
+  List<_PageData> _buildPages(bool isFr) => [
     _PageData(
       icon: Icons.ios_share_rounded,
-      iconColor: Color(0xFF7C3AED),
-      title: 'Partage depuis n\'importe quelle app',
-      subtitle:
-          'Sur YouTube, TikTok, Instagram\u2026 '
-          'appuie sur \u2191 Partager \u2192 Reelr. '
-          'La vid\u00e9o est sauvegard\u00e9e instantan\u00e9ment.',
+      iconColor: const Color(0xFF7C3AED),
+      title: isFr ? 'Partage depuis n\'importe quelle app' : 'Share from any app',
+      subtitle: isFr
+          ? 'Sur YouTube, TikTok, Instagram\u2026 appuie sur \u2191 Partager \u2192 Reelr. La vid\u00e9o est sauvegard\u00e9e instantan\u00e9ment.'
+          : 'On YouTube, TikTok, Instagram\u2026 tap \u2191 Share \u2192 Reelr. The video is saved instantly.',
     ),
     _PageData(
       icon: Icons.auto_awesome_rounded,
-      iconColor: Color(0xFF2563EB),
-      title: 'Class\u00e9e automatiquement par l\'IA',
-      subtitle:
-          'Reelr d\u00e9tecte le th\u00e8me et range ta vid\u00e9o '
-          'dans la bonne cat\u00e9gorie. Z\u00e9ro effort.',
+      iconColor: const Color(0xFF2563EB),
+      title: isFr ? 'Class\u00e9e automatiquement par l\'IA' : 'Auto-classified by AI',
+      subtitle: isFr
+          ? 'Reelr d\u00e9tecte le th\u00e8me et range ta vid\u00e9o dans la bonne cat\u00e9gorie. Z\u00e9ro effort.'
+          : 'Reelr detects the topic and sorts your video into the right category. Zero effort.',
     ),
     _PageData(
       icon: Icons.video_library_rounded,
-      iconColor: Color(0xFF7C3AED),
-      title: 'Ta collection, toujours avec toi',
-      subtitle:
-          'Retrouve toutes tes vid\u00e9os favorites '
-          'au m\u00eame endroit, organis\u00e9es et pr\u00eates \u00e0 regarder.',
+      iconColor: const Color(0xFF7C3AED),
+      title: isFr ? 'Ta collection, toujours avec toi' : 'Your collection, always with you',
+      subtitle: isFr
+          ? 'Retrouve toutes tes vid\u00e9os favorites au m\u00eame endroit, organis\u00e9es et pr\u00eates \u00e0 regarder.'
+          : 'Find all your favorite videos in one place, organized and ready to watch.',
     ),
   ];
 
@@ -72,7 +71,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLast = _currentPage == _pages.length - 1;
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final pages = _buildPages(isFr);
+    final isLast = _currentPage == pages.length - 1;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0E1F),
@@ -105,8 +106,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             padding: const EdgeInsets.only(right: 16),
                             child: TextButton(
                               onPressed: _skip,
-                              child: const Text(
-                                'Passer',
+                              child: Text(
+                                isFr ? 'Passer' : 'Skip',
                                 style: TextStyle(
                                   color: Colors.white54,
                                   fontSize: 15,
@@ -121,15 +122,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Expanded(
                   child: PageView.builder(
                     controller: _controller,
-                    itemCount: _pages.length,
+                    itemCount: pages.length,
                     onPageChanged: (i) => setState(() => _currentPage = i),
                     itemBuilder: (context, index) =>
-                        _OnboardingPage(data: _pages[index]),
+                        _OnboardingPage(data: pages[index]),
                   ),
                 ),
 
                 // ── Dot indicators ──
-                _DotIndicator(count: _pages.length, current: _currentPage),
+                _DotIndicator(count: pages.length, current: _currentPage),
                 const SizedBox(height: 24),
 
                 // ── Action button ──
@@ -139,7 +140,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     width: double.infinity,
                     height: 54,
                     child: _GlassButton(
-                      label: isLast ? "C'est parti !" : 'Suivant',
+                      label: isLast ? (isFr ? "C'est parti !" : "Let's go!") : (isFr ? 'Suivant' : 'Next'),
                       onPressed: isLast ? _complete : _next,
                     ),
                   ),

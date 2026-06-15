@@ -253,7 +253,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('share_app'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Share.share(
-                        'Découvre Reelr — sauvegarde tes vidéos préférées !',
+                        l.locale.languageCode == 'fr' ? 'Découvre Reelr — sauvegarde tes vidéos préférées !' : 'Discover Reelr — save your favorite videos!',
                         sharePositionOrigin: _sharePositionOrigin(context),
                       ),
                     ),

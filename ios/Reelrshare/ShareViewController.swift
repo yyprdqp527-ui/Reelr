@@ -18,6 +18,7 @@ class ShareViewController: UIViewController {
     private var feedbackIcon: UIImageView?
     private var feedbackTitle: UILabel?
     private var feedbackSubtitle: UILabel?
+    private let isFrench = Locale.current.languageCode == "fr"
 
     private var appGroupId: String {
         (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
@@ -83,8 +84,8 @@ class ShareViewController: UIViewController {
             feedbackIcon?.tintColor = UIColor.white.withAlphaComponent(0.88)
             feedbackIcon?.alpha = 1
         }
-        feedbackTitle?.text = "Ajout en cours…"
-        feedbackSubtitle?.text = "Capture silencieuse"
+        feedbackTitle?.text = isFrench ? "Ajout en cours…" : "Adding…"
+        feedbackSubtitle?.text = isFrench ? "Capture silencieuse" : "Silent capture"
 
         wrapper.transform = CGAffineTransform(translationX: 0, y: 8).scaledBy(x: 0.98, y: 0.98)
         UIView.animate(withDuration: 0.18, delay: 0, options: [.curveEaseOut], animations: {
@@ -131,13 +132,13 @@ class ShareViewController: UIViewController {
 
         let title = UILabel()
         title.translatesAutoresizingMaskIntoConstraints = false
-        title.text = "Ajout en cours..."
+        title.text = isFrench ? "Ajout en cours..." : "Adding..."
         title.textColor = .white
         title.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
 
         let subtitle = UILabel()
         subtitle.translatesAutoresizingMaskIntoConstraints = false
-        subtitle.text = "Capture silencieuse"
+        subtitle.text = isFrench ? "Capture silencieuse" : "Silent capture"
         subtitle.textColor = UIColor.white.withAlphaComponent(0.82)
         subtitle.font = UIFont.systemFont(ofSize: 12, weight: .regular)
 
@@ -369,7 +370,6 @@ class ShareViewController: UIViewController {
             feedbackIcon?.tintColor = UIColor.white.withAlphaComponent(0.95)
             feedbackIcon?.alpha = 1
         }
-        let isFrench = Locale.current.languageCode == "fr"
         feedbackTitle?.text = isFrench ? "Ajouté à Reelr" : "Added to Reelr"
         feedbackSubtitle?.text = isFrench ? "Inbox mis à jour" : "Inbox updated"
 

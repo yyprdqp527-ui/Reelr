@@ -38,7 +38,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   static const MethodChannel _silentShareInboxChannel =
       MethodChannel('reelr/share_inbox');
   ThemeMode _themeMode = ThemeMode.dark;
-  Locale _locale = const Locale('fr');
+  Locale _locale = const Locale('en');
   bool _onboardingDone = false;
   bool _prefsLoaded = false;
   bool _isPremium = true;
@@ -125,6 +125,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       }
       if (lang != null) {
         _locale = Locale(lang);
+      } else {
+        // Utilise la langue du téléphone, fr ou en uniquement
+        final deviceLang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+        _locale = Locale(['fr', 'en'].contains(deviceLang) ? deviceLang : 'en');
       }
     });
     _drainPendingShare();

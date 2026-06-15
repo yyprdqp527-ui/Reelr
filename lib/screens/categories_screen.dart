@@ -686,18 +686,18 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Catégorie similaire détectée'),
+        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Catégorie similaire détectée' : 'Similar category detected'),
         content: Text(
           'Vous voulez dire "${suggested.name}" au lieu de "$typedName" ?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, null),
-            child: const Text('Annuler'),
+            child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Garder mon nom'),
+            child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Garder mon nom' : 'Keep my name'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),

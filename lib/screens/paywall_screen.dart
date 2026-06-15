@@ -32,8 +32,8 @@ class PaywallScreen extends StatelessWidget {
               const Icon(Icons.workspace_premium,
                   size: 64, color: Color(0xFF8B5CF6)),
               const SizedBox(height: 24),
-              const Text(
-                "You've reached your free limit",
+              Text(
+                Localizations.localeOf(context).languageCode == 'fr' ? 'Tu as atteint ta limite gratuite' : "You've reached your free limit",
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white,
@@ -42,10 +42,10 @@ class PaywallScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Reelr Free lets you save up to 50 videos. '
-                'Upgrade to Reelr Premium for unlimited videos and '
-                'unlimited categories.',
+              Text(
+                Localizations.localeOf(context).languageCode == 'fr'
+                ? 'Reelr Free te permet de sauvegarder jusqu\'à 50 vidéos. Passe à Reelr Premium pour des vidéos et des catégories illimitées.'
+                : 'Reelr Free lets you save up to 50 videos. Upgrade to Reelr Premium for unlimited videos and unlimited categories.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.white70,
@@ -64,8 +64,8 @@ class PaywallScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  'Upgrade to Premium',
+                child: Text(
+                  Localizations.localeOf(context).languageCode == 'fr' ? 'Passer à Premium' : 'Upgrade to Premium',
                   style: TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w600),
                 ),
@@ -73,8 +73,8 @@ class PaywallScreen extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: onClose,
-                child: const Text(
-                  'Not now',
+                child: Text(
+                  Localizations.localeOf(context).languageCode == 'fr' ? 'Pas maintenant' : 'Not now',
                   style: TextStyle(color: Colors.white60),
                 ),
               ),

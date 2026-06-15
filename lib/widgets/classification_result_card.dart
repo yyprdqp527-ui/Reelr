@@ -155,10 +155,10 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.all(16),
+            Padding(
+              padding: const EdgeInsets.all(16),
               child: Text(
-                'Quelle est la bonne catégorie ?',
+                Localizations.localeOf(context).languageCode == 'fr' ? 'Quelle est la bonne catégorie ?' : 'What is the right category?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -346,7 +346,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                 // Barre de confiance
                 Row(
                   children: [
-                    const Text('Confiance',
+                    Text('Confiance',
                         style:
                             TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(width: 8),
@@ -450,7 +450,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                         TextButton.icon(
                           onPressed: _confirm,
                           icon: const Text('✅'),
-                          label: const Text('Oui'),
+                          label: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Oui' : 'Yes'),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.green,
                             visualDensity: VisualDensity.compact,
@@ -459,7 +459,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                         TextButton.icon(
                           onPressed: _showCorrectionSheet,
                           icon: const Text('✏️'),
-                          label: const Text('Corriger'),
+                          label: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Corriger' : 'Fix'),
                           style: TextButton.styleFrom(
                             foregroundColor: Colors.orange,
                             visualDensity: VisualDensity.compact,
