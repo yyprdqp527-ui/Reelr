@@ -186,6 +186,7 @@ class ClipsState extends ChangeNotifier {
         name: cat.name,
         color: color ?? cat.color,
         icon: icon ?? cat.icon,
+        position: cat.position,
       );
     }).toList();
     final subMaps = await DatabaseHelper.instance.getAllSubCategories();
@@ -391,6 +392,31 @@ class ClipsState extends ChangeNotifier {
     final idx = _categories.indexWhere((c) => c.id == category.id);
     if (idx != -1) _categories[idx] = category;
     notifyListeners();
+  }
+  /// Réordonne les catégories après un drag & drop sur l'accueil.
+  /// oldIndex/newIndex sont relatifs à la liste affichée (sans la tuile "Tout").
+  Future<void> reorderCategories(int oldIndex, int newIndex) async {
+    final visible = _categories.where((c) => countForCategory(c.id) > 0).toList();
+    if (oldIndex < 0 || oldIndex >= visible.length) return;
+    final moved = visible.removeAt(oldIndex);
+    final target = newIndex > oldIndex ? newIndex - 1 : newIndex;
+    visible.insert(target.clamp(0, visible.length), moved);
+
+    // 1) Mise à jour immédiate en mémoire + notify pour un rendu instantané,
+    //    avant toute écriture en base (évite le "rebond" visuel).
+    final updatedList = <ClipCategory>[];
+    for (var i = 0; i < visible.length; i++) {
+      final updated = visible[i].copyWith(position: i);
+      updatedList.add(updated);
+      final idx = _categories.indexWhere((c) => c.id == updated.id);
+      if (idx != -1) _categories[idx] = updated;
+    }
+    notifyListeners();
+
+    // 2) Persistance en base, en arrière-plan.
+    for (final updated in updatedList) {
+      await DatabaseHelper.instance.insertCategory(updated);
+    }
   }
 
   Future<void> removeCategory(String id) async {

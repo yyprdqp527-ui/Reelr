@@ -420,8 +420,14 @@ class OEmbedService {
           _extractMetaContent(body, name: 'twitter:image:src');
       final channel = _extractMetaContent(body, property: 'og:site_name');
 
+      debugPrint('[oembed-debug] platform=$platformId statusCode=${response.statusCode} bodyLen=${body.length}');
+      debugPrint('[oembed-debug] raw title=$title');
+      debugPrint('[oembed-debug] raw thumb=$thumb');
+
       var cleanedTitle = (title ?? '').trim();
       final cleanedThumb = _sanitizeMediaUrl(thumb);
+
+      debugPrint('[oembed-debug] cleanedTitle=$cleanedTitle cleanedThumb=$cleanedThumb');
       final lowerTitle = cleanedTitle.toLowerCase();
       if (lowerTitle.contains('please wait') || lowerTitle.contains('verification')) {
         cleanedTitle = '';

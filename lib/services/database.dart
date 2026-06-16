@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 8, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -103,6 +103,16 @@ class DatabaseHelper {
         'ALTER TABLE clips ADD COLUMN classification_reason TEXT');
       await db.execute(
         'ALTER TABLE clips ADD COLUMN classification_tags TEXT');
+    }
+    if (oldVersion < 9) {
+      await db.execute(
+          'ALTER TABLE categories ADD COLUMN position INTEGER DEFAULT 0');
+      // Initialise les positions selon l'ordre actuel (rowid = ordre d'insertion)
+      final existing = await db.query('categories', orderBy: 'rowid ASC');
+      for (var i = 0; i < existing.length; i++) {
+        await db.update('categories', {'position': i},
+            where: 'id = ?', whereArgs: [existing[i]['id']]);
+      }
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
@@ -208,7 +218,8 @@ class DatabaseHelper {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         color INTEGER NOT NULL,
-        icon INTEGER NOT NULL
+        icon INTEGER NOT NULL,
+        position INTEGER DEFAULT 0
       )
     ''');
     await db.execute('''
@@ -287,7 +298,7 @@ class DatabaseHelper {
 
   Future<List<ClipCategory>> getAllCategories() async {
     final db = await database;
-    var maps = await db.query('categories');
+    var maps = await db.query('categories', orderBy: 'position ASC');
     // Si aucune cat_xxx en DB, on reseed
     final hasNew = maps.any((m) => (m['id'] as String).startsWith('cat_'));
     if (!hasNew) {

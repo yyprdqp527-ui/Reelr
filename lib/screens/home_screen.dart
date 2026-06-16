@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                 child: Column(
                   children: [
                     _SearchBar(
@@ -122,50 +122,14 @@ class _HomeScreenState extends State<HomeScreen> {
             else
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
-                sliver: SliverGrid(
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    childAspectRatio: 1, // carré parfait
+                sliver: SliverToBoxAdapter(
+                  child: Transform.translate(
+                    offset: const Offset(0, -16),
+                    child: _ReorderableCategoryGrid(
+                    state: widget.state,
+                    l: l,
+                    onOpenCategory: _openCategory,
                   ),
-                  delegate: SliverChildBuilderDelegate(
-                    (ctx, i) {
-                      if (i == 0) {
-                        return _CategoryTile(
-                          name: l.t('all'),
-                          color: AppTheme.orange,
-                          icon: Icons.grid_view_rounded,
-                          count: widget.state.totalCount,
-                          onTap: () =>
-                              _openCategory(context, null, l.t('all')),
-                        );
-                      }
-                      final cat = widget.state.categories.where((c) => widget.state.countForCategory(c.id) > 0).toList()[i - 1];
-                      final catClips = widget.state.clipsForCategory(cat.id);
-                      final localizedName = cat.id.startsWith('cat_') ? l.localizeCategoryById(cat.id) : l.localizeCategory(cat.name);
-                      return _CategoryTile(
-                        name: localizedName,
-                        color: cat.color,
-                        icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
-                        count: widget.state.countForCategory(cat.id),
-                        onTap: () {
-                            widget.state.markCategoryViewed(cat.id);
-                            _openCategory(context, cat.id, localizedName);
-                          },
-                        thumbnailUrl: catClips.isEmpty ? null : () {
-                            final order = widget.state.sortOrderFor(cat.id);
-                            final sorted = sortClipsByOrder(catClips, order);
-                            return sorted
-                                .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
-                                .map((c) => c.thumbnailUrl!)
-                                .firstOrNull;
-                          }(),
-                        showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
-                      );
-                    },
-                    childCount: widget.state.categories.where((c) => widget.state.countForCategory(c.id) > 0).length + 1,
                   ),
                 ),
               ),
@@ -248,6 +212,138 @@ class _HomeScreenState extends State<HomeScreen> {
 // ─────────────────────────────────────────────
 // CATEGORY TILE (iOS-style big rounded square)
 // ─────────────────────────────────────────────
+
+class _ReorderableCategoryGrid extends StatefulWidget {
+  final ClipsState state;
+  final AppL10n l;
+  final void Function(BuildContext, String?, String) onOpenCategory;
+  const _ReorderableCategoryGrid({
+    required this.state,
+    required this.l,
+    required this.onOpenCategory,
+  });
+  @override
+  State<_ReorderableCategoryGrid> createState() => _ReorderableCategoryGridState();
+}
+
+class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
+  int? _draggingIndex;
+  int? _hoverIndex;
+  List<ClipCategory>? _previewOrder;
+
+  List<ClipCategory> _baseOrder() => widget.state.categories
+      .where((c) => widget.state.countForCategory(c.id) > 0)
+      .toList();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = widget.l;
+    final visibleCats = _previewOrder ?? _baseOrder();
+    final total = visibleCats.length + 1; // +1 pour la tuile "Tout"
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        mainAxisSpacing: 14,
+        crossAxisSpacing: 14,
+        childAspectRatio: 1,
+      ),
+      itemCount: total,
+      itemBuilder: (ctx, i) {
+        if (i == 0) {
+          // Tuile "Tout" : fixe, non déplaçable.
+          return _CategoryTile(
+            name: l.t('all'),
+            color: AppTheme.orange,
+            icon: Icons.grid_view_rounded,
+            count: widget.state.totalCount,
+            onTap: () => widget.onOpenCategory(context, null, l.t('all')),
+          );
+        }
+        final catIndex = i - 1;
+        final cat = visibleCats[catIndex];
+        final catClips = widget.state.clipsForCategory(cat.id);
+        final localizedName = cat.id.startsWith('cat_')
+            ? l.localizeCategoryById(cat.id)
+            : l.localizeCategory(cat.name);
+        final isBeingDragged = _draggingIndex == catIndex;
+        final tile = _CategoryTile(
+          name: localizedName,
+          color: cat.color,
+          icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
+          count: widget.state.countForCategory(cat.id),
+          onTap: () {
+            widget.state.markCategoryViewed(cat.id);
+            widget.onOpenCategory(context, cat.id, localizedName);
+          },
+          thumbnailUrl: catClips.isEmpty
+              ? null
+              : () {
+                  final order = widget.state.sortOrderFor(cat.id);
+                  final sorted = sortClipsByOrder(catClips, order);
+                  return sorted
+                      .where((c) =>
+                          c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                      .map((c) => c.thumbnailUrl!)
+                      .firstOrNull;
+                }(),
+          showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
+        );
+
+        return DragTarget<int>(
+          onWillAcceptWithDetails: (details) {
+            final fromIndex = details.data;
+            if (fromIndex == catIndex) return false;
+            setState(() {
+              _hoverIndex = catIndex;
+              final base = List<ClipCategory>.of(_previewOrder ?? _baseOrder());
+              if (fromIndex < 0 || fromIndex >= base.length) return;
+              final moved = base.removeAt(fromIndex);
+              base.insert(catIndex.clamp(0, base.length), moved);
+              _previewOrder = base;
+              _draggingIndex = catIndex;
+            });
+            return true;
+          },
+          onLeave: (_) => setState(() => _hoverIndex = null),
+          onAcceptWithDetails: (details) {
+            setState(() {
+              _hoverIndex = null;
+              _draggingIndex = null;
+              _previewOrder = null;
+            });
+            widget.state.reorderCategories(details.data, catIndex);
+          },
+          builder: (ctx, candidate, rejected) {
+            final isHovering = _hoverIndex == catIndex && candidate.isNotEmpty;
+            return AnimatedOpacity(
+              opacity: isBeingDragged ? 0.4 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: AnimatedScale(
+              scale: isHovering ? 1.06 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: LongPressDraggable<int>(
+                data: catIndex,
+                delay: const Duration(milliseconds: 350),
+                feedback: Opacity(opacity: 0.85, child: SizedBox(width: 100, height: 100, child: tile)),
+                childWhenDragging: Opacity(opacity: 0.3, child: tile),
+                onDragStarted: () => setState(() => _draggingIndex = catIndex),
+                onDragEnd: (_) => setState(() {
+                  _draggingIndex = null;
+                  _hoverIndex = null;
+                }),
+                child: tile,
+              ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
 
 class _CategoryTile extends StatefulWidget {
   final String name;
