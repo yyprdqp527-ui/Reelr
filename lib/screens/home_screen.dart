@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
@@ -419,9 +420,12 @@ class _CategoryTileState extends State<_CategoryTile> {
                 ? Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.network(
-                        widget.thumbnailUrl!,
+                      CachedNetworkImage(
+                        imageUrl: widget.thumbnailUrl!,
                         fit: BoxFit.cover,
+                        errorWidget: (_, _, _) => Container(
+                          color: tintColor.withValues(alpha: 0.12),
+                        ),
                       ),
                       // Overlay gradient sombre en bas
                       const IgnorePointer(
@@ -840,7 +844,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                             fit: StackFit.expand,
                                             children: [
                                               c.thumbnailUrl != null
-                                                  ? Image.network(c.thumbnailUrl!, fit: BoxFit.cover)
+                                                  ? CachedNetworkImage(
+                                                      imageUrl: c.thumbnailUrl!,
+                                                      fit: BoxFit.cover,
+                                                      errorWidget: (_, _, _) => Container(
+                                                          color: AppTheme.orange.withValues(alpha: 0.2)),
+                                                    )
                                                   : Container(color: AppTheme.orange.withValues(alpha: 0.2)),
                                               const IgnorePointer(
                                                 child: DecoratedBox(
@@ -1413,16 +1422,13 @@ class _ThumbnailBanner extends StatelessWidget {
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: thumbUrl != null
-            ? Image.network(
-                thumbUrl!,
+            ? CachedNetworkImage(
+                imageUrl: thumbUrl!,
                 fit: BoxFit.cover,
                 // Loader
-                loadingBuilder: (ctx, child, progress) {
-                  if (progress == null) return child;
-                  return _fallback(shimmer: true);
-                },
+                placeholder: (ctx, url) => _fallback(shimmer: true),
                 // Erreur → icône plateforme
-                errorBuilder: (_, __, ___) => _fallback(), // ignore: unnecessary_underscores
+                errorWidget: (_, _, _) => _fallback(),
               )
             : _fallback(),
       ),
