@@ -9,6 +9,8 @@ import '../app.dart';
 import '../core/l10n.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
+import '../models/legal_content.dart';
+import 'legal_document_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ClipsState state;
@@ -182,6 +184,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: Colors.red),
                       onTap: () => _deleteAllData(context),
                     ),
+                    _SettingsRow(
+                      icon: Icons.card_membership_outlined,
+                      label: l.t('settings_manage_subscription'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => _launchUrl(
+                          'https://apps.apple.com/account/subscriptions'),
+                    ),
                   ],
                 ),
               ),
@@ -199,15 +208,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.privacy_tip_outlined,
                       label: l.t('settings_privacy_policy'),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () =>
-                          _launchUrl('https://www.privacypolicies.com/live/c2a22de0-c99c-487c-8f55-75e7958bd439'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LegalDocumentScreen(
+                            title: l.t('settings_privacy_policy'),
+                            content: legalPrivacyPolicyFr,
+                          ),
+                        ),
+                      ),
                     ),
                     _SettingsRow(
                       icon: Icons.gavel_outlined,
                       label: l.t('settings_terms'),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () =>
-                          _launchUrl('https://www.privacypolicies.com/live/b85682de-7528-4a66-a716-f94c0eab9d3d'),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => LegalDocumentScreen(
+                            title: l.t('settings_terms'),
+                            content: legalTermsFr,
+                          ),
+                        ),
+                      ),
                     ),
                     _SettingsRow(
                       icon: Icons.mail_outline,

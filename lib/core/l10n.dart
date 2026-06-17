@@ -55,6 +55,7 @@ class AppL10n {
       'settings_delete_all_confirm': 'Supprimer toutes les données ?',
       'settings_delete_all_confirm_sub':
           'Cette action supprimera définitivement tous vos clips.',
+      'settings_manage_subscription': 'Gérer mon abonnement',
       'settings_legal_section': 'Légal',
       'settings_privacy_policy': 'Politique de confidentialité',
       'settings_terms': 'Conditions d\'utilisation',
@@ -111,6 +112,7 @@ class AppL10n {
       'settings_delete_all_confirm': 'Delete all data?',
       'settings_delete_all_confirm_sub':
           'This will permanently delete all your clips.',
+      'settings_manage_subscription': 'Manage my subscription',
       'settings_legal_section': 'Legal',
       'settings_privacy_policy': 'Privacy Policy',
       'settings_terms': 'Terms of Use',
