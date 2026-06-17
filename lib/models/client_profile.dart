@@ -112,6 +112,22 @@ class ClientProfile {
       newVocab[word]![category] =
           (newVocab[word]![category] ?? 0) + increment;
     }
+    // Plafonne le vocabulaire à 2000 mots distincts pour éviter une
+    // croissance illimitée dans SharedPreferences sur plusieurs années.
+    // On retire les mots dont le score total est le plus faible.
+    const maxVocabSize = 2000;
+    if (newVocab.length > maxVocabSize) {
+      final entries = newVocab.entries.toList()
+        ..sort((a, b) {
+          final scoreA = a.value.values.fold(0, (s, v) => s + v);
+          final scoreB = b.value.values.fold(0, (s, v) => s + v);
+          return scoreA.compareTo(scoreB);
+        });
+      final toRemove = entries.take(newVocab.length - maxVocabSize);
+      for (final entry in toRemove) {
+        newVocab.remove(entry.key);
+      }
+    }
     return ClientProfile(
       userId: userId,
       categoryCount: categoryCount,
