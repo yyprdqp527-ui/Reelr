@@ -65,6 +65,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       for (final clip in clips) {
         await widget.state.removeClip(clip.id);
       }
+      final categories = widget.state.categories.toList();
+      for (final category in categories) {
+        await widget.state.removeCategory(category.id);
+      }
     }
   }
 
