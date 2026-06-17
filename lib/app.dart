@@ -41,7 +41,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Locale _locale = const Locale('en');
   bool _onboardingDone = false;
   bool _prefsLoaded = false;
-  bool _isPremium = true;
+  bool _isPremium = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   StreamSubscription<Uri>? _deepLinkSub;
