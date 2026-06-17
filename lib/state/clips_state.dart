@@ -335,7 +335,7 @@ class ClipsState extends ChangeNotifier {
         };
         final isCatId = catName.startsWith('cat_');
         final newCat = ClipCategory(
-          id: isCatId ? catName : 'ai_\${DateTime.now().millisecondsSinceEpoch}',
+          id: isCatId ? catName : 'ai_${DateTime.now().millisecondsSinceEpoch}',
           name: catNames[catName] ?? catName,
           color: catColors[catName] ?? const Color(0xFF7C3AED),
           icon: catIcons[catName] ?? Icons.folder_rounded,
