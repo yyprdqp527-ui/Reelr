@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -12,8 +13,13 @@ class ProfileService {
     final prefs = await SharedPreferences.getInstance();
     final json = prefs.getString('$_prefix$userId');
     if (json == null) return ClientProfile.empty(userId: userId);
-    return ClientProfile.fromMap(
-        jsonDecode(json) as Map<String, dynamic>);
+    try {
+      return ClientProfile.fromMap(
+          jsonDecode(json) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('[profile] corrupted profile for $userId, resetting: $e');
+      return ClientProfile.empty(userId: userId);
+    }
   }
 
   Future<void> saveProfile(ClientProfile profile) async {
