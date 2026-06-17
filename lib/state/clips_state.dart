@@ -233,16 +233,44 @@ class ClipsState extends ChangeNotifier {
     try {
       debugPrint('[classify] starting for: \${clip.title}');
       final profile = await ProfileService().loadProfile();
-      final result = await ClaudeClassifier.classify(
-        video: VideoData(
-          title: clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title,
-          platform: clip.platform,
-          thumbnailUrl: clip.thumbnailUrl,
-        ),
-        profile: profile,
-      );
-      final catName = result.categoriePrincipale;
-      debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title;
+      String? catName;
+      try {
+        final result = await ClaudeClassifier.classify(
+          video: VideoData(
+            title: effectiveTitle,
+            platform: clip.platform,
+            thumbnailUrl: clip.thumbnailUrl,
+          ),
+          profile: profile,
+        );
+        catName = result.categoriePrincipale;
+        debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+      } catch (e) {
+        debugPrint('[classify] Claude failed, retrying once: $e');
+        try {
+          await Future.delayed(const Duration(seconds: 2));
+          final retryResult = await ClaudeClassifier.classify(
+            video: VideoData(
+              title: effectiveTitle,
+              platform: clip.platform,
+              thumbnailUrl: clip.thumbnailUrl,
+            ),
+            profile: profile,
+          );
+          catName = retryResult.categoriePrincipale;
+          debugPrint('[classify] retry succeeded: $catName');
+        } catch (e2) {
+          debugPrint('[classify] retry failed, falling back to keywords: $e2');
+          final existingNames = _categories.map((c) => c.name).toList();
+          catName = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
+          if (catName == null) {
+            debugPrint('[classify] keyword fallback found nothing, clip stays unclassified: ${clip.id}');
+            return;
+          }
+          debugPrint('[classify] keyword fallback result: $catName');
+        }
+      }
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
