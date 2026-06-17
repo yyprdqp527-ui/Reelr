@@ -46,3 +46,7 @@ app.*.map.json
 
 # Clés secrètes — ne jamais committer
 lib/config/secrets.dart
+
+# Scripts de fix ponctuels (générés via Claude), jamais à versionner
+/*.py
+
