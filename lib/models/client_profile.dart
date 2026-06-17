@@ -189,7 +189,9 @@ class ClientProfile {
       categoryCount: newCategoryCount,
       knownInfluencers: knownInfluencers,
       lifestyleCount: lifestyleCount,
-      corrections: [...corrections, correction],
+      corrections: [...corrections, correction]
+          .skip((corrections.length + 1 > 200) ? (corrections.length + 1 - 200) : 0)
+          .toList(),
       totalVideosClassified: totalVideosClassified,
       personalVocabulary: personalVocabulary,
     );
