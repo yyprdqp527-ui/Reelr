@@ -986,7 +986,7 @@ class VideoData {
 /// Classifieur basé sur Claude Haiku via l'API Anthropic.
 class ClaudeClassifier {
   static const String _model = 'claude-haiku-4-5-20251001';
-  static const String _apiUrl = 'https://api.anthropic.com/v1/messages';
+  static const String _apiUrl = Secrets.reelrProxyUrl;
 
   static const String _systemPrompt = '''
 Tu es une personne réelle qui consomme énormément de contenu en ligne — YouTube, TikTok, Instagram Reels. Tu connais la culture internet française par cœur : les créateurs, les tendances, les codes visuels, les communautés.
@@ -1239,7 +1239,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
     final response = await http.post(
       Uri.parse(_apiUrl),
       headers: {
-        'x-api-key': Secrets.anthropicApiKey,
+        'x-reelr-secret': Secrets.appSharedSecret,
         'anthropic-version': '2023-06-01',
         'anthropic-beta': 'prompt-caching-2024-07-31',
         'content-type': 'application/json',
