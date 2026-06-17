@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config/secrets.dart';
 
 class ClaudeService {
-  static const String _url = 'https://api.anthropic.com/v1/messages';
+  static const String _url = Secrets.reelrProxyUrl;
 
   static Future<String?> classifyTitle({
     required String title,
@@ -19,7 +19,7 @@ class ClaudeService {
         Uri.parse(_url),
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': Secrets.anthropicApiKey,
+          'x-reelr-secret': Secrets.appSharedSecret,
           'anthropic-version': '2023-06-01',
         },
         body: jsonEncode({
