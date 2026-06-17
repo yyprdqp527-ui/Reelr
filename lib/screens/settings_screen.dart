@@ -271,7 +271,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('rate_app'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => _launchUrl(
-                          'https://apps.apple.com/app/idVOTRE_APP_ID'),
+                          'https://apps.apple.com/app/id6779609511'),
                     ),
                     _SettingsRow(
                       icon: Icons.share_outlined,
