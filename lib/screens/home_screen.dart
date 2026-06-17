@@ -2725,6 +2725,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
   void dispose() {
     _titleCtrl.dispose();
     _tagsCtrl.dispose();
+    _newCategoryCtrl.dispose();
     super.dispose();
   }
 
