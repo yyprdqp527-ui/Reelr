@@ -2715,6 +2715,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
       tags: tags,
       addedAt: widget.clip.addedAt,
       thumbnailUrl: widget.clip.thumbnailUrl,
+      position: widget.clip.position,
     );
     await widget.state.updateClip(updated);
     if (mounted) Navigator.pop(context);
