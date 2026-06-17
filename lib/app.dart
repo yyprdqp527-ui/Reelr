@@ -66,6 +66,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     setState(() => _locale = locale);
     SharedPreferences.getInstance()
         .then((p) => p.setString('locale', locale.languageCode));
+    _silentShareInboxChannel
+        .invokeMethod('setSharedLocale', locale.languageCode)
+        .catchError((_) {});
   }
 
   void markOnboardingDone() {

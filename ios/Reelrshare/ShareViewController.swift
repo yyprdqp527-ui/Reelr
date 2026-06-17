@@ -18,7 +18,14 @@ class ShareViewController: UIViewController {
     private var feedbackIcon: UIImageView?
     private var feedbackTitle: UILabel?
     private var feedbackSubtitle: UILabel?
-    private let isFrench = Locale.current.languageCode == "fr"
+    private var isFrench: Bool {
+        let groupId = (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
+            ?? "group.com.reelr.app.shared"
+        if let sharedLang = UserDefaults(suiteName: groupId)?.string(forKey: "locale") {
+            return sharedLang == "fr"
+        }
+        return Locale.current.languageCode == "fr"
+    }
 
     private var appGroupId: String {
         (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)

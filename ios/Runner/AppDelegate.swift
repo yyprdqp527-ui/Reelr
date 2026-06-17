@@ -38,6 +38,9 @@ import UIKit
       }
       if call.method == "drainPendingUrls" {
         result(self.drainPendingUrls())
+      } else if call.method == "setSharedLocale" {
+        self.setSharedLocale(call.arguments)
+        result(nil)
       } else {
         result(FlutterMethodNotImplemented)
       }
@@ -57,5 +60,13 @@ import UIKit
     defaults.removeObject(forKey: silentShareInboxKey)
     defaults.synchronize()
     return urls
+  }
+  private func setSharedLocale(_ arguments: Any?) {
+    guard let languageCode = arguments as? String else { return }
+    let groupId = (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
+      ?? "group.com.reelr.app.shared"
+    guard let defaults = UserDefaults(suiteName: groupId) else { return }
+    defaults.set(languageCode, forKey: "locale")
+    defaults.synchronize()
   }
 }
