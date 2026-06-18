@@ -50,3 +50,4 @@ lib/config/secrets.dart
 # Scripts de fix ponctuels (générés via Claude), jamais à versionner
 /*.py
 
+web/*.py
