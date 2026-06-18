@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'services/purchase_service.dart';
 import 'package:uuid/uuid.dart';
 
 import 'core/l10n.dart';
@@ -27,7 +28,7 @@ class ClipsApp extends StatefulWidget {
 
   const ClipsApp({super.key, required this.state});
 
-    static ClipsAppState? of(BuildContext context) =>
+  static ClipsAppState? of(BuildContext context) =>
       context.findAncestorStateOfType<ClipsAppState>();
 
   @override
@@ -35,13 +36,16 @@ class ClipsApp extends StatefulWidget {
 }
 
 class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
-  static const MethodChannel _silentShareInboxChannel =
-      MethodChannel('reelr/share_inbox');
+  static const MethodChannel _silentShareInboxChannel = MethodChannel(
+    'reelr/share_inbox',
+  );
   ThemeMode _themeMode = ThemeMode.dark;
   Locale _locale = const Locale('en');
   bool _onboardingDone = false;
   bool _prefsLoaded = false;
   bool _isPremium = false;
+  late final PurchaseService _purchaseService;
+  bool _purchaseServiceReady = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   StreamSubscription<Uri>? _deepLinkSub;
@@ -52,20 +56,21 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   void setPremium(bool value) {
     setState(() => _isPremium = value);
-    SharedPreferences.getInstance()
-        .then((p) => p.setBool('is_premium', value));
+    SharedPreferences.getInstance().then((p) => p.setBool('is_premium', value));
   }
 
   void setThemeMode(ThemeMode mode) {
     setState(() => _themeMode = mode);
-    SharedPreferences.getInstance()
-        .then((p) => p.setString('themeMode', mode.name));
+    SharedPreferences.getInstance().then(
+      (p) => p.setString('themeMode', mode.name),
+    );
   }
 
   void setLocale(Locale locale) {
     setState(() => _locale = locale);
-    SharedPreferences.getInstance()
-        .then((p) => p.setString('locale', locale.languageCode));
+    SharedPreferences.getInstance().then(
+      (p) => p.setString('locale', locale.languageCode),
+    );
     _silentShareInboxChannel
         .invokeMethod('setSharedLocale', locale.languageCode)
         .catchError((_) {});
@@ -73,8 +78,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   void markOnboardingDone() {
     setState(() => _onboardingDone = true);
-    SharedPreferences.getInstance()
-        .then((p) => p.setBool('onboarding_done', true));
+    SharedPreferences.getInstance().then(
+      (p) => p.setBool('onboarding_done', true),
+    );
     _drainPendingShare();
   }
 
@@ -99,6 +105,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     });
     _initShareIntent();
     _initDeepLinks();
+    _purchaseService = PurchaseService(
+      onPremiumUnlocked: () => setPremium(true),
+      onError: (message) {
+        final ctx = _navigatorKey.currentContext;
+        if (ctx != null) {
+          ScaffoldMessenger.of(
+            ctx,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+      },
+    );
+    _purchaseService.init().then((_) {
+      if (mounted) setState(() => _purchaseServiceReady = true);
+    });
   }
 
   @override
@@ -130,7 +150,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         _locale = Locale(lang);
       } else {
         // Utilise la langue du téléphone, fr ou en uniquement
-        final deviceLang = WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+        final deviceLang =
+            WidgetsBinding.instance.platformDispatcher.locale.languageCode;
         _locale = Locale(['fr', 'en'].contains(deviceLang) ? deviceLang : 'en');
       }
     });
@@ -196,13 +217,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         final title = existing?.title;
         ScaffoldMessenger.of(ctx).showSnackBar(
           SnackBar(
-            content: Text(_locale.languageCode == 'fr'
-                ? (title != null && title.isNotEmpty
-                    ? '"$title" est déjà dans votre liste.'
-                    : 'Ce lien est déjà dans votre liste.')
-                : (title != null && title.isNotEmpty
-                    ? '"$title" is already in your list.'
-                    : 'This link is already in your list.')),
+            content: Text(
+              _locale.languageCode == 'fr'
+                  ? (title != null && title.isNotEmpty
+                        ? '"$title" est déjà dans votre liste.'
+                        : 'Ce lien est déjà dans votre liste.')
+                  : (title != null && title.isNotEmpty
+                        ? '"$title" is already in your list.'
+                        : 'This link is already in your list.'),
+            ),
             duration: const Duration(seconds: 3),
             behavior: SnackBarBehavior.floating,
           ),
@@ -222,8 +245,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         ReceiveSharingIntent.instance.reset();
       });
       // Warm shares (app already running)
-      _shareSub =
-          ReceiveSharingIntent.instance.getMediaStream().listen((files) {
+      _shareSub = ReceiveSharingIntent.instance.getMediaStream().listen((
+        files,
+      ) {
         _handleSharedFiles(files);
       });
     } catch (e) {
@@ -267,17 +291,17 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
     try {
-    final platform = SocialPlatform.detect(url);
-    final clip = Clip(
-      id: const Uuid().v4(),
-      url: url,
-      title: platform.name,
-      platform: platform.id,
-      categoryId: null,
-      tags: const [],
-      addedAt: DateTime.now(),
-      thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
-    );
+      final platform = SocialPlatform.detect(url);
+      final clip = Clip(
+        id: const Uuid().v4(),
+        url: url,
+        title: platform.name,
+        platform: platform.id,
+        categoryId: null,
+        tags: const [],
+        addedAt: DateTime.now(),
+        thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
+      );
       await widget.state.addClip(clip);
       unawaited(_hydrateAndClassify(clip));
     } finally {
@@ -289,9 +313,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     _navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (_) => PaywallScreen(
+          priceText: _purchaseService.premiumProduct?.price,
+          isLoading:
+              !_purchaseServiceReady || _purchaseService.premiumProduct == null,
           onUpgrade: () {
-            // TODO: wire real in_app_purchase subscription flow.
-            _navigatorKey.currentState?.pop();
+            _purchaseService.buyPremium();
           },
           onClose: () => _navigatorKey.currentState?.pop(),
         ),
@@ -299,11 +325,18 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
   }
 
+  /// Expose l'achat premium pour les écrans (Paywall, Settings).
+  Future<bool> buyPremium() => _purchaseService.buyPremium();
+
+  /// Expose la restauration d'achats pour les écrans (Settings).
+  Future<void> restorePurchases() => _purchaseService.restorePurchases();
+
   Future<void> _drainSilentShareInbox() async {
     try {
       debugPrint('[drain] calling drainPendingUrls...');
-      final dynamic raw = await _silentShareInboxChannel
-          .invokeMethod('drainPendingUrls');
+      final dynamic raw = await _silentShareInboxChannel.invokeMethod(
+        'drainPendingUrls',
+      );
       debugPrint('[drain] raw result: $raw');
       final urls = (raw is List)
           ? raw.whereType<String>().map((u) => u.trim()).toList()
@@ -314,19 +347,31 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         if (widget.state.isDuplicate(url)) continue;
         await _ingestSharedUrl(url);
       }
-    } catch (e) { debugPrint('[drain] error: $e'); }
+    } catch (e) {
+      debugPrint('[drain] error: $e');
+    }
   }
 
   static String _normalizeForDedup(String url) {
     try {
       final uri = Uri.parse(url.trim());
       final clean = Map<String, String>.from(uri.queryParameters)
-        ..removeWhere((k, _) => ['si','utm_source','utm_medium',
-            'utm_campaign','fbclid','igshid','feature','pp'].contains(k));
-      return uri.replace(
-        queryParameters: clean.isEmpty ? null : clean,
-        fragment: '',
-      ).toString().toLowerCase();
+        ..removeWhere(
+          (k, _) => [
+            'si',
+            'utm_source',
+            'utm_medium',
+            'utm_campaign',
+            'fbclid',
+            'igshid',
+            'feature',
+            'pp',
+          ].contains(k),
+        );
+      return uri
+          .replace(queryParameters: clean.isEmpty ? null : clean, fragment: '')
+          .toString()
+          .toLowerCase();
     } catch (_) {
       return url.trim().toLowerCase();
     }
@@ -341,7 +386,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   Future<void> _hydrateAndClassify(Clip clip) async {
     await _hydrateClip(clip);
-    final updated = widget.state.allClips.where((c) => c.id == clip.id).firstOrNull ?? clip;
+    final updated =
+        widget.state.allClips.where((c) => c.id == clip.id).firstOrNull ?? clip;
     await widget.state.classifyClipInBackground(updated);
   }
 
@@ -350,13 +396,28 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final meta = await OEmbedService.fetchMetadata(clip.url);
     if (meta == null) return;
     debugPrint('[hydrate] url=${clip.url}');
-    debugPrint('[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}');
+    debugPrint(
+      '[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}',
+    );
     final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
       if (clip.title.isNotEmpty) return;
-      final platform = clip.platform[0].toUpperCase() + clip.platform.substring(1);
-      await widget.state.updateClip(Clip(id: clip.id, url: clip.url, title: platform, platform: clip.platform, categoryId: clip.categoryId, tags: clip.tags, addedAt: clip.addedAt, thumbnailUrl: clip.thumbnailUrl, position: clip.position));
+      final platform =
+          clip.platform[0].toUpperCase() + clip.platform.substring(1);
+      await widget.state.updateClip(
+        Clip(
+          id: clip.id,
+          url: clip.url,
+          title: platform,
+          platform: clip.platform,
+          categoryId: clip.categoryId,
+          tags: clip.tags,
+          addedAt: clip.addedAt,
+          thumbnailUrl: clip.thumbnailUrl,
+          position: clip.position,
+        ),
+      );
       return;
     }
     await widget.state.updateClip(
@@ -380,6 +441,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void dispose() {
     _shareSub?.cancel();
     _deepLinkSub?.cancel();
+    _purchaseService.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -406,8 +468,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         home: !_prefsLoaded
             ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
             : _onboardingDone
-                ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
-                : OnboardingScreen(state: widget.state),
+            ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
+            : OnboardingScreen(state: widget.state),
         onGenerateRoute: (settings) {
           // Gère le partage iOS via route "/?url=https://..." en mettant
           // simplement l'URL en file d'attente — sans bypasser le gating
@@ -419,7 +481,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             if (url.startsWith('http')) {
               final now = DateTime.now();
               if (!(url == _lastSharedUrl &&
-
                   now.difference(_lastSharedAt!).inSeconds < 15)) {
                 _lastSharedUrl = url;
                 _lastSharedAt = now;
@@ -431,16 +492,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             builder: (_) => !_prefsLoaded
                 ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
                 : _onboardingDone
-                    ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
-                    : OnboardingScreen(state: widget.state),
+                ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
+                : OnboardingScreen(state: widget.state),
           );
         },
         onUnknownRoute: (settings) => MaterialPageRoute(
           builder: (_) => !_prefsLoaded
               ? const Scaffold(backgroundColor: Color(0xFF0A0E1F))
               : _onboardingDone
-                  ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
-                  : OnboardingScreen(state: widget.state),
+              ? MainShell(state: widget.state, onPasteUrl: _ingestSharedUrl)
+              : OnboardingScreen(state: widget.state),
         ),
       ),
     );
