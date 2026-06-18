@@ -191,6 +191,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       onTap: () => _launchUrl(
                           'https://apps.apple.com/account/subscriptions'),
                     ),
+                    _SettingsRow(
+                      icon: Icons.restore_outlined,
+                      label: l.t('settings_restore_purchases'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content:
+                                Text(l.t('settings_restore_purchases_started')),
+                          ),
+                        );
+                        appState.restorePurchases();
+                      },
+                    ),
                   ],
                 ),
               ),
