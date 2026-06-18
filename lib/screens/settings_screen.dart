@@ -226,7 +226,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         MaterialPageRoute(
                           builder: (_) => LegalDocumentScreen(
                             title: l.t('settings_privacy_policy'),
-                            content: legalPrivacyPolicyFr,
+                            content: appState.locale.languageCode == 'fr'
+                                ? legalPrivacyPolicyFr
+                                : legalPrivacyPolicyEn,
                           ),
                         ),
                       ),
@@ -239,7 +241,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         MaterialPageRoute(
                           builder: (_) => LegalDocumentScreen(
                             title: l.t('settings_terms'),
-                            content: legalTermsFr,
+                            content: appState.locale.languageCode == 'fr'
+                                ? legalTermsFr
+                                : legalTermsEn,
                           ),
                         ),
                       ),

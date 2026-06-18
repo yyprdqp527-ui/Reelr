@@ -2,9 +2,9 @@
 // Conditions Générales d'Utilisation et de Vente) affichés directement
 // dans l'application via LegalDocumentScreen.
 //
-// Version française uniquement pour l'instant. La version anglaise
-// (legalPrivacyPolicyEn / legalTermsEn) reste à rédiger avant le
-// lancement dans les pays non francophones.
+// Versions française et anglaise. Le contenu affiché est choisi
+// dynamiquement dans settings_screen.dart selon la langue active
+// de l'application (appState.locale).
 
 const String legalPrivacyPolicyFr = '''
 # Politique de confidentialité — Reelr
@@ -174,4 +174,175 @@ Les présentes CGU/CGV sont soumises au droit français. En cas de litige, et ap
 ## Article 12 — Contact
 
 Pour toute question relative aux présentes CGU/CGV : hello@myreelr.app
+''';
+
+
+const String legalPrivacyPolicyEn = '''
+# Privacy Policy — Reelr
+
+**Last updated: June 17, 2026**
+
+## Who we are
+
+Reelr is published by Anne-Gaëlle Daval, operating as an individual sole proprietor (micro-entreprise) under the trade name Room79 (SIRET: 10628633900010), based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+
+Contact: hello@myreelr.app
+
+In this document, "we", "our", and "us" refer to the publisher of Reelr. "You" refers to the user of the application.
+
+## What Reelr does, in two sentences
+
+Reelr is a mobile app that lets you save videos you share from YouTube, Instagram, TikTok, Facebook, Twitch, or other platforms, and automatically sorts them into categories using an artificial intelligence service. Reelr does not create any user account: all your data is stored locally on your device.
+
+## No account, no sign-up
+
+Reelr does not ask for an email address, password, name, phone number, or any other identifying information to work. There is no login system. As a result, we do not collect or store any identifying data about you on our servers.
+
+## Data stored locally on your device
+
+When you share a video to Reelr, the app saves the following in a local database (present only on your phone, never permanently transmitted to our servers):
+
+- the URL of the shared video;
+- the title, description, source channel or account, and thumbnail of the video, when this information is publicly available (automatically retrieved from the video's page via the oEmbed and Open Graph standards);
+- the category assigned to the video (determined automatically or chosen by you);
+- the date added and the order of your custom categories.
+
+This data stays on your device. It is automatically deleted if you uninstall the app. We do not have access to this local database and cannot view, copy, or restore it on your behalf: you remain in full control of it.
+
+## AI processing for automatic classification
+
+To automatically classify a video you share, Reelr sends certain metadata about that video (title, description, any tags, source platform, and a short transcript excerpt when available) to a third-party AI service, Claude, developed by Anthropic.
+
+This data never travels directly between your phone and Anthropic: it is always relayed through an intermediary server that we operate (a "Cloudflare Worker"), whose role is to protect our technical access keys and limit abuse. This intermediary server does not retain, log, or store any of the data that passes through it: it relays it and deletes it immediately after use.
+
+The metadata sent never includes your name, email address, or any other personal identifier: it only concerns the public content of the shared video (its title, description, etc.). Anthropic processes this data to generate a category suggestion, in accordance with its own privacy policy, available at anthropic.com/privacy.
+
+If automatic enrichment fails (temporary outage, no connection), Reelr falls back to keyword-based classification performed locally on your device, with no data sent to any third party.
+
+## Retrieving metadata from video platforms
+
+To correctly display the title, thumbnail, and description of a video you share, Reelr queries the public page of that video directly on its source platform (YouTube, Instagram, TikTok, Facebook, Twitch, etc.), using the public oEmbed and Open Graph standards. This query happens at the moment of sharing, based on the URL you chose to share. We do not have access to any other information from your account on these platforms, and Reelr does not log in to any third-party account on your behalf.
+
+## Subscription and payment
+
+Reelr offers a paid subscription giving access to unlimited use of the app (beyond a number of videos available for free). Purchases and renewal of this subscription are entirely handled by Apple through the App Store and its built-in payment system (In-App Purchase / StoreKit). We do not receive, process, or store any payment information (card number, billing identity): this data is managed exclusively by Apple, in accordance with its own privacy policy.
+
+We may receive a technical confirmation from Apple of your subscription status (active/inactive) in order to unlock the corresponding features in the app, but this information is not associated with a named identity on our end.
+
+## Minimal technical data
+
+Like any mobile app, Reelr may generate technical diagnostic logs (such as crash reports) if you consent to this through your iOS device settings. These logs are anonymized as much as possible and are only used to fix bugs.
+
+## Your rights
+
+Depending on where you live, you may have rights to access, correct, delete, and port your personal data (for example, under the EU General Data Protection Regulation, GDPR). Since Reelr does not collect named data on our servers (see "No account, no sign-up" above), exercising these rights mainly concerns the data stored locally on your device, which you directly control:
+
+- Deletion: uninstalling the app immediately and completely deletes all data saved by Reelr on your device.
+- Access and portability: your data is visible directly within the app at any time.
+
+For any question about your rights or this document, you can contact us at hello@myreelr.app. If you are located in the European Union, you also have the right to lodge a complaint with your local data protection authority.
+
+## Children's privacy
+
+Reelr is not specifically directed at children and does not knowingly collect any identifying information about them, consistent with the general absence of named data collection described in this document.
+
+## International data transfers
+
+Video metadata sent to Anthropic for automatic classification (see above) may be processed on servers located outside the European Union. Anthropic provides contractual safeguards governing these transfers in accordance with the GDPR. No other named personal data is transferred outside the European Union, since no such data is otherwise collected.
+
+## Changes to this document
+
+We may update this privacy policy from time to time, in particular to reflect technical changes to the app. Any substantial change will be announced through an update to this page, with the date of the last revision shown at the top of this document.
+
+## Contact
+
+For any question about this privacy policy or your data: hello@myreelr.app
+''';
+
+const String legalTermsEn = '''
+# Terms of Use and Sale — Reelr
+
+**Last updated: June 17, 2026**
+
+## Article 1 — Publisher identification
+
+The Reelr application ("the App") is published by Anne-Gaëlle Daval, operating as an individual sole proprietor under the trade name Room79, registered under SIRET number 10628633900010, based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+
+Contact: hello@myreelr.app
+
+Hereinafter referred to as "the Publisher".
+
+## Article 2 — Purpose
+
+These Terms of Use and Sale ("Terms") govern access to and use of the Reelr App, as well as the conditions for subscribing to the paid subscription it offers. They apply to any user ("You", "the User") downloading or using the App, available on Apple's App Store.
+
+Using the App constitutes full and complete acceptance of these Terms.
+
+## Article 3 — Description of the service
+
+Reelr lets you save videos shared from third-party platforms (YouTube, Instagram, TikTok, Facebook, Twitch, and others) and automatically sorts them into categories using an AI-based classification service. The App does not require creating an account; data is stored locally on the User's device, in accordance with the Privacy Policy available within the App.
+
+## Article 4 — Free tier and paid subscription
+
+### 4.1 Free tier
+
+The App is accessible free of charge for up to 50 saved videos. Beyond this threshold, saving new videos requires subscribing to the plan described in Article 4.2. This threshold may be changed at any time by the Publisher; future changes do not affect videos already saved by the User.
+
+### 4.2 Paid subscription
+
+The Publisher offers an annual subscription priced at €29.99 (or the equivalent amount in the User's local currency, as set by Apple's pricing tiers) per year ("the Subscription"), giving access to unlimited use of the App. The applicable price is the one shown on the App's listing on the App Store at the time of subscription, and may vary by country or local currency according to Apple's pricing policy.
+
+### 4.3 Payment terms
+
+The purchase, renewal, and management of the Subscription are entirely handled by Apple through its built-in payment system (In-App Purchase). The Publisher does not receive, process, or retain any banking data from the User.
+
+### 4.4 Automatic renewal
+
+The Subscription automatically renews: unless cancelled by the User at least 24 hours before the end of the current period, the Subscription is automatically renewed for an identical duration, and the corresponding amount is charged to the payment method associated with the User's Apple account.
+
+### 4.5 Cancellation
+
+The User may cancel their Subscription at any time from their Apple account settings (Settings > [Name] > Subscriptions, or via the corresponding link available in the App). Cancellation takes effect at the end of the current subscription period; no pro-rata refund is provided for the period already committed to, unless otherwise required by applicable law.
+
+### 4.6 Right of withdrawal
+
+Depending on your jurisdiction, you may have a statutory right to withdraw from a distance purchase within a certain period (for example, 14 days for consumers in the European Union under Article L221-18 of the French Consumer Code).
+
+However, this right of withdrawal typically does not apply to digital content not supplied on a physical medium once its performance has begun with the User's prior express consent and express waiver of the right of withdrawal (for EU consumers, under Article L221-28 13° of the French Consumer Code).
+
+By subscribing and immediately accessing the corresponding features, the User acknowledges and expressly agrees that performance of the service begins immediately and that they accordingly waive their right of withdrawal, to the extent permitted by applicable law.
+
+## Article 5 — User obligations
+
+The User agrees to use the App in accordance with its intended purpose and not to infringe the rights of third parties, particularly intellectual property rights, when sharing video content. The Publisher does not host any video: the App is limited to saving links (URLs) to content hosted by third-party platforms, with the User remaining fully responsible for the lawfulness of sharing and viewing such content.
+
+## Article 6 — Intellectual property
+
+The App, its source code, interface, graphic elements, and brand are the exclusive property of the Publisher, with the exception of third-party content (videos, metadata, thumbnails) which remains the property of their respective rights holders. Nothing in these Terms shall be construed as granting the User any intellectual property right over the App.
+
+## Article 7 — Availability and evolution of the service
+
+The Publisher strives to ensure the availability and proper functioning of the App, without guaranteeing absolute continuity, particularly in the event of maintenance, outages, or unavailability of a third-party service necessary for the App's operation (video platforms, AI classification service). The Publisher reserves the right to evolve, modify, or discontinue all or part of the App's features, subject to informing subscribed Users within a reasonable time when this significantly affects the service provided.
+
+## Article 8 — Limitation of liability
+
+The Publisher cannot be held liable for third-party content accessible via links saved in the App, nor for category suggestions automatically generated by the AI classification service, which are provided for guidance only and may contain inaccuracies. The User remains solely responsible for the final organization of their content.
+
+To the extent permitted by applicable law, the Publisher's liability, in the event of a proven breach of its obligations, is limited to the amount actually paid by the User for the Subscription over the preceding twelve months.
+
+## Article 9 — Personal data protection
+
+The processing of personal data in connection with the use of the App is described in the Privacy Policy, available within the App, which forms an integral part of these Terms.
+
+## Article 10 — Changes to these Terms
+
+The Publisher may modify these Terms at any time, particularly to reflect regulatory or functional changes. Subscribed Users will be informed of any substantial change through an appropriate means (in-app notification, email, or a visible update to this document) before it takes effect.
+
+## Article 11 — Governing law and disputes
+
+These Terms are governed by French law. In the event of a dispute, and after attempting an amicable resolution with the Publisher at hello@myreelr.app, consumer Users may have access to free consumer mediation in accordance with Articles L611-1 et seq. of the French Consumer Code, or may bring the dispute before the competent courts.
+
+## Article 12 — Contact
+
+For any question regarding these Terms: hello@myreelr.app
 ''';
