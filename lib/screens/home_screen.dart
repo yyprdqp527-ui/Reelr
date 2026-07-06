@@ -178,14 +178,22 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       actions: [
         if (clips.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.ios_share_rounded),
-            tooltip: l.t('share_list'),
-            onPressed: () {
-              final text =
-                  clips.map((c) => '${c.title}\n${c.url}').join('\n\n');
-              Share.share(text);
-            },
+          Builder(
+            builder: (btnContext) => IconButton(
+              icon: const Icon(Icons.ios_share_rounded),
+              tooltip: l.t('share_list'),
+              onPressed: () {
+                final text =
+                    clips.map((c) => '${c.title}\n${c.url}').join('\n\n');
+                final box = btnContext.findRenderObject() as RenderBox?;
+                Share.share(
+                  text,
+                  sharePositionOrigin: box != null
+                      ? box.localToGlobal(Offset.zero) & box.size
+                      : null,
+                );
+              },
+            ),
           ),
           const SizedBox(width: 4),
           IconButton(
@@ -720,14 +728,22 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       setState(() => _reorderMode = !_reorderMode),
                 ),
               if (clips.isNotEmpty)
-                IconButton(
-                  icon: const Icon(Icons.ios_share_rounded),
-                  onPressed: () {
-                    final text = clips
-                        .map((c) => '${c.title}\n${c.url}')
-                        .join('\n\n');
-                    Share.share(text);
-                  },
+                Builder(
+                  builder: (btnContext) => IconButton(
+                    icon: const Icon(Icons.ios_share_rounded),
+                    onPressed: () {
+                      final text = clips
+                          .map((c) => '${c.title}\n${c.url}')
+                          .join('\n\n');
+                      final box = btnContext.findRenderObject() as RenderBox?;
+                      Share.share(
+                        text,
+                        sharePositionOrigin: box != null
+                            ? box.localToGlobal(Offset.zero) & box.size
+                            : null,
+                      );
+                    },
+                  ),
                 ),
               if (widget.categoryId != null) ...[  
                 IconButton(
@@ -1654,7 +1670,13 @@ class ClipCard extends StatelessWidget {
           builder: (_) => EditClipSheet(clip: clip, state: state),
         );
       case 'share':
-        Share.share('${clip.title}\n${clip.url}');
+        final box = context.findRenderObject() as RenderBox?;
+        Share.share(
+          '${clip.title}\n${clip.url}',
+          sharePositionOrigin: box != null
+              ? box.localToGlobal(Offset.zero) & box.size
+              : null,
+        );
       case 'open':
         _openUrl(clip.url);
       case 'move':
