@@ -177,25 +177,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
       actions: [
-        if (clips.isNotEmpty)
-          Builder(
-            builder: (btnContext) => IconButton(
-              icon: const Icon(Icons.ios_share_rounded),
-              tooltip: l.t('share_list'),
-              onPressed: () {
-                final text =
-                    clips.map((c) => '${c.title}\n${c.url}').join('\n\n');
-                final box = btnContext.findRenderObject() as RenderBox?;
-                Share.share(
-                  text,
-                  sharePositionOrigin: box != null
-                      ? box.localToGlobal(Offset.zero) & box.size
-                      : null,
-                );
-              },
-            ),
-          ),
-          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.add_link_rounded),
             tooltip: 'Coller un lien',
@@ -726,24 +707,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   tooltip: _reorderMode ? 'Terminé' : 'Réorganiser',
                   onPressed: () =>
                       setState(() => _reorderMode = !_reorderMode),
-                ),
-              if (clips.isNotEmpty)
-                Builder(
-                  builder: (btnContext) => IconButton(
-                    icon: const Icon(Icons.ios_share_rounded),
-                    onPressed: () {
-                      final text = clips
-                          .map((c) => '${c.title}\n${c.url}')
-                          .join('\n\n');
-                      final box = btnContext.findRenderObject() as RenderBox?;
-                      Share.share(
-                        text,
-                        sharePositionOrigin: box != null
-                            ? box.localToGlobal(Offset.zero) & box.size
-                            : null,
-                      );
-                    },
-                  ),
                 ),
               if (widget.categoryId != null) ...[  
                 IconButton(
