@@ -1,4 +1,4 @@
-package com.example.clips
+package com.reelr.app
 
 import io.flutter.embedding.android.FlutterActivity
 

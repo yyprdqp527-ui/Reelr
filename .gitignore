@@ -51,3 +51,4 @@ lib/config/secrets.dart
 /*.py
 
 web/*.py
+android/build/
