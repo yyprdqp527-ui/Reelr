@@ -1634,11 +1634,13 @@ class ClipCard extends StatelessWidget {
         );
       case 'share':
         final box = context.findRenderObject() as RenderBox?;
+        final screenSize = MediaQuery.of(context).size;
+        final origin = (box != null && box.hasSize)
+            ? box.localToGlobal(Offset.zero) & box.size
+            : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
         Share.share(
           '${clip.title}\n${clip.url}',
-          sharePositionOrigin: box != null
-              ? box.localToGlobal(Offset.zero) & box.size
-              : null,
+          sharePositionOrigin: origin,
         );
       case 'open':
         _openUrl(clip.url);

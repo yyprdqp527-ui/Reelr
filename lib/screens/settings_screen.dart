@@ -28,7 +28,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final origin = box.localToGlobal(Offset.zero);
       return origin & box.size;
     }
-    return const Rect.fromLTWH(0, 0, 1, 1);
+    final screenSize = MediaQuery.of(context).size;
+    return Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
   }
 
   Future<void> _exportClips() async {
@@ -184,6 +185,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           color: Colors.red),
                       onTap: () => _deleteAllData(context),
                     ),
+                    if (!appState.isPremium)
+                      _SettingsRow(
+                        icon: Icons.workspace_premium_outlined,
+                        label: l.t('settings_upgrade_premium'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => appState.showPaywall(),
+                      ),
                     _SettingsRow(
                       icon: Icons.card_membership_outlined,
                       label: l.t('settings_manage_subscription'),

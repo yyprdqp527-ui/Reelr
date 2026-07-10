@@ -284,7 +284,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
     if (!_isPremium && widget.state.totalClipsCount >= freeClipsLimit) {
-      _showPaywall();
+      showPaywall();
       return;
     }
     final normalized = _normalizeForDedup(url);
@@ -309,7 +309,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
   }
 
-  void _showPaywall() {
+  /// Ouvre l'écran d'abonnement Premium. Accessible depuis le flux de
+  /// limite gratuite (_ingestSharedUrl) et directement depuis les Réglages,
+  /// pour que l'achat ne soit pas caché derrière la limite de 50 clips
+  /// (cf. rejet Apple 2.1(b) — IAP introuvable par le reviewer).
+  void showPaywall() {
     _navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (_) => PaywallScreen(
