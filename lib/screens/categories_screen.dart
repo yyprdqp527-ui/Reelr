@@ -296,6 +296,7 @@ class EditCategorySheet extends StatefulWidget {
 
 class _EditCategorySheetState extends State<EditCategorySheet> {
   late final TextEditingController _nameCtrl;
+  final TextEditingController _subNameCtrl = TextEditingController();
   late Color _color;
   late IconData _icon;
 
@@ -303,12 +304,34 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
 
   static const _icons = categoryIconChoices;
 
+  List<SubCategory> get _subs =>
+      widget.state.getSubCategoriesFor(widget.category.id);
+
   @override
   void initState() {
     super.initState();
     _nameCtrl = TextEditingController(text: widget.category.name);
     _color = widget.category.color;
     _icon = widget.category.icon;
+  }
+
+  Future<void> _addSubCategory() async {
+    final name = _subNameCtrl.text.trim();
+    if (name.isEmpty) return;
+    await widget.state.addSubCategory(SubCategory(
+      id: const Uuid().v4(),
+      name: name,
+      categoryId: widget.category.id,
+      color: _color,
+      icon: Icons.label_rounded,
+    ));
+    _subNameCtrl.clear();
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _deleteSubCategory(String id) async {
+    await widget.state.deleteSubCategory(id);
+    if (mounted) setState(() {});
   }
 
   @override
@@ -334,6 +357,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _subNameCtrl.dispose();
     super.dispose();
   }
 
@@ -465,6 +489,67 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                           .toList(),
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      Localizations.localeOf(context).languageCode == 'fr'
+                          ? 'Sous-catégories'
+                          : 'Subcategories',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 10),
+                    if (_subs.isNotEmpty)
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _subs
+                            .map((sub) => Chip(
+                                  label: Text(sub.name),
+                                  backgroundColor:
+                                      sub.color.withValues(alpha: 0.15),
+                                  labelStyle: TextStyle(
+                                      color: sub.color,
+                                      fontWeight: FontWeight.w600),
+                                  side: BorderSide(
+                                      color: sub.color.withValues(alpha: 0.4)),
+                                  deleteIcon:
+                                      const Icon(Icons.close_rounded, size: 16),
+                                  onDeleted: () =>
+                                      _deleteSubCategory(sub.id),
+                                ))
+                            .toList(),
+                      )
+                    else
+                      Text(
+                        Localizations.localeOf(context).languageCode == 'fr'
+                            ? 'Aucune sous-catégorie'
+                            : 'No subcategory',
+                        style: TextStyle(
+                            color: Colors.grey.withValues(alpha: 0.6),
+                            fontSize: 13),
+                      ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SheetField(
+                            controller: _subNameCtrl,
+                            hint: Localizations.localeOf(context)
+                                        .languageCode ==
+                                    'fr'
+                                ? 'Nouvelle sous-catégorie'
+                                : 'New subcategory',
+                            icon: Icons.label_outline_rounded,
+                            isDark: isDark,
+                            textCapitalization: TextCapitalization.sentences,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton.filled(
+                          onPressed: _addSubCategory,
+                          icon: const Icon(Icons.add_rounded),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     Row(
