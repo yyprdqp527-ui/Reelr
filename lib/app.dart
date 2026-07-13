@@ -44,6 +44,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   bool _onboardingDone = false;
   bool _prefsLoaded = false;
   bool _isPremium = false;
+  /// Compteur cumulatif du nombre de clips jamais ajoutés (ne diminue
+  /// jamais, contrairement à totalClipsCount qui reflète la liste
+  /// actuelle). Sert de garde-fou pour le paywall : sans ça, un
+  /// utilisateur gratuit pourrait supprimer des clips pour repasser
+  /// sous la limite de 50 et ne jamais être bloqué.
+  int _lifetimeClipsAdded = 0;
   late final PurchaseService _purchaseService;
   bool _purchaseServiceReady = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -136,9 +142,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (!mounted) return;
     final onboarding = p.getBool('onboarding_done') ?? false;
     final premium = p.getBool('is_premium') ?? false;
+    // Migration : si le compteur cumulatif n'existe pas encore (mise à
+    // jour depuis une version antérieure à ce fix), on l'initialise avec
+    // le nombre de clips actuellement présents, puis il ne fera plus
+    // que croître.
+    final storedLifetime = p.getInt('lifetime_clips_added');
+    final lifetime = storedLifetime ?? widget.state.totalClipsCount;
+    if (storedLifetime == null) {
+      unawaited(p.setInt('lifetime_clips_added', lifetime));
+    }
     setState(() {
       _onboardingDone = onboarding;
       _isPremium = premium;
+      _lifetimeClipsAdded = lifetime;
       _prefsLoaded = true;
       if (theme != null) {
         _themeMode = ThemeMode.values.firstWhere(
@@ -283,7 +299,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
-    if (!_isPremium && widget.state.totalClipsCount >= freeClipsLimit) {
+    if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
       showPaywall();
       return;
     }
@@ -303,6 +319,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
       );
       await widget.state.addClip(clip);
+      _lifetimeClipsAdded++;
+      unawaited(
+        SharedPreferences.getInstance()
+            .then((p) => p.setInt('lifetime_clips_added', _lifetimeClipsAdded)),
+      );
       unawaited(_hydrateAndClassify(clip));
     } finally {
       _ingestingUrls.remove(normalized);

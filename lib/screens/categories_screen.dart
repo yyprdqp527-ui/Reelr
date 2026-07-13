@@ -505,15 +505,13 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                         children: _subs
                             .map((sub) => Chip(
                                   label: Text(sub.name),
-                                  backgroundColor:
-                                      sub.color.withValues(alpha: 0.15),
-                                  labelStyle: TextStyle(
-                                      color: sub.color,
+                                  backgroundColor: sub.color,
+                                  labelStyle: const TextStyle(
+                                      color: Colors.white,
                                       fontWeight: FontWeight.w600),
-                                  side: BorderSide(
-                                      color: sub.color.withValues(alpha: 0.4)),
-                                  deleteIcon:
-                                      const Icon(Icons.close_rounded, size: 16),
+                                  side: BorderSide.none,
+                                  deleteIcon: const Icon(Icons.close_rounded,
+                                      size: 16, color: Colors.white),
                                   onDeleted: () =>
                                       _deleteSubCategory(sub.id),
                                 ))
@@ -662,11 +660,11 @@ class CategoriesScreen extends StatelessWidget {
                               width: 46,
                               height: 46,
                               decoration: BoxDecoration(
-                                color: cat.color.withValues(alpha: 0.15),
+                                color: cat.color,
                                 borderRadius: BorderRadius.circular(13),
                               ),
                               child: Icon(cat.icon,
-                                  color: cat.color, size: 22),
+                                  color: Colors.white, size: 22),
                             ),
                             const SizedBox(width: 14),
                             Expanded(

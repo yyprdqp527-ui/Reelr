@@ -58,5 +58,11 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="http"/>
         </intent>
+        <!-- Required so canLaunchUrl()/launchUrl() can see a mail app
+             installed to open mailto: links (Contact button in Settings). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mailto"/>
+        </intent>
     </queries>
 </manifest>

@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
@@ -7,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app.dart';
 import '../core/l10n.dart';
+import '../services/purchase_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
 import '../models/legal_content.dart';
@@ -36,9 +39,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final clips = widget.state.allClips;
     final jsonStr = jsonEncode(clips.map((c) => c.toMap()).toList());
     if (!mounted) return;
-    await Share.share(
-      jsonStr,
-      subject: 'Mes clips Reelr',
+    final now = DateTime.now();
+    final fileName = 'reelr_export_'
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}.json';
+    await Share.shareXFiles(
+      [XFile.fromData(utf8.encode(jsonStr), mimeType: 'application/json')],
+      fileNameOverrides: [fileName],
+      subject: Localizations.localeOf(context).languageCode == 'fr'
+          ? 'Mes clips Reelr'
+          : 'My Reelr clips',
       sharePositionOrigin: _sharePositionOrigin(context),
     );
   }
@@ -80,6 +90,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
+  }
+
+  /// Renvoie l'URL de gestion d'abonnement du bon store selon la
+  /// plateforme (auparavant codée en dur sur l'URL App Store, donc
+  /// cassée pour les utilisateurs Android).
+  String get _subscriptionManagementUrl {
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'https://play.google.com/store/account/subscriptions'
+          '?sku=${PurchaseService.premiumYearlyId}'
+          '&package=com.room79.reelr';
+    }
+    return 'https://apps.apple.com/account/subscriptions';
   }
 
   @override
@@ -192,13 +214,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () => appState.showPaywall(),
                       ),
-                    _SettingsRow(
-                      icon: Icons.card_membership_outlined,
-                      label: l.t('settings_manage_subscription'),
-                      trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _launchUrl(
-                          'https://apps.apple.com/account/subscriptions'),
-                    ),
+                    if (appState.isPremium)
+                      _SettingsRow(
+                        icon: Icons.card_membership_outlined,
+                        label: l.t('settings_manage_subscription'),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => _launchUrl(_subscriptionManagementUrl),
+                      ),
                     _SettingsRow(
                       icon: Icons.restore_outlined,
                       label: l.t('settings_restore_purchases'),

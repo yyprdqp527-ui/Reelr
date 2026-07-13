@@ -160,21 +160,39 @@ class _HomeScreenState extends State<HomeScreen> {
       flexibleSpace: FlexibleSpaceBar(
         centerTitle: true,
         titlePadding: const EdgeInsets.only(bottom: 16),
-        title: ShaderMask(
-          shaderCallback: (bounds) => const LinearGradient(
-            colors: [Color(0xFF7C3AED), Color(0xFF2563EB)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ).createShader(bounds),
-          child: Text(
-            l.t('app_name'),
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 30,
-              letterSpacing: -1,
-              color: Colors.white,
+        title: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Lueur douce derrière le texte pour un rendu plus premium.
+            Text(
+              l.t('app_name'),
+              style: TextStyle(
+                fontWeight: FontWeight.w900,
+                fontSize: 32,
+                letterSpacing: -1.2,
+                foreground: Paint()
+                  ..color = const Color(0xFF7C3AED).withValues(alpha: 0.55)
+                  ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+              ),
             ),
-          ),
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
+                stops: [0.0, 0.6, 1.0],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
+              child: Text(
+                l.t('app_name'),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 32,
+                  letterSpacing: -1.2,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
       actions: [
