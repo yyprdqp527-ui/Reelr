@@ -283,6 +283,29 @@ class AppL10n {
     }
     return _categoryNamesFr[id] ?? id;
   }
+
+  /// Point d'entrée unique pour afficher le nom d'une catégorie.
+  ///
+  /// Pour les catégories prédéfinies (id `cat_xxx`) dont le nom n'a
+  /// jamais été modifié par l'utilisateur, on traduit dynamiquement
+  /// via l'ID (ce qui permet de suivre un changement de langue). Mais
+  /// si l'utilisateur a renommé la catégorie, `name` ne correspond plus
+  /// au libellé par défaut dans aucune des deux langues : on affiche
+  /// alors ce nom personnalisé tel quel, sans quoi le renommage n'a
+  /// jamais d'effet visible (bug corrigé le 13 juillet 2026 : le
+  /// renommage écrivait bien en base mais l'affichage ignorait `name`
+  /// pour toute catégorie `cat_xxx`).
+  String localizeCategoryDisplay(String id, String name) {
+    if (!id.startsWith('cat_')) {
+      return localizeCategory(name);
+    }
+    final isUnmodified =
+        name.isEmpty || name == _categoryNamesFr[id] || name == _categoryNamesEn[id];
+    if (isUnmodified) {
+      return localizeCategoryById(id);
+    }
+    return name;
+  }
 }
 
 class _AppL10nDelegate extends LocalizationsDelegate<AppL10n> {

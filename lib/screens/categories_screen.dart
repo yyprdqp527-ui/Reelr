@@ -318,15 +318,27 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   Future<void> _addSubCategory() async {
     final name = _subNameCtrl.text.trim();
     if (name.isEmpty) return;
-    await widget.state.addSubCategory(SubCategory(
-      id: const Uuid().v4(),
-      name: name,
-      categoryId: widget.category.id,
-      color: _color,
-      icon: Icons.label_rounded,
-    ));
-    _subNameCtrl.clear();
-    if (mounted) setState(() {});
+    try {
+      await widget.state.addSubCategory(SubCategory(
+        id: const Uuid().v4(),
+        name: name,
+        categoryId: widget.category.id,
+        color: _color,
+        icon: Icons.label_rounded,
+      ));
+      _subNameCtrl.clear();
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (!mounted) return;
+      final fr = Localizations.localeOf(context).languageCode == 'fr';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(fr
+              ? "Impossible d'ajouter la sous-catégorie : $e"
+              : 'Could not add subcategory: $e'),
+        ),
+      );
+    }
   }
 
   Future<void> _deleteSubCategory(String id) async {
@@ -338,7 +350,8 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_nameCtrl.text == widget.category.name) {
-      _nameCtrl.text = AppL10n.of(context).localizeCategory(widget.category.name);
+      _nameCtrl.text = AppL10n.of(context)
+          .localizeCategoryDisplay(widget.category.id, widget.category.name);
     }
   }
 
@@ -638,9 +651,7 @@ class CategoriesScreen extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) {
                     final cat = state.categories[i];
-                    final localizedName = cat.id.startsWith('cat_')
-                        ? l.localizeCategoryById(cat.id)
-                        : l.localizeCategory(cat.name);
+                    final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: GlassCard(

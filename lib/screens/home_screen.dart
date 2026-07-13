@@ -274,9 +274,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         final catIndex = i - 1;
         final cat = visibleCats[catIndex];
         final catClips = widget.state.clipsForCategory(cat.id);
-        final localizedName = cat.id.startsWith('cat_')
-            ? l.localizeCategoryById(cat.id)
-            : l.localizeCategory(cat.name);
+        final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
         final isBeingDragged = _draggingIndex == catIndex;
         final tile = _CategoryTile(
           name: localizedName,
@@ -1605,7 +1603,7 @@ class ClipCard extends StatelessWidget {
                 children: [
                   if (category != null)
                     _Badge(
-                      label: category.id.startsWith('cat_') ? AppL10n.of(context).localizeCategoryById(category.id) : AppL10n.of(context).localizeCategory(category.name),
+                      label: AppL10n.of(context).localizeCategoryDisplay(category.id, category.name),
                       color: category.color,
                       icon: category.icon,
                     ),
@@ -1779,7 +1777,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                         ),
                         const SizedBox(width: 14),
                         Text(
-                          cat.id.startsWith('cat_') ? AppL10n.of(context).localizeCategoryById(cat.id) : AppL10n.of(context).localizeCategory(cat.name),
+                          AppL10n.of(context).localizeCategoryDisplay(cat.id, cat.name),
                           style: const TextStyle(color: Colors.white, fontSize: 15),
                         ),
                       ],
@@ -2603,7 +2601,7 @@ class _CategoryPicker extends StatelessWidget {
           onTap: () => onChanged(null),
         ),
         ...categories.map((cat) => _CatChip(
-              label: cat.id.startsWith('cat_') ? l.localizeCategoryById(cat.id) : l.localizeCategory(cat.name),
+              label: l.localizeCategoryDisplay(cat.id, cat.name),
               color: cat.color,
               icon: cat.icon,
               selected: selected == cat.id,

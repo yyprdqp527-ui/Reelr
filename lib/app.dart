@@ -303,7 +303,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       showPaywall();
       return;
     }
-    final normalized = _normalizeForDedup(url);
+    final normalized = ClipsState.normalizeUrlForDedup(url);
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
     try {
@@ -374,31 +374,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       }
     } catch (e) {
       debugPrint('[drain] error: $e');
-    }
-  }
-
-  static String _normalizeForDedup(String url) {
-    try {
-      final uri = Uri.parse(url.trim());
-      final clean = Map<String, String>.from(uri.queryParameters)
-        ..removeWhere(
-          (k, _) => [
-            'si',
-            'utm_source',
-            'utm_medium',
-            'utm_campaign',
-            'fbclid',
-            'igshid',
-            'feature',
-            'pp',
-          ].contains(k),
-        );
-      return uri
-          .replace(queryParameters: clean.isEmpty ? null : clean, fragment: '')
-          .toString()
-          .toLowerCase();
-    } catch (_) {
-      return url.trim().toLowerCase();
     }
   }
 

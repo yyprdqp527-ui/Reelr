@@ -522,26 +522,128 @@ class ClipsState extends ChangeNotifier {
 
   int get totalCount => _clips.length;
 
-  /// Normalise une URL pour la déduplication :
-  /// retire les paramètres de tracking (si, utm_*, fbclid)
-  /// tout en conservant l'identifiant vidéo (v=, etc.).
+  /// Point d'entrée public pour normaliser une URL de déduplication —
+  /// utilisé aussi par app.dart pour éviter de dupliquer cette logique
+  /// (une duplication passée avait fini par diverger silencieusement).
+  static String normalizeUrlForDedup(String url) => _normalizeUrl(url);
+
+  /// Normalise une URL pour la déduplication : canonise d'abord les
+  /// plateformes vidéo connues (en extrayant l'identifiant réel de la
+  /// vidéo depuis le chemin/la query), et ne retombe sur un simple
+  /// nettoyage générique des paramètres de tracking que si la plateforme
+  /// n'est pas reconnue. Cette approche résiste aux changements de nom
+  /// de paramètre de tracking (ex. Instagram igshid -> igsh) puisqu'elle
+  /// ne dépend pas d'une liste figée pour les plateformes couvertes.
   static String _normalizeUrl(String url) {
     try {
       final uri = Uri.parse(url.trim());
-      final cleanParams = Map<String, String>.from(
-          uri.queryParameters)
-        ..removeWhere((k, _) =>
-          ['si', 'utm_source', 'utm_medium',
-           'utm_campaign', 'fbclid', 'igshid',
-           'feature', 'pp'].contains(k));
-      return uri.replace(
-        queryParameters: cleanParams.isEmpty
-          ? null : cleanParams,
-        fragment: '',
+      final canonical = _canonicalVideoUrl(uri);
+      if (canonical != null) return canonical;
+
+      final cleanParams = Map<String, String>.from(uri.queryParameters)
+        ..removeWhere((key, _) =>
+            key.startsWith('utm_') ||
+            {
+              'si',
+              'fbclid',
+              'gclid',
+              'igshid',
+              'igsh',
+              'feature',
+              'pp',
+              'ref',
+              'ref_src',
+              '_r',
+              '_t',
+              'u_code',
+            }.contains(key));
+
+      final normalizedHost =
+          uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+      final normalizedPath =
+          uri.pathSegments.where((segment) => segment.isNotEmpty).join('/');
+      final sortedEntries = cleanParams.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      final sortedParams = <String, String>{
+        for (final entry in sortedEntries) entry.key: entry.value,
+      };
+
+      return Uri(
+        scheme: uri.scheme.toLowerCase(),
+        host: normalizedHost,
+        path: normalizedPath.isEmpty ? '' : '/$normalizedPath',
+        queryParameters: sortedParams.isEmpty ? null : sortedParams,
       ).toString().toLowerCase();
     } catch (_) {
       return url.trim().toLowerCase();
     }
+  }
+
+  /// Reconnaît les plateformes vidéo connues et retourne un identifiant
+  /// canonique stable (ex. "youtube:dQw4w9WgXcQ") indépendant de tout
+  /// paramètre de tracking ajouté par le partage.
+  static String? _canonicalVideoUrl(Uri uri) {
+    final host = uri.host.toLowerCase().replaceFirst(RegExp(r'^www\.'), '');
+    final segments =
+        uri.pathSegments.where((segment) => segment.isNotEmpty).toList();
+
+    if (host == 'youtube.com' || host == 'm.youtube.com' || host == 'youtu.be') {
+      final videoId = _youtubeVideoId(uri);
+      if (videoId != null && videoId.isNotEmpty) {
+        return 'youtube:$videoId';
+      }
+    }
+
+    if (host == 'tiktok.com' || host == 'vm.tiktok.com' || host == 'm.tiktok.com') {
+      final videoId = _tiktokVideoId(segments);
+      if (videoId != null && videoId.isNotEmpty) {
+        return 'tiktok:$videoId';
+      }
+    }
+
+    if (host == 'instagram.com' || host == 'm.instagram.com') {
+      final mediaCode = _instagramMediaCode(segments);
+      if (mediaCode != null && mediaCode.isNotEmpty) {
+        return 'instagram:$mediaCode';
+      }
+    }
+
+    return null;
+  }
+
+  static String? _youtubeVideoId(Uri uri) {
+    if (uri.host.toLowerCase().contains('youtu.be')) {
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+    }
+
+    final segments = uri.pathSegments;
+    if (segments.contains('shorts')) {
+      final index = segments.indexOf('shorts');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+    if (segments.contains('embed')) {
+      final index = segments.indexOf('embed');
+      if (index + 1 < segments.length) return segments[index + 1];
+    }
+    return uri.queryParameters['v'];
+  }
+
+  static String? _tiktokVideoId(List<String> segments) {
+    final index = segments.indexOf('video');
+    if (index != -1 && index + 1 < segments.length) {
+      return segments[index + 1];
+    }
+    return null;
+  }
+
+  static String? _instagramMediaCode(List<String> segments) {
+    for (final marker in const ['reel', 'p']) {
+      final index = segments.indexOf(marker);
+      if (index != -1 && index + 1 < segments.length) {
+        return segments[index + 1];
+      }
+    }
+    return null;
   }
 
   bool isDuplicate(String url) {
