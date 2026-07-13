@@ -89,6 +89,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final uri = Uri.parse(url);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (mounted) {
+      final fr = Localizations.localeOf(context).languageCode == 'fr';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(fr
+              ? "Impossible d'ouvrir ce lien"
+              : 'Could not open this link'),
+        ),
+      );
     }
   }
 

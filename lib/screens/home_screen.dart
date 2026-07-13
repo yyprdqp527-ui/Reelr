@@ -157,43 +157,55 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: Colors.transparent,
       elevation: 0,
       expandedHeight: 110,
-      flexibleSpace: FlexibleSpaceBar(
-        centerTitle: true,
-        titlePadding: const EdgeInsets.only(bottom: 16),
-        title: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Lueur douce derrière le texte pour un rendu plus premium.
-            Text(
-              l.t('app_name'),
-              style: TextStyle(
-                fontWeight: FontWeight.w900,
-                fontSize: 32,
-                letterSpacing: -1.2,
-                foreground: Paint()
-                  ..color = const Color(0xFF7C3AED).withValues(alpha: 0.55)
-                  ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      // Note : on n'utilise pas FlexibleSpaceBar.centerTitle ici — il centre
+      // le titre entre `leading` et `actions`, et comme il n'y a qu'une icône
+      // à droite (aucun leading), le résultat est visuellement décalé à
+      // gauche. Un Stack pleine largeur centre le titre sur tout l'AppBar,
+      // indépendamment de l'icône de droite.
+      flexibleSpace: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Lueur douce derrière le texte pour un rendu plus premium.
+                  Text(
+                    l.t('app_name'),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      fontSize: 32,
+                      letterSpacing: -1.2,
+                      foreground: Paint()
+                        ..color = const Color(0xFF7C3AED).withValues(alpha: 0.55)
+                        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+                    ),
+                  ),
+                  ShaderMask(
+                    shaderCallback: (bounds) => const LinearGradient(
+                      colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
+                      stops: [0.0, 0.6, 1.0],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(bounds),
+                    child: Text(
+                      l.t('app_name'),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 32,
+                        letterSpacing: -1.2,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ShaderMask(
-              shaderCallback: (bounds) => const LinearGradient(
-                colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
-                stops: [0.0, 0.6, 1.0],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ).createShader(bounds),
-              child: Text(
-                l.t('app_name'),
-                style: const TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 32,
-                  letterSpacing: -1.2,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
       actions: [
           IconButton(
@@ -837,6 +849,18 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                           final uri = Uri.tryParse(c.url);
                                           if (uri != null && await canLaunchUrl(uri)) {
                                             await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          } else if (ctx.mounted) {
+                                            ScaffoldMessenger.of(ctx).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  Localizations.localeOf(ctx)
+                                                              .languageCode ==
+                                                          'fr'
+                                                      ? "Impossible d'ouvrir ce lien"
+                                                      : 'Could not open this link',
+                                                ),
+                                              ),
+                                            );
                                           }
                                         },
                                         child: ClipRRect(
@@ -1480,7 +1504,7 @@ class ClipCard extends StatelessWidget {
 
     return GlassCard(
       padding: EdgeInsets.zero,
-      onTap: () => _openUrl(clip.url),
+      onTap: () => _openUrl(context, clip.url),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1621,10 +1645,20 @@ class ClipCard extends StatelessWidget {
     );
   }
 
-  Future<void> _openUrl(String url) async {
+  Future<void> _openUrl(BuildContext context, String url) async {
     final uri = Uri.tryParse(url);
     if (uri != null && await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            Localizations.localeOf(context).languageCode == 'fr'
+                ? "Impossible d'ouvrir ce lien"
+                : 'Could not open this link',
+          ),
+        ),
+      );
     }
   }
 
@@ -1667,7 +1701,7 @@ class ClipCard extends StatelessWidget {
         );
         return;
       case 'open':
-        _openUrl(clip.url);
+        _openUrl(context, clip.url);
         return;
       case 'move':
         showModalBottomSheet(
