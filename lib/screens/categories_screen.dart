@@ -8,6 +8,7 @@ import '../models/category.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/sheet_field.dart';
+import 'home_screen.dart';
 
 // ─────────────────────────────────────────────
 // ICON SUGGESTION BY NAME
@@ -554,9 +555,22 @@ class CategoriesScreen extends StatelessWidget {
                 delegate: SliverChildBuilderDelegate(
                   (ctx, i) {
                     final cat = state.categories[i];
+                    final localizedName = cat.id.startsWith('cat_')
+                        ? l.localizeCategoryById(cat.id)
+                        : l.localizeCategory(cat.name);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: GlassCard(
+                        onTap: () {
+                          state.markCategoryViewed(cat.id);
+                          Navigator.of(context).push(MaterialPageRoute(
+                            builder: (_) => CategoryDetailScreen(
+                              state: state,
+                              categoryId: cat.id,
+                              title: localizedName,
+                            ),
+                          ));
+                        },
                         child: Row(
                           children: [
                             Container(
@@ -576,7 +590,7 @@ class CategoriesScreen extends StatelessWidget {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    cat.id.startsWith('cat_') ? l.localizeCategoryById(cat.id) : l.localizeCategory(cat.name),
+                                    localizedName,
                                     style: const TextStyle(
                                         fontWeight: FontWeight.w700,
                                         fontSize: 16),

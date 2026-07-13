@@ -158,7 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 0,
       expandedHeight: 110,
       flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+        centerTitle: true,
+        titlePadding: const EdgeInsets.only(bottom: 16),
         title: ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(
             colors: [Color(0xFF7C3AED), Color(0xFF2563EB)],
@@ -816,7 +817,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                     itemBuilder: (ctx, i) {
                                       final c = clips[i];
                                       return GestureDetector(
-                                        onTap: () => launchUrl(Uri.parse(c.url)),
+                                        onTap: () async {
+                                          final uri = Uri.tryParse(c.url);
+                                          if (uri != null && await canLaunchUrl(uri)) {
+                                            await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                          }
+                                        },
                                         child: ClipRRect(
                                           borderRadius: BorderRadius.circular(14),
                                           child: Stack(
@@ -1632,6 +1638,7 @@ class ClipCard extends StatelessWidget {
           backgroundColor: Colors.transparent,
           builder: (_) => EditClipSheet(clip: clip, state: state),
         );
+        return;
       case 'share':
         final box = context.findRenderObject() as RenderBox?;
         final screenSize = MediaQuery.of(context).size;
@@ -1642,8 +1649,10 @@ class ClipCard extends StatelessWidget {
           '${clip.title}\n${clip.url}',
           sharePositionOrigin: origin,
         );
+        return;
       case 'open':
         _openUrl(clip.url);
+        return;
       case 'move':
         showModalBottomSheet(
           context: context,
@@ -1654,6 +1663,7 @@ class ClipCard extends StatelessWidget {
             state: state,
           ),
         );
+        return;
       case 'delete':
         showDialog(
           context: context,
