@@ -104,6 +104,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return 'https://apps.apple.com/account/subscriptions';
   }
 
+  /// Renvoie l'URL de notation du bon store selon la plateforme
+  /// (auparavant codée en dur sur l'URL App Store, donc cassée
+  /// pour les utilisateurs Android).
+  String get _rateAppUrl {
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'https://play.google.com/store/apps/details?id=com.room79.reelr';
+    }
+    return 'https://apps.apple.com/app/id6779609511?action=write-review';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
@@ -318,8 +328,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.star_outline,
                       label: l.t('rate_app'),
                       trailing: const Icon(Icons.chevron_right_rounded),
-                      onTap: () => _launchUrl(
-                          'https://apps.apple.com/app/id6779609511?action=write-review'),
+                      onTap: () => _launchUrl(_rateAppUrl),
                     ),
                     _SettingsRow(
                       icon: Icons.share_outlined,

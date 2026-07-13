@@ -1,6 +1,6 @@
 PODS:
   - Flutter (1.0.0)
-  - receive_sharing_intent (1.8.1):
+  - receive_sharing_intent (1.8.0):
     - Flutter
 
 DEPENDENCIES:
@@ -15,7 +15,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
-  receive_sharing_intent: 222384f00ffe7e952bbfabaa9e3967cb87e5fe00
+  receive_sharing_intent: f6a12b7e8f7ed745f61c982de8a65de88db44a44
 
 PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
 
