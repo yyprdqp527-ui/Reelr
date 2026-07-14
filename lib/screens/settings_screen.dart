@@ -123,6 +123,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return 'https://apps.apple.com/app/id6779609511?action=write-review';
   }
 
+  /// Renvoie l'URL de la fiche app du bon store selon la plateforme,
+  /// utilisée dans le message de "Partager l'app".
+  String get _shareAppUrl {
+    if (!kIsWeb && Platform.isAndroid) {
+      return 'https://play.google.com/store/apps/details?id=com.room79.reelr';
+    }
+    return 'https://apps.apple.com/app/id6779609511';
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
@@ -327,8 +336,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           label: l.t('settings_version'),
                           trailing: Text(
                             'Version $version',
-                            style: const TextStyle(
-                                color: Colors.white54, fontSize: 13),
+                            style: TextStyle(
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.white54
+                                    : Colors.black45,
+                                fontSize: 13),
                           ),
                         );
                       },
@@ -344,7 +357,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('share_app'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: () => Share.share(
-                        l.locale.languageCode == 'fr' ? 'Découvre Reelr — sauvegarde tes vidéos préférées !' : 'Discover Reelr — save your favorite videos!',
+                        '${l.locale.languageCode == 'fr' ? 'Tes vidéos rangées, au même endroit !' : 'Your videos, organized in one place!'}\n$_shareAppUrl',
                         sharePositionOrigin: _sharePositionOrigin(context),
                       ),
                     ),

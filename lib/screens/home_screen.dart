@@ -1159,6 +1159,17 @@ class _SubcategoryBar extends StatelessWidget {
   }
 }
 
+/// Certaines couleurs de catégorie (ex. jaunes pâles) sont trop
+/// claires pour servir de couleur de texte/icône sur leur propre
+/// fond teinté à 10% — on les assombrit légèrement pour rester
+/// lisible, tout en gardant la couleur d'origine pour le fond et
+/// la bordure de la puce.
+Color _legibleAccent(Color base) {
+  return ThemeData.estimateBrightnessForColor(base) == Brightness.light
+      ? Color.alphaBlend(Colors.black.withValues(alpha: 0.45), base)
+      : base;
+}
+
 class _SubChip extends StatelessWidget {
   final String label;
   final Color color;
@@ -1187,7 +1198,7 @@ class _SubChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : color,
+            color: selected ? Colors.white : _legibleAccent(color),
             fontWeight: FontWeight.w600,
             fontSize: 13,
           ),
@@ -1781,9 +1792,9 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
             ),
           ),
           const SizedBox(height: 16),
-          const Text(
-            'Deplacer vers...',
-            style: TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+          Text(
+            AppL10n.of(context).t('move_to_category'),
+            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 12),
           ConstrainedBox(
@@ -2688,12 +2699,12 @@ class _CatChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 14, color: selected ? Colors.white : color),
+            Icon(icon, size: 14, color: selected ? Colors.white : _legibleAccent(color)),
             const SizedBox(width: 6),
             Text(
               label,
               style: TextStyle(
-                color: selected ? Colors.white : color,
+                color: selected ? Colors.white : _legibleAccent(color),
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
               ),
