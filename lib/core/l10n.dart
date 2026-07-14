@@ -47,7 +47,7 @@ class AppL10n {
       'all': 'Tout',
       'no_category': 'Aucune catégorie',
       'edit': 'Classer',
-      'edit_clip': 'Classify',
+      'edit_clip': 'Classer',
       'edit_category': 'Modifier la catégorie',
       'settings_my_data_section': 'Mes données',
       'settings_export_clips': 'Exporter mes clips',

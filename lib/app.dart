@@ -113,6 +113,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     _initDeepLinks();
     _purchaseService = PurchaseService(
       onPremiumUnlocked: () => setPremium(true),
+      isFr: () => _locale.languageCode == 'fr',
       onError: (message) {
         final ctx = _navigatorKey.currentContext;
         if (ctx != null) {

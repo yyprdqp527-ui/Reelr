@@ -733,14 +733,18 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   icon: Icon(_reorderMode
                       ? Icons.check_circle_rounded
                       : Icons.reorder_rounded),
-                  tooltip: _reorderMode ? 'Terminé' : 'Réorganiser',
+                  tooltip: _reorderMode
+                      ? (Localizations.localeOf(context).languageCode == 'fr' ? 'Terminé' : 'Done')
+                      : (Localizations.localeOf(context).languageCode == 'fr' ? 'Réorganiser' : 'Reorder'),
                   onPressed: () =>
                       setState(() => _reorderMode = !_reorderMode),
                 ),
               if (widget.categoryId != null) ...[  
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline_rounded),
-                  tooltip: 'Ajouter une sous-catégorie',
+                  tooltip: Localizations.localeOf(context).languageCode == 'fr'
+                      ? 'Ajouter une sous-catégorie'
+                      : 'Add a subcategory',
                   onPressed: () => _showAddSubcategoryDialog(context),
                 ),
               ],
@@ -2642,7 +2646,7 @@ class _CategoryPicker extends StatelessWidget {
               onTap: () => onChanged(cat.id),
             )),
         _CatChip(
-          label: 'Créer',
+          label: Localizations.localeOf(context).languageCode == 'fr' ? 'Créer' : 'Create',
           color: const Color(0xFF7C3AED),
           icon: Icons.add_rounded,
           selected: false,

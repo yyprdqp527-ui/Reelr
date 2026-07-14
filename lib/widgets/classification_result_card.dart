@@ -53,6 +53,35 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
     'Tricot/Couture',
   ];
 
+  // Traductions d'affichage uniquement : la valeur d'origine dans
+  // _allCategories reste la clé canonique utilisée pour la comparaison
+  // (isCurrent) et pour _correct(cat) / _colorForCategory(cat).
+  static const Map<String, String> _categoryLabelsEn = {
+    'Famille': 'Family',
+    'Humour': 'Humor',
+    'Musique': 'Music',
+    'Actu & Société': 'News & Society',
+    'DIY & Créa': 'DIY & Craft',
+    'Déco & Home': 'Home Decor',
+    'Cinéma & Séries': 'Movies & Series',
+    'Astro & Spirituel': 'Astrology & Spirituality',
+    'Tricot/Couture': 'Knitting & Sewing',
+    'Documentaire': 'Documentary',
+  };
+
+  static const Map<String, String> _categoryLabelsFr = {
+    'Beauty': 'Beauté',
+    'Travel': 'Voyage',
+    'Wellness': 'Bien-être',
+    'Growth': 'Développement perso',
+    'Pets & Nature': 'Animaux & Nature',
+  };
+
+  String _categoryLabel(String cat, bool isFr) {
+    if (isFr) return _categoryLabelsFr[cat] ?? cat;
+    return _categoryLabelsEn[cat] ?? cat;
+  }
+
   Color _colorForCategory(String category) {
     final lower = category.toLowerCase();
     if (lower.contains('beauté') || lower.contains('make-up')) {
@@ -101,9 +130,10 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
       await _profileService.confirmClassification(
           result: widget.result, videoTitle: widget.videoTitle);
       if (!mounted) return;
+      final isFr = Localizations.localeOf(context).languageCode == 'fr';
       setState(() {
         _feedbackGiven = true;
-        _feedbackMessage = 'Merci !';
+        _feedbackMessage = isFr ? 'Merci !' : 'Thanks!';
         _loading = false;
       });
       widget.onProfileUpdated?.call();
@@ -121,9 +151,10 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
         correctCategory: correctCategory,
       );
       if (!mounted) return;
+      final isFr = Localizations.localeOf(context).languageCode == 'fr';
       setState(() {
         _feedbackGiven = true;
-        _feedbackMessage = 'Correction enregistrée';
+        _feedbackMessage = isFr ? 'Correction enregistrée' : 'Correction saved';
         _loading = false;
       });
       widget.onProfileUpdated?.call();
@@ -133,6 +164,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
   }
 
   void _showCorrectionSheet() {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -177,7 +209,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                         backgroundColor: _colorForCategory(cat),
                         radius: 10,
                       ),
-                      title: Text(cat),
+                      title: Text(_categoryLabel(cat, isFr)),
                       trailing: isCurrent
                           ? const Icon(Icons.check, color: Colors.green)
                           : null,

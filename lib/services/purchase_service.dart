@@ -9,6 +9,7 @@ class PurchaseService {
 
   final VoidCallback onPremiumUnlocked;
   final void Function(String message)? onError;
+  final bool Function() isFr;
 
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
@@ -17,7 +18,11 @@ class PurchaseService {
   ProductDetails? premiumProduct;
   bool isLoadingProduct = false;
 
-  PurchaseService({required this.onPremiumUnlocked, this.onError});
+  PurchaseService({
+    required this.onPremiumUnlocked,
+    required this.isFr,
+    this.onError,
+  });
 
   Future<void> init() async {
     isAvailable = await _iap.isAvailable();
@@ -30,7 +35,9 @@ class PurchaseService {
       _handlePurchaseUpdates,
       onError: (error) {
         debugPrint('[purchase] purchaseStream error: $error');
-        onError?.call('Erreur du service d\'achat. Réessaie plus tard.');
+        onError?.call(isFr()
+            ? 'Erreur du service d\'achat. Réessaie plus tard.'
+            : 'Purchase service error. Please try again later.');
       },
     );
 
@@ -61,12 +68,16 @@ class PurchaseService {
 
   Future<bool> buyPremium() async {
     if (!isAvailable) {
-      onError?.call('Les achats ne sont pas disponibles sur cet appareil.');
+      onError?.call(isFr()
+          ? 'Les achats ne sont pas disponibles sur cet appareil.'
+          : 'Purchases are not available on this device.');
       return false;
     }
     final product = premiumProduct;
     if (product == null) {
-      onError?.call('Produit indisponible pour le moment. Réessaie dans un instant.');
+      onError?.call(isFr()
+          ? 'Produit indisponible pour le moment. Réessaie dans un instant.'
+          : 'Product unavailable right now. Please try again in a moment.');
       return false;
     }
     final purchaseParam = PurchaseParam(productDetails: product);
@@ -74,21 +85,27 @@ class PurchaseService {
       return await _iap.buyNonConsumable(purchaseParam: purchaseParam);
     } catch (e) {
       debugPrint('[purchase] Exception lors de buyNonConsumable: $e');
-      onError?.call('Achat impossible. Réessaie plus tard.');
+      onError?.call(isFr()
+          ? 'Achat impossible. Réessaie plus tard.'
+          : 'Purchase failed. Please try again later.');
       return false;
     }
   }
 
   Future<void> restorePurchases() async {
     if (!isAvailable) {
-      onError?.call('Les achats ne sont pas disponibles sur cet appareil.');
+      onError?.call(isFr()
+          ? 'Les achats ne sont pas disponibles sur cet appareil.'
+          : 'Purchases are not available on this device.');
       return;
     }
     try {
       await _iap.restorePurchases();
     } catch (e) {
       debugPrint('[purchase] Exception lors de restorePurchases: $e');
-      onError?.call('Restauration impossible. Réessaie plus tard.');
+      onError?.call(isFr()
+          ? 'Restauration impossible. Réessaie plus tard.'
+          : 'Restore failed. Please try again later.');
     }
   }
 
@@ -110,7 +127,9 @@ class PurchaseService {
           break;
         case PurchaseStatus.error:
           debugPrint('[purchase] Erreur d\'achat: ${purchase.error}');
-          onError?.call('L\'achat a échoué. Réessaie plus tard.');
+          onError?.call(isFr()
+              ? 'L\'achat a échoué. Réessaie plus tard.'
+              : 'The purchase failed. Please try again later.');
           if (purchase.pendingCompletePurchase) {
             _iap.completePurchase(purchase);
           }
