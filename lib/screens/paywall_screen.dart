@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../models/legal_content.dart';
+import 'legal_document_screen.dart';
 
 /// Shown when a free user reaches the saved-videos limit.
 class PaywallScreen extends StatelessWidget {
@@ -292,6 +294,54 @@ class PaywallScreen extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.2),
                         fontSize: 11,
                       ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LegalDocumentScreen(
+                                title: isFr
+                                    ? 'Politique de confidentialité'
+                                    : 'Privacy Policy',
+                                content:
+                                    isFr ? legalPrivacyPolicyFr : legalPrivacyPolicyEn,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            isFr ? 'Politique de confidentialité' : 'Privacy Policy',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              fontSize: 11,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LegalDocumentScreen(
+                                title: isFr
+                                    ? "Conditions d'utilisation"
+                                    : 'Terms of Use',
+                                content: isFr ? legalTermsFr : legalTermsEn,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            isFr ? "Conditions d'utilisation" : 'Terms of Use',
+                            style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.35),
+                              fontSize: 11,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                   ],
