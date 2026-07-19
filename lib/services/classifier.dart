@@ -1228,7 +1228,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         {
           'type': 'text',
           'text': _systemPrompt,
-          'cache_control': {'type': 'ephemeral'},
+          'cache_control': {'type': 'ephemeral', 'ttl': '1h'},
         }
       ],
       'messages': [
