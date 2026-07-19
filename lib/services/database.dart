@@ -298,13 +298,7 @@ class DatabaseHelper {
 
   Future<List<ClipCategory>> getAllCategories() async {
     final db = await database;
-    var maps = await db.query('categories', orderBy: 'position ASC');
-    // Si aucune cat_xxx en DB, on reseed
-    final hasNew = maps.any((m) => (m['id'] as String).startsWith('cat_'));
-    if (!hasNew) {
-      await _seedDefaultCategories(db);
-      maps = await db.query('categories');
-    }
+    final maps = await db.query('categories', orderBy: 'position ASC');
     return maps.map(ClipCategory.fromMap).toList();
   }
 
