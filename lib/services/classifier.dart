@@ -950,6 +950,33 @@ class CategoryClassifier {
     }
     return null;
   }
+
+  /// Detection forte et sans ambiguite, utilisee pour classer un clip SANS
+  /// appeler Claude : influenceur connu, marque connue, ou mot-cle a poids
+  /// eleve (>=3, les mots-cles calibres comme non ambigus). Retourne le nom
+  /// de categorie ou null si aucun signal fort -- dans ce cas on part sur
+  /// Claude comme avant.
+  static String? detectStrongMatch(String title) {
+    if (title.trim().isEmpty) return null;
+    if (detectKnownInfluencer(title) != null ||
+        detectKnownBrand(title) != null) {
+      final suggestion = suggestDetailed(title);
+      if (!suggestion.isUnclassified) return suggestion.name;
+    }
+    final lower = title.replaceAll(RegExp(r'#\w+'), '').toLowerCase();
+    final scores = <String, int>{};
+    _keywords.forEach((key, kws) {
+      int s = 0;
+      for (final kw in kws) {
+        if (_kwMatches(lower, kw)) s += _weights[kw] ?? 1;
+      }
+      if (s > 0) scores[key] = s;
+    });
+    if (scores.isEmpty) return null;
+    final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    if (best.value < 3) return null;
+    return _suggestions[best.key]?.name;
+  }
 }
 
 // ─────────────────────────────────────────────
