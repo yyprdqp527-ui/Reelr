@@ -73,6 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
+            if (widget.state.totalCount > 0)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
