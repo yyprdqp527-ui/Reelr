@@ -281,6 +281,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
             color: AppTheme.orange,
             icon: Icons.grid_view_rounded,
             count: widget.state.totalCount,
+            isPending: widget.state.hasPendingClassification,
             onTap: () => widget.onOpenCategory(context, null, l.t('all')),
           );
         }
@@ -375,6 +376,7 @@ class _CategoryTile extends StatefulWidget {
 
   final String? thumbnailUrl;
   final bool showBadge;
+  final bool isPending;
 
   const _CategoryTile({
     required this.name,
@@ -385,6 +387,7 @@ class _CategoryTile extends StatefulWidget {
     this.isAdd = false,
     this.thumbnailUrl,
     this.showBadge = false,
+    this.isPending = false,
   });
 
   // ignore: unused_element
@@ -541,6 +544,16 @@ class _CategoryTileState extends State<_CategoryTile> {
                             ),
                           ),
                         ),
+                        if (widget.isPending)
+                          const Positioned(
+                            top: 10,
+                            right: 10,
+                            child: SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
                         Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
@@ -1519,6 +1532,7 @@ class ClipCard extends StatelessWidget {
         OEmbedService.bestThumbnailUrl(clip.url, clip.thumbnailUrl);
     final isPendingClassification = category == null &&
         DateTime.now().difference(clip.addedAt) < const Duration(seconds: 20);
+    debugPrint('[badge] id=${clip.id} categoryId=${clip.categoryId} pending=$isPendingClassification elapsedMs=${DateTime.now().difference(clip.addedAt).inMilliseconds}');
 
     return GlassCard(
       padding: EdgeInsets.zero,

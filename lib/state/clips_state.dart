@@ -522,6 +522,10 @@ class ClipsState extends ChangeNotifier {
 
   int get totalCount => _clips.length;
 
+  bool get hasPendingClassification => _clips.any((c) =>
+      c.categoryId == null &&
+      DateTime.now().difference(c.addedAt) < const Duration(seconds: 20));
+
   /// Point d'entrée public pour normaliser une URL de déduplication —
   /// utilisé aussi par app.dart pour éviter de dupliquer cette logique
   /// (une duplication passée avait fini par diverger silencieusement).
