@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 10, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 9, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 10, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -112,6 +112,25 @@ class DatabaseHelper {
       for (var i = 0; i < existing.length; i++) {
         await db.update('categories', {'position': i},
             where: 'id = ?', whereArgs: [existing[i]['id']]);
+      }
+    }
+    if (oldVersion < 10) {
+      // Supprime les catégories par défaut uniquement si elles sont vides
+      // (aucun clip dedans) — ne touche pas à celles utilisées par l'utilisateur.
+      const defaultIds = [
+        'default_food',
+        'default_workout',
+        'default_vibes',
+        'default_wellness',
+        'default_inspo',
+        'default_gaming',
+      ];
+      for (final id in defaultIds) {
+        final clipCount = Sqflite.firstIntValue(await db.rawQuery(
+            'SELECT COUNT(*) FROM clips WHERE categoryId = ?', [id]));
+        if ((clipCount ?? 0) == 0) {
+          await db.delete('categories', where: 'id = ?', whereArgs: [id]);
+        }
       }
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
