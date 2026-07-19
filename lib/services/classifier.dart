@@ -1272,7 +1272,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         'content-type': 'application/json',
       },
       body: body,
-    );
+    ).timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
       throw Exception(

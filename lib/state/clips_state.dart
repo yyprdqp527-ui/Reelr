@@ -249,7 +249,7 @@ class ClipsState extends ChangeNotifier {
       } catch (e) {
         debugPrint('[classify] Claude failed, retrying once: $e');
         try {
-          await Future.delayed(const Duration(seconds: 2));
+          await Future.delayed(const Duration(milliseconds: 300));
           final retryResult = await ClaudeClassifier.classify(
             video: VideoData(
               title: effectiveTitle,
