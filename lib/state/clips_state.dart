@@ -231,10 +231,11 @@ class ClipsState extends ChangeNotifier {
 
   Future<void> classifyClipInBackground(Clip clip) async {
     try {
-      debugPrint('[classify] starting for: \${clip.title}');
+      debugPrint('[classify] ${DateTime.now()} starting for: \${clip.title}');
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title;
       String? catName;
+      String? influenceurDetecte;
       try {
         final result = await ClaudeClassifier.classify(
           video: VideoData(
@@ -245,7 +246,8 @@ class ClipsState extends ChangeNotifier {
           profile: profile,
         );
         catName = result.categoriePrincipale;
-        debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+        influenceurDetecte = result.influenceurDetecte;
+        debugPrint('[classify] ${DateTime.now()} result: $catName | confiance: ${result.confiance}');
       } catch (e) {
         debugPrint('[classify] Claude failed, retrying once: $e');
         try {
@@ -259,6 +261,7 @@ class ClipsState extends ChangeNotifier {
             profile: profile,
           );
           catName = retryResult.categoriePrincipale;
+          influenceurDetecte = retryResult.influenceurDetecte;
           debugPrint('[classify] retry succeeded: $catName');
         } catch (e2) {
           debugPrint('[classify] retry failed, falling back to keywords: $e2');
@@ -272,7 +275,10 @@ class ClipsState extends ChangeNotifier {
         }
       }
       _categories = await DatabaseHelper.instance.getAllCategories();
-      var matchedCat = findBestCategoryMatch(catName);
+      var matchedCat = influenceurDetecte != null
+          ? findBestCategoryMatch(influenceurDetecte)
+          : null;
+      matchedCat ??= findBestCategoryMatch(catName);
       if (matchedCat == null) {
         const catColors = <String, Color>{
           'cat_food': Color(0xFFFF6B6B), 'cat_fitness': Color(0xFF4ECDC4),
@@ -383,6 +389,7 @@ class ClipsState extends ChangeNotifier {
       _newlyClassifiedCategoryIds.add(matchedCat.id);
       _categories = await DatabaseHelper.instance.getAllCategories();
       _clips = await DatabaseHelper.instance.getAllClips();
+      debugPrint('[classify] ${DateTime.now()} notifyListeners (tile should appear now)');
       notifyListeners();
     } catch (e) {
       debugPrint('[classify] error: $e');
