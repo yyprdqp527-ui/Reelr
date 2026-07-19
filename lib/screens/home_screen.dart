@@ -1517,6 +1517,8 @@ class ClipCard extends StatelessWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final thumbUrl =
         OEmbedService.bestThumbnailUrl(clip.url, clip.thumbnailUrl);
+    final isPendingClassification = category == null &&
+        DateTime.now().difference(clip.addedAt) < const Duration(seconds: 20);
 
     return GlassCard(
       padding: EdgeInsets.zero,
@@ -1634,7 +1636,7 @@ class ClipCard extends StatelessWidget {
             ),
           ),
           // ── Badges catégorie + tags ──────────────────────────────────
-          if (clip.tags.isNotEmpty || category != null)
+          if (clip.tags.isNotEmpty || category != null || isPendingClassification)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
               child: Wrap(
@@ -1646,6 +1648,12 @@ class ClipCard extends StatelessWidget {
                       label: AppL10n.of(context).localizeCategoryDisplay(category.id, category.name),
                       color: category.color,
                       icon: category.icon,
+                    ),
+                  if (isPendingClassification)
+                    _Badge(
+                      label: lang == 'fr' ? 'Classification en cours…' : 'Classifying…',
+                      color: Colors.grey,
+                      icon: Icons.hourglass_top_rounded,
                     ),
                   ...clip.tags.map((t) => _Badge(
                         label: '#$t',
