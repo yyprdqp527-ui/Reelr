@@ -33,16 +33,22 @@ class ProfileService {
   Future<ClientProfile> confirmClassification({
     required ClassificationResult result,
     required String videoTitle,
+    String? channel,
     String userId = 'default',
   }) async {
     final profile = await loadProfile(userId);
-    final updated = profile
+    var updated = profile
         .withConfirmedClassification(
           result.categoriePrincipale,
           lifestyle: result.styleDeVie,
           influencer: result.influenceurDetecte,
         )
         .withLearnedWords(videoTitle, result.categoriePrincipale, increment: 1);
+    if (channel != null && channel.isNotEmpty) {
+      updated = updated.withLearnedChannel(
+          channel, result.categoriePrincipale,
+          increment: 1);
+    }
     await saveProfile(updated);
     return updated;
   }

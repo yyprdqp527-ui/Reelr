@@ -40,6 +40,10 @@ class ClientProfile {
   /// Un mot avec score ≥ 3 dans une catégorie devient un signal fort.
   final Map<String, Map<String, int>> personalVocabulary;
 
+  /// Mémoire par chaîne/créateur : { nom de chaîne (minuscule) → { catégorie → score } }
+  /// Permet de sauter l'appel Claude quand une chaîne déjà vue est reconnue.
+  final Map<String, Map<String, int>> channelVocabulary;
+
   const ClientProfile({
     required this.userId,
     required this.categoryCount,
@@ -48,6 +52,7 @@ class ClientProfile {
     required this.corrections,
     required this.totalVideosClassified,
     this.personalVocabulary = const {},
+    this.channelVocabulary = const {},
   });
 
   factory ClientProfile.empty({String userId = 'default'}) => ClientProfile(
@@ -58,6 +63,7 @@ class ClientProfile {
         corrections: [],
         totalVideosClassified: 0,
         personalVocabulary: {},
+        channelVocabulary: {},
       );
 
   /// Top 3 catégories les plus regardées.
@@ -80,6 +86,15 @@ class ClientProfile {
   /// ou null si pas encore assez de signal.
   String? learnedCategoryFor(String word, {int minScore = 3}) {
     final scores = personalVocabulary[word.toLowerCase()];
+    if (scores == null || scores.isEmpty) return null;
+    final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    return best.value >= minScore ? best.key : null;
+  }
+
+  /// Renvoie la catégorie apprise pour une chaîne/créateur donné, si son
+  /// score ≥ [minScore]. Permet de sauter Claude pour une chaîne déjà vue.
+  String? learnedCategoryForChannel(String channel, {int minScore = 3}) {
+    final scores = channelVocabulary[channel.toLowerCase().trim()];
     if (scores == null || scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
     return best.value >= minScore ? best.key : null;
@@ -136,6 +151,33 @@ class ClientProfile {
       corrections: corrections,
       totalVideosClassified: totalVideosClassified,
       personalVocabulary: newVocab,
+      channelVocabulary: channelVocabulary,
+    );
+  }
+
+  /// Crée un profil mis à jour en apprenant qu'une chaîne/créateur donné
+  /// correspond à [category]. Appelé automatiquement après une classification
+  /// Claude fiable (confiance haute), sans intervention humaine.
+  ClientProfile withLearnedChannel(String channel, String category,
+      {int increment = 1}) {
+    final key = channel.toLowerCase().trim();
+    if (key.isEmpty) return this;
+    final newChannelVocab =
+        Map<String, Map<String, int>>.from(channelVocabulary.map(
+      (k, v) => MapEntry(k, Map<String, int>.from(v)),
+    ));
+    newChannelVocab.putIfAbsent(key, () => {});
+    newChannelVocab[key]![category] =
+        (newChannelVocab[key]![category] ?? 0) + increment;
+    return ClientProfile(
+      userId: userId,
+      categoryCount: categoryCount,
+      knownInfluencers: knownInfluencers,
+      lifestyleCount: lifestyleCount,
+      corrections: corrections,
+      totalVideosClassified: totalVideosClassified,
+      personalVocabulary: personalVocabulary,
+      channelVocabulary: newChannelVocab,
     );
   }
 
@@ -186,6 +228,7 @@ class ClientProfile {
       corrections: corrections,
       totalVideosClassified: totalVideosClassified + 1,
       personalVocabulary: personalVocabulary,
+      channelVocabulary: channelVocabulary,
     );
   }
 
@@ -210,6 +253,7 @@ class ClientProfile {
           .toList(),
       totalVideosClassified: totalVideosClassified,
       personalVocabulary: personalVocabulary,
+      channelVocabulary: channelVocabulary,
     );
   }
 
@@ -222,6 +266,9 @@ class ClientProfile {
         'totalVideosClassified': totalVideosClassified,
         'personalVocabulary': personalVocabulary.map(
           (word, scores) => MapEntry(word, scores),
+        ),
+        'channelVocabulary': channelVocabulary.map(
+          (channel, scores) => MapEntry(channel, scores),
         ),
       };
 
@@ -246,6 +293,16 @@ class ClientProfile {
                 {})
             .map((word, scores) => MapEntry(
                   word,
+                  Map<String, int>.from(
+                    (scores as Map<String, dynamic>)
+                        .map((k, v) => MapEntry(k, v as int)),
+                  ),
+                )),
+        channelVocabulary: (map['channelVocabulary']
+                    as Map<String, dynamic>? ??
+                {})
+            .map((channel, scores) => MapEntry(
+                  channel,
                   Map<String, int>.from(
                     (scores as Map<String, dynamic>)
                         .map((k, v) => MapEntry(k, v as int)),
