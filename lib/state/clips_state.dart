@@ -233,7 +233,8 @@ class ClipsState extends ChangeNotifier {
 
   Future<void> classifyClipInBackground(Clip clip) async {
     try {
-      debugPrint('[classify] starting for: \${clip.title}');
+      debugPrint('[classify] starting for: ${clip.title}');
+      final sw = Stopwatch()..start();
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title;
       String? catName;
@@ -243,12 +244,15 @@ class ClipsState extends ChangeNotifier {
             title: effectiveTitle,
             platform: clip.platform,
             thumbnailUrl: clip.thumbnailUrl,
+            channel: clip.channel,
           ),
           profile: profile,
         );
         catName = result.categoriePrincipale;
         debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
-if (result.confiance < 40) {          debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
+        debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
+        if (result.confiance < 40) {
+          debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
           final existingNames = _categories.map((c) => c.name).toList();
           final keywordMatch = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
           if (keywordMatch != null) {
@@ -259,7 +263,6 @@ if (result.confiance < 40) {          debugPrint('[classify] confiance trop bass
             return;
           }
         }
-        
       } catch (e) {
         debugPrint('[classify] Claude failed, retrying once: $e');
         try {
@@ -269,6 +272,7 @@ if (result.confiance < 40) {          debugPrint('[classify] confiance trop bass
               title: effectiveTitle,
               platform: clip.platform,
               thumbnailUrl: clip.thumbnailUrl,
+              channel: clip.channel,
             ),
             profile: profile,
           );

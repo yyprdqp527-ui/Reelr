@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 10, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 11, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 10, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 11, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -133,6 +133,9 @@ class DatabaseHelper {
         }
       }
     }
+    if (oldVersion < 11) {
+      await db.execute('ALTER TABLE clips ADD COLUMN channel TEXT');
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -229,7 +232,8 @@ class DatabaseHelper {
         classification_category TEXT,
         classification_confidence INTEGER,
         classification_reason TEXT,
-        classification_tags TEXT
+        classification_tags TEXT,
+        channel TEXT
       )
     ''');
     await db.execute('''

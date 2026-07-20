@@ -393,10 +393,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   Future<void> _hydrateClip(Clip clip) async {
-    debugPrint('[hydrate] starting for: ${clip.url}');
+    debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
     if (meta == null) return;
-    debugPrint('[hydrate] url=${clip.url}');
+    debugPrint('[hydrate] ${DateTime.now()} done url=${clip.url}');
     debugPrint(
       '[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}',
     );
@@ -417,6 +417,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           addedAt: clip.addedAt,
           thumbnailUrl: clip.thumbnailUrl,
           position: clip.position,
+          channel: meta.channel ?? clip.channel,
         ),
       );
       return;
@@ -434,6 +435,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             ? clip.thumbnailUrl
             : thumbnailUrl,
         position: clip.position,
+        channel: meta.channel ?? clip.channel,
       ),
     );
   }

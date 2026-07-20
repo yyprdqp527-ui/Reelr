@@ -8,6 +8,7 @@ class Clip {
   final DateTime addedAt;
   final String? thumbnailUrl;
   final int position;
+  final String? channel;
 
   const Clip({
     required this.id,
@@ -19,6 +20,7 @@ class Clip {
     required this.addedAt,
     this.thumbnailUrl,
     this.position = 0,
+    this.channel,
   });
 
   Map<String, dynamic> toMap() => {
@@ -31,6 +33,7 @@ class Clip {
         'addedAt': addedAt.toIso8601String(),
         'thumbnailUrl': thumbnailUrl,
         'position': position,
+        'channel': channel,
       };
 
   factory Clip.fromMap(Map<String, dynamic> map) => Clip(
@@ -48,6 +51,7 @@ class Clip {
         addedAt: DateTime.parse(map['addedAt'] as String),
         thumbnailUrl: map['thumbnailUrl'] as String?,
         position: (map['position'] as int?) ?? 0,
+        channel: map['channel'] as String?,
       );
 
   Clip copyWith({String? categoryId, int? position}) => Clip(
@@ -60,5 +64,6 @@ class Clip {
         addedAt: addedAt,
         thumbnailUrl: thumbnailUrl,
         position: position ?? this.position,
+        channel: channel,
       );
 }
