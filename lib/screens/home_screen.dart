@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -462,31 +463,33 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ),
                         ),
                       ),
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: Icon(
-                          widget.icon ?? Icons.folder_outlined,
-                          size: 28,
-                          color: tintColor,
-                          shadows: [Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4)],
+                      if (!widget.isPending) ...[
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: Icon(
+                            widget.icon ?? Icons.folder_outlined,
+                            size: 28,
+                            color: tintColor,
+                            shadows: [Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4)],
+                          ),
                         ),
-                      ),
-                      Positioned(
-                        left: 8, right: 8, bottom: 8,
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(widget.name.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.4, color: Colors.white)),
-                            if (!widget.isAdd) ...[
-                              const SizedBox(height: 1),
-                              Text('${widget.count}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.75))),
+                        Positioned(
+                          left: 8, right: 8, bottom: 8,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(widget.name.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.4, color: Colors.white)),
+                              if (!widget.isAdd) ...[
+                                const SizedBox(height: 1),
+                                Text('${widget.count}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.75))),
+                              ],
                             ],
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                       // Badge rouge si nouvellement classifiée
                       if (widget.showBadge)
                         Positioned(
@@ -545,15 +548,10 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ),
                         ),
                         if (widget.isPending)
-                          const Positioned(
-                            top: 10,
-                            right: 10,
-                            child: SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
+                          const Positioned.fill(
+                            child: Center(child: CupertinoActivityIndicator(radius: 16, color: Colors.white)),
+                          )
+                        else
                         Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
@@ -618,6 +616,7 @@ class _CategoryTileState extends State<_CategoryTile> {
     );
   }
 }
+
 
 // ─────────────────────────────────────────────
 // CATEGORY DETAIL SCREEN
