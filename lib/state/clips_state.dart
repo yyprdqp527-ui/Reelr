@@ -259,8 +259,7 @@ class ClipsState extends ChangeNotifier {
             catName = keywordMatch;
             debugPrint('[classify] mots-cles confirment: $catName');
           } else {
-            debugPrint('[classify] confiance trop basse et aucun mot-cle fiable, clip laisse non classe: ${clip.id}');
-            return;
+            debugPrint('[classify] confiance trop basse mais classement conserve quand meme: ${clip.id}');
           }
         }
       } catch (e) {
