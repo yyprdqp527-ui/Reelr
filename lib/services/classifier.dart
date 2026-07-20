@@ -924,6 +924,26 @@ class CategoryClassifier {
     'cyrus north', 'agathe auproux', 'inoxtag',
   ];
 
+  // Chaines d'information connues : le nom de la chaine seul suffit a
+  // indiquer la categorie Actualites, sans avoir besoin d'analyser le titre.
+  static const List<String> _knownNewsOutlets = [
+    'tf1 info', 'm6 info', 'bfmtv', 'bfm tv', 'franceinfo', 'france info',
+    'france 24', 'le monde', 'le figaro', 'liberation', 'libération',
+    'europe 1', 'rtl', 'cnews', 'lci', 'rmc', 'rmc info', 'rmc story',
+    'ouest-france', 'ouest france', 'huffpost', 'konbini news', 'brut',
+    'loopsider', 'l\'obs', 'la depeche', 'la dépêche',
+    // Anglophones
+    'bbc news', 'bbc', 'cnn', 'reuters', 'associated press', 'sky news',
+    'the guardian', 'new york times', 'nytimes', 'washington post',
+    'nbc news', 'abc news', 'cbs news', 'fox news', 'al jazeera english',
+    'al jazeera', 'npr', 'the independent', 'the times', 'axios',
+  ];
+
+  static bool _isKnownNewsOutlet(String channel) {
+    final lower = channel.toLowerCase().trim();
+    return _knownNewsOutlets.any((outlet) => lower.contains(outlet));
+  }
+
   /// Retourne le nom exact d'une marque connue si détectée dans [text],
   /// ou `null`. Cherche dans le titre ET le nom de chaîne.
   static String? detectKnownBrand(String text) {
@@ -956,10 +976,20 @@ class CategoryClassifier {
   /// eleve (>=3, les mots-cles calibres comme non ambigus). Retourne le nom
   /// de categorie ou null si aucun signal fort -- dans ce cas on part sur
   /// Claude comme avant.
-  static String? detectStrongMatch(String title) {
+  static String? detectStrongMatch(String title, {String? channel}) {
+    if (channel != null &&
+        channel.trim().isNotEmpty &&
+        _isKnownNewsOutlet(channel)) {
+      return 'Actualités';
+    }
     if (title.trim().isEmpty) return null;
-    if (detectKnownInfluencer(title) != null ||
-        detectKnownBrand(title) != null) {
+    final hasChannelMatch = channel != null &&
+        channel.trim().isNotEmpty &&
+        (detectKnownInfluencer(channel) != null ||
+            detectKnownBrand(channel) != null);
+    final hasTitleMatch = detectKnownInfluencer(title) != null ||
+        detectKnownBrand(title) != null;
+    if (hasChannelMatch || hasTitleMatch) {
       final suggestion = suggestDetailed(title);
       if (!suggestion.isUnclassified) return suggestion.name;
     }

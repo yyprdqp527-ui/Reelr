@@ -400,6 +400,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     debugPrint(
       '[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}',
     );
+    debugPrint('[hydrate] channel: ${meta.channel}');
     final title = meta.title.trim();
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {

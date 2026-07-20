@@ -238,35 +238,31 @@ class ClipsState extends ChangeNotifier {
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title;
       String? catName;
-      try {
-        final result = await ClaudeClassifier.classify(
-          video: VideoData(
-            title: effectiveTitle,
-            platform: clip.platform,
-            thumbnailUrl: clip.thumbnailUrl,
-            channel: clip.channel,
-          ),
-          profile: profile,
-        );
-        catName = result.categoriePrincipale;
-        debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
-        debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
-        if (result.confiance < 40) {
-          debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
-          final existingNames = _categories.map((c) => c.name).toList();
-          final keywordMatch = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
-          if (keywordMatch != null) {
-            catName = keywordMatch;
-            debugPrint('[classify] mots-cles confirment: $catName');
-          } else {
-            debugPrint('[classify] confiance trop basse mais classement conserve quand meme: ${clip.id}');
-          }
+
+      // Court-circuit local, dans l'ordre de fiabilite :
+      // 1) Marque/influenceur/media connu (liste figee, fiable des la 1ere fois)
+      catName = CategoryClassifier.detectStrongMatch(effectiveTitle, channel: clip.channel);
+      if (catName != null) {
+        debugPrint('[classify] correspondance forte -> $catName (Claude saute)');
+      }
+
+      // 2) Chaine deja vue et apprise automatiquement
+      if (catName == null && clip.channel != null && clip.channel!.isNotEmpty) {
+        catName = profile.learnedCategoryForChannel(clip.channel!);
+        if (catName != null) {
+          debugPrint('[classify] chaine connue "${clip.channel}" -> $catName (Claude saute)');
         }
-      } catch (e) {
-        debugPrint('[classify] Claude failed, retrying once: $e');
+      }
+
+      // 3) Vocabulaire personnel appris automatiquement
+      catName ??= profile.detectByPersonalVocabulary(effectiveTitle);
+      if (catName != null) {
+        debugPrint('[classify] vocabulaire personnel -> $catName (Claude saute)');
+      }
+
+      if (catName == null) {
         try {
-          await Future.delayed(const Duration(milliseconds: 300));
-          final retryResult = await ClaudeClassifier.classify(
+          final result = await ClaudeClassifier.classify(
             video: VideoData(
               title: effectiveTitle,
               platform: clip.platform,
@@ -275,17 +271,52 @@ class ClipsState extends ChangeNotifier {
             ),
             profile: profile,
           );
-          catName = retryResult.categoriePrincipale;
-          debugPrint('[classify] retry succeeded: $catName');
-        } catch (e2) {
-          debugPrint('[classify] retry failed, falling back to keywords: $e2');
-          final existingNames = _categories.map((c) => c.name).toList();
-          catName = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
-          if (catName == null) {
-            debugPrint('[classify] keyword fallback found nothing, clip stays unclassified: ${clip.id}');
-            return;
+          catName = result.categoriePrincipale;
+          debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
+          debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
+          if (result.confiance >= 60) {
+            await ProfileService().confirmClassification(
+              result: result,
+              videoTitle: effectiveTitle,
+              channel: clip.channel,
+            );
           }
-          debugPrint('[classify] keyword fallback result: $catName');
+          if (result.confiance < 40) {
+            debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
+            final existingNames = _categories.map((c) => c.name).toList();
+            final keywordMatch = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
+            if (keywordMatch != null) {
+              catName = keywordMatch;
+              debugPrint('[classify] mots-cles confirment: $catName');
+            } else {
+              debugPrint('[classify] confiance trop basse mais classement conserve quand meme: ${clip.id}');
+            }
+          }
+        } catch (e) {
+          debugPrint('[classify] Claude failed, retrying once: $e');
+          try {
+            await Future.delayed(const Duration(milliseconds: 300));
+            final retryResult = await ClaudeClassifier.classify(
+              video: VideoData(
+                title: effectiveTitle,
+                platform: clip.platform,
+                thumbnailUrl: clip.thumbnailUrl,
+                channel: clip.channel,
+              ),
+              profile: profile,
+            );
+            catName = retryResult.categoriePrincipale;
+            debugPrint('[classify] retry succeeded: $catName');
+          } catch (e2) {
+            debugPrint('[classify] retry failed, falling back to keywords: $e2');
+            final existingNames = _categories.map((c) => c.name).toList();
+            catName = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
+            if (catName == null) {
+              debugPrint('[classify] keyword fallback found nothing, clip stays unclassified: ${clip.id}');
+              return;
+            }
+            debugPrint('[classify] keyword fallback result: $catName');
+          }
         }
       }
       _categories = await DatabaseHelper.instance.getAllCategories();
