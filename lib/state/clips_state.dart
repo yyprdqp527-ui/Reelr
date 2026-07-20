@@ -249,7 +249,7 @@ class ClipsState extends ChangeNotifier {
           profile: profile,
         );
         catName = result.categoriePrincipale;
-        debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+        debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
         debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
         if (result.confiance < 40) {
           debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
