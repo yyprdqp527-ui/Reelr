@@ -356,10 +356,11 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   }
 
   Future<void> _submit() async {
-    if (_nameCtrl.text.trim().isEmpty) return;
+    // Le nom n'est plus modifiable : on reutilise toujours le nom d'origine
+    // stocke, jamais la version localisee affichee (FR ou EN) a l'ecran.
     final updated = ClipCategory(
       id: widget.category.id,
-      name: () { final t = _nameCtrl.text.trim(); return t.isEmpty ? t : t[0].toUpperCase() + t.substring(1); }(),
+      name: widget.category.name,
       color: _color,
       icon: _icon,
     );
@@ -424,12 +425,19 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    SheetField(
-                      controller: _nameCtrl,
-                      hint: l.t('category_name'),
-                      icon: Icons.label_rounded,
-                      isDark: isDark,
-                      textCapitalization: TextCapitalization.sentences,
+                    Row(
+                      children: [
+                        Icon(Icons.label_rounded, size: 20,
+                            color: isDark ? Colors.white54 : Colors.black45),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _nameCtrl.text,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 18),
                     Text(l.t('color'),
@@ -632,7 +640,15 @@ class CategoriesScreen extends StatelessWidget {
                   fontSize: 26,
                   letterSpacing: -0.5),
             ),
-            actions: const [],
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.add_rounded),
+                onPressed: () => showDialog(
+                  context: context,
+                  builder: (_) => AddCategoryDialog(state: state),
+                ),
+              ),
+            ],
           ),
           if (state.categories.isEmpty)
             SliverFillRemaining(
