@@ -91,6 +91,7 @@ class ClipsState extends ChangeNotifier {
     'cat_jardin': Color(0xFF8BC34A), 'cat_sport_extreme': Color(0xFFFF6D00),
     'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
     'cat_fail': Color(0xFFFF5722),
+    'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
   };
   static const Map<String, IconData> _catIcons = {
     'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
@@ -120,6 +121,7 @@ class ClipsState extends ChangeNotifier {
     'cat_jardin': Icons.yard_rounded, 'cat_sport_extreme': Icons.downhill_skiing_rounded,
     'cat_nutrition': Icons.local_dining_rounded, 'cat_vintage': Icons.watch_rounded,
     'cat_fail': Icons.videocam_rounded,
+    'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
   };
 
   List<Clip> _clips = [];
@@ -246,6 +248,18 @@ class ClipsState extends ChangeNotifier {
         );
         catName = result.categoriePrincipale;
         debugPrint('[classify] result: $catName | confiance: ${result.confiance}');
+if (result.confiance < 40) {          debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
+          final existingNames = _categories.map((c) => c.name).toList();
+          final keywordMatch = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
+          if (keywordMatch != null) {
+            catName = keywordMatch;
+            debugPrint('[classify] mots-cles confirment: $catName');
+          } else {
+            debugPrint('[classify] confiance trop basse et aucun mot-cle fiable, clip laisse non classe: ${clip.id}');
+            return;
+          }
+        }
+        
       } catch (e) {
         debugPrint('[classify] Claude failed, retrying once: $e');
         try {
@@ -302,6 +316,7 @@ class ClipsState extends ChangeNotifier {
           'cat_jardin': Color(0xFF8BC34A), 'cat_sport_extreme': Color(0xFFFF6D00),
           'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
           'cat_fail': Color(0xFFFF5722),
+          'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
         };
         const catIcons = <String, IconData>{
           'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
@@ -331,6 +346,7 @@ class ClipsState extends ChangeNotifier {
           'cat_jardin': Icons.yard_rounded, 'cat_sport_extreme': Icons.paragliding_rounded,
           'cat_nutrition': Icons.no_food_rounded, 'cat_vintage': Icons.watch_rounded,
           'cat_fail': Icons.sentiment_very_dissatisfied_rounded,
+          'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
         };
         const catNames = <String, String>{
           'cat_food': 'Food', 'cat_fitness': 'Fitness',
@@ -360,6 +376,7 @@ class ClipsState extends ChangeNotifier {
           'cat_jardin': 'Jardinage', 'cat_sport_extreme': 'Sports Extrêmes',
           'cat_nutrition': 'Nutrition & Diète', 'cat_vintage': 'Vintage & Rétro',
           'cat_fail': 'Fails & Compilations',
+          'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
         };
         final isCatId = catName.startsWith('cat_');
         final newCat = ClipCategory(
