@@ -79,10 +79,10 @@ class _MainShellState extends State<MainShell> {
     // pastille derrière l'icône active.
     final bgColor = isDark
         ? const Color(0xFF19162B).withValues(alpha: 0.60)
-        : Colors.white.withValues(alpha: 0.50);
-    final borderColor = isDark
-        ? AppTheme.darkBorder
-        : Colors.white.withValues(alpha: 0.45);
+        // Blanc mélangé au fond lavande — jamais blanc pur — pour rester
+        // cohérent avec le nouveau fond du mode clair.
+        : AppTheme.lightDockSurface();
+    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
     return ClipRRect(
       borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(

@@ -188,20 +188,9 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  // Lueur douce derrière le texte pour un rendu plus premium.
-                  // Logo réduit d'environ 12 % (32 → 28pt) — même dégradé,
-                  // même traitement, juste moins massif visuellement.
-                  Text(
-                    l.t('app_name'),
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: 28,
-                      letterSpacing: -1.0,
-                      foreground: Paint()
-                        ..color = const Color(0xFF7C3AED).withValues(alpha: 0.55)
-                        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
-                    ),
-                  ),
+                  // Logo net, sans glow ni flou derrière le texte — aucune
+                  // décoration lumineuse localisée. Même dégradé, même
+                  // taille (28pt) qu'avant.
                   ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
@@ -1362,9 +1351,10 @@ class _SearchBarState extends State<_SearchBar> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final textColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightSearchText;
     final hintColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightPlaceholder;
-    final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSurface(alpha: 0.82);
+    final iconColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightSearchIcon;
+    final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSearchSurface();
     // Bordure légèrement plus visible au focus — sans lueur ajoutée.
     final borderColor = _focused
         ? AppTheme.violet.withValues(alpha: isDark ? 0.45 : 0.35)
@@ -1379,10 +1369,20 @@ class _SearchBarState extends State<_SearchBar> {
         color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor, width: _focused ? 1.3 : 1.0),
+        // Très légère profondeur en clair — jamais d'ombre lourde.
+        boxShadow: isDark
+            ? null
+            : [
+                BoxShadow(
+                  color: AppTheme.violet.withValues(alpha: 0.05),
+                  blurRadius: 12,
+                  offset: const Offset(0, 4),
+                ),
+              ],
       ),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, size: 22, color: hintColor),
+          Icon(Icons.search_rounded, size: 22, color: iconColor),
           const SizedBox(width: 8),
           Expanded(
             child: TextField(

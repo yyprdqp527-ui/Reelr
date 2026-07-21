@@ -28,20 +28,36 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
-  // ── Palette mode clair — sobre / technologique / premium ─────────────
-  static const Color lightBackground   = Color(0xFFF4F5FA);
-  // Réservé à un reflet très discret autour du logo — plus utilisé comme
-  // teinte de fond principale (l'ancien voile lavande plein écran a été
-  // retiré).
-  static const Color lightLavenderTint = Color(0xFFF1EDFF);
-  static const Color lightTextPrimary  = Color(0xFF181725);
-  static const Color lightTextSecondary= Color(0xFF666476);
+  // ── Palette mode clair — pastel affirmé, lumineux, cohérent avec le
+  // dégradé violet/bleu du logo. Toujours pastel (jamais saturé/flashy),
+  // jamais blanc pur ni gris terne, jamais de ton chaud.
+  static const Color lightBackgroundSecondary = Color(0xFFE9DDF8); // lavande pastel (haut)
+  static const Color lightBackground          = Color(0xFFE6DDF9); // lilas pastel (centre, référence générale)
+  static const Color lightBackgroundDeep      = Color(0xFFDEE7FB); // bleu pastel (bas)
+  static const Color lightTextPrimary  = Color(0xFF332E45);
+  static const Color lightTextSecondary= Color(0xFF6C6781);
   // Placeholder de la barre de recherche — distinct du texte secondaire.
-  static const Color lightPlaceholder  = Color(0xFF706D7D);
+  static const Color lightPlaceholder  = Color(0xFF7B748C);
+  // Texte principal et icône spécifiques à la barre de recherche.
+  static const Color lightSearchText   = Color(0xFF5F5971);
+  static const Color lightSearchIcon   = Color(0xFF6C6781);
   static const Color lightBlue         = Color(0xFF2582F0);
   static Color lightSurface({double alpha = 0.82}) =>
       Colors.white.withValues(alpha: alpha.clamp(0.78, 0.85));
-  static const Color lightBorder = Color(0xFFDADBE5);
+  static const Color lightBorder = Color(0xFFCFC4E4);
+
+  /// Surface translucide de la barre de recherche : blanc teinté lavande,
+  /// jamais blanc neutre.
+  static Color lightSearchSurface({double alpha = 0.64}) =>
+      Color.lerp(Colors.white, lightBackground, 0.22)!
+          .withValues(alpha: alpha.clamp(0.58, 0.70));
+
+  /// Surface translucide du dock de navigation : lavande givrée, plus
+  /// teintée que la barre de recherche pour bien se distinguer du fond
+  /// tout en restant cohérente avec lui.
+  static Color lightDockSurface({double alpha = 0.62}) =>
+      Color.lerp(Colors.white, lightBackgroundDeep, 0.48)!
+          .withValues(alpha: alpha.clamp(0.55, 0.70));
 
   /// Icône inactive de la barre de navigation en mode clair — distincte de
   /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock

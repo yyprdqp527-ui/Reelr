@@ -12,20 +12,33 @@ class GradientBackground extends StatelessWidget {
     return Positioned.fill(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          // Sombre : dégradé identité inchangé. Clair : fond uni — plus de
-          // dégradé/voile coloré sur tout l'écran.
-          color: isDark ? null : AppTheme.lightBackground,
+          // Sombre : dégradé identité inchangé. Clair : dégradé vertical
+          // pastel plus affirmé (lavande lumineuse en haut → lavande
+          // principal au centre → bleu pastel en bas) — plus vivant que la
+          // version précédente, mais toujours pastel, jamais saturé.
           gradient: isDark
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [AppTheme.background, Color(0xFF1A0A2E)],
                 )
-              : null,
+              : const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppTheme.lightBackgroundSecondary,
+                    AppTheme.lightBackground,
+                    AppTheme.lightBackgroundDeep,
+                  ],
+                  stops: [0.0, 0.5, 1.0],
+                ),
         ),
-        child: Stack(
-          children: isDark
-              ? const [
+        // Sombre : orbes identité inchangés. Clair : aucun halo/cercle —
+        // la présence violet/bleu vient uniquement du dégradé de fond
+        // ci-dessus, pour un logo net et propre, sans effet de glow.
+        child: isDark
+            ? const Stack(
+                children: [
                   Positioned(
                     top: -120,
                     right: -80,
@@ -50,24 +63,9 @@ class GradientBackground extends StatelessWidget {
                       color: Color.fromRGBO(10, 10, 31, 0.4),
                     ),
                   ),
-                ]
-              // Un seul reflet, très discret, centré en haut autour de la
-              // zone du logo — presque imperceptible, plus de voile violet
-              // ni de halo rose sur le reste de l'écran.
-              : [
-                  Positioned(
-                    top: -60,
-                    left: 0,
-                    right: 0,
-                    child: Center(
-                      child: Orb(
-                        size: 200,
-                        color: AppTheme.lightLavenderTint.withValues(alpha: 0.22),
-                      ),
-                    ),
-                  ),
                 ],
-        ),
+              )
+            : null,
       ),
     );
   }
