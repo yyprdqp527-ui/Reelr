@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../screens/categories_screen.dart';
 import '../screens/home_screen.dart';
@@ -37,9 +38,10 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l = AppL10n.of(context);
     final bg = isDark ? AppTheme.background : AppTheme.lightBackground;
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navBarHeight = 72 + 16 + safeBottom; // dock + padding + safe area
+    final navBarHeight = 64 + 16 + safeBottom; // dock + padding + safe area
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -65,7 +67,7 @@ class _MainShellState extends State<MainShell> {
               bottom: safeBottom + 16,
               left: 16,
               right: 16,
-              child: _buildNavBar(isDark),
+              child: _buildNavBar(isDark, l),
             ),
           ],
         ),
@@ -74,7 +76,7 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavBar(bool isDark) {
+  Widget _buildNavBar(bool isDark, AppL10n l) {
     // Surface élevée : distincte du fond ET des cartes (hiérarchie
     // fond < surface < surface élevée), pour une barre de nav identifiable
     // sans redevenir un aplat gris massif.
@@ -85,15 +87,17 @@ class _MainShellState extends State<MainShell> {
         ? AppTheme.darkBorder
         : Colors.white.withValues(alpha: 0.50);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(24),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
         child: Container(
-          height: 72,
+          // Hauteur réduite (72 → 64) malgré l'ajout des libellés.
+          height: 64,
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: borderColor, width: 1.1),
+            borderRadius: BorderRadius.circular(24),
+            // Bordure très fine (1.1 → 1.0).
+            border: Border.all(color: borderColor, width: 1.0),
             boxShadow: [
               // Ombre allégée en sombre (faible élévation plutôt qu'une
               // ombre noire lourde) — inchangée en clair.
@@ -110,21 +114,13 @@ class _MainShellState extends State<MainShell> {
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark),
-              _navItem(
-                Icons.grid_view_rounded,
-                Icons.grid_view_outlined,
-                1,
-                isDark,
-              ),
-              _navItem(
-                Icons.settings_rounded,
-                Icons.settings_outlined,
-                2,
-                isDark,
-              ),
+              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark,
+                  l.t('home')),
+              _navItem(Icons.grid_view_rounded, Icons.grid_view_outlined, 1,
+                  isDark, l.t('categories')),
+              _navItem(Icons.settings_rounded, Icons.settings_outlined, 2,
+                  isDark, l.t('settings')),
             ],
           ),
         ),
@@ -137,41 +133,56 @@ class _MainShellState extends State<MainShell> {
     IconData unselIcon,
     int idx,
     bool isDark,
+    String label,
   ) {
     final sel = _index == idx;
-    final activeColor = isDark
-        ? const Color(0xFF9DC8FF)
-        : const Color(0xFF1967D2);
-    final inactiveColor = isDark
-        ? Colors.white.withValues(alpha: 0.70)
-        : const Color(0xFF5A6575);
-    final activeBg = isDark
-        ? Colors.white.withValues(alpha: 0.12)
-        : const Color(0xFFEAF2FF);
+    // Couleur de marque réservée à l'état actif (violet Reelr) — plus de
+    // bleu ad hoc distinct du reste de l'identité.
+    final activeColor = AppTheme.violet;
+    final inactiveColor =
+        isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
 
-    return InkWell(
-      onTap: () => setState(() => _index = idx),
-      borderRadius: BorderRadius.circular(18),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        width: 58,
-        height: 50,
-        decoration: BoxDecoration(
-          color: sel ? activeBg : Colors.transparent,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: sel
-                ? (isDark
-                    ? Colors.white.withValues(alpha: 0.22)
-                    : const Color(0xFFCFE0FF))
-                : Colors.transparent,
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _index = idx),
+        borderRadius: BorderRadius.circular(16),
+        child: SizedBox(
+          height: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Petite capsule discrète — plus de grand carré arrondi —
+              // et taille d'icône identique quel que soit l'état.
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                decoration: BoxDecoration(
+                  color: sel
+                      ? activeColor.withValues(alpha: isDark ? 0.18 : 0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  sel ? selIcon : unselIcon,
+                  size: 24,
+                  color: sel ? activeColor : inactiveColor,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
+                  color: sel ? activeColor : inactiveColor,
+                ),
+              ),
+            ],
           ),
-        ),
-        child: Icon(
-          sel ? selIcon : unselIcon,
-          color: sel ? activeColor : inactiveColor,
-          size: sel ? 25 : 23,
         ),
       ),
     );
