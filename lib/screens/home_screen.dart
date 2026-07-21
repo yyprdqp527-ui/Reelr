@@ -1263,32 +1263,79 @@ class _SearchBar extends StatefulWidget {
 }
 
 class _SearchBarState extends State<_SearchBar> {
+  final FocusNode _focusNode = FocusNode();
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode.addListener(() {
+      if (mounted) setState(() => _focused = _focusNode.hasFocus);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-      blur: 16,
-      child: TextField(
-        controller: widget.controller,
-        onChanged: (v) {
-          widget.onChanged(v);
-          setState(() {});
-        },
-        decoration: InputDecoration(
-          hintText: widget.hint,
-          border: InputBorder.none,
-          icon: const Icon(Icons.search_rounded),
-          suffixIcon: widget.controller.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () {
-                    widget.controller.clear();
-                    widget.onChanged('');
-                    setState(() {});
-                  },
-                )
-              : null,
-        ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
+    final hintColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+    final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSurface(alpha: 0.84);
+    // Bordure légèrement plus visible au focus — sans lueur ajoutée.
+    final borderColor = _focused
+        ? AppTheme.violet.withValues(alpha: isDark ? 0.45 : 0.35)
+        : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor, width: _focused ? 1.3 : 1.0),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, size: 22, color: hintColor),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: widget.controller,
+              focusNode: _focusNode,
+              onChanged: (v) {
+                widget.onChanged(v);
+                setState(() {});
+              },
+              style: TextStyle(fontSize: 16, color: textColor),
+              decoration: InputDecoration(
+                isDense: true,
+                isCollapsed: true,
+                border: InputBorder.none,
+                hintText: widget.hint,
+                hintStyle: TextStyle(fontSize: 16, color: hintColor),
+              ),
+            ),
+          ),
+          if (widget.controller.text.isNotEmpty)
+            IconButton(
+              icon: Icon(Icons.clear_rounded, size: 20, color: hintColor),
+              onPressed: () {
+                widget.controller.clear();
+                widget.onChanged('');
+                setState(() {});
+              },
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              splashRadius: 20,
+            ),
+        ],
       ),
     );
   }
