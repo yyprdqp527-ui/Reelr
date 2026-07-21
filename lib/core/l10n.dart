@@ -86,6 +86,7 @@ class AppL10n {
           'Sous-catégorie créée. Pour y ajouter une vidéo, ouvrez le menu ⋯ de la vidéo, puis choisissez cette sous-catégorie.',
       'onboardingGotIt': 'Compris',
       'add_subcategory_tooltip': 'Ajouter une sous-catégorie',
+      'sharePlaylist': 'Partager la playlist',
     },
     'en': {
       'app_name': 'Reelr',
@@ -163,6 +164,7 @@ class AppL10n {
           'Subcategory created. To add a video, open the video\'s ⋯ menu, then choose this subcategory.',
       'onboardingGotIt': 'Got it',
       'add_subcategory_tooltip': 'Add a subcategory',
+      'sharePlaylist': 'Share playlist',
     },
   };
 

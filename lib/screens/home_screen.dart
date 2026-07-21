@@ -18,6 +18,7 @@ import '../models/clip.dart';
 import '../services/classifier.dart';
 import '../services/database.dart';
 import '../services/oembed.dart';
+import '../services/playlist_link.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
@@ -889,6 +890,19 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     }
   }
 
+  /// Génère le lien de playlist (voir [PlaylistLink]) et le partage via le
+  /// mécanisme natif déjà utilisé pour le partage d'une vidéo unique.
+  /// Aucun backend : la playlist entière est encodée dans l'URL.
+  void _sharePlaylist(BuildContext context, String name, List<Clip> clips) {
+    final link = PlaylistLink.fromClips(name, clips).toAppUri();
+    final box = context.findRenderObject() as RenderBox?;
+    final screenSize = MediaQuery.of(context).size;
+    final origin = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
+    Share.share(link.toString(), sharePositionOrigin: origin);
+  }
+
   List<Clip> _sorted(List<Clip> src) => sortClipsByOrder(src, _sortOrder);
 
   PopupMenuItem<SortOrder> _sortItem(
@@ -1027,6 +1041,15 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   ),
                 ),
               ],
+              if (widget.categoryId != null && raw.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _HeaderActionButton(
+                    icon: Icons.share_rounded,
+                    tooltip: l.t('sharePlaylist'),
+                    onPressed: () => _sharePlaylist(context, widget.title, raw),
+                  ),
+                ),
               const SizedBox(width: 8),
             ],
           ),
