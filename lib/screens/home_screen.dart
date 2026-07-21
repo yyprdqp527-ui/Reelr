@@ -42,6 +42,7 @@ const String _kOnboardingAssignVideoKey =
     'onboarding_assign_video_to_subcategory';
 const String _kOnboardingAssignVideoPendingKey =
     'onboarding_assign_video_to_subcategory_pending';
+const String _kOnboardingSharePlaylistKey = 'onboarding_share_playlist';
 
 /// Affiche (une seule fois) la bulle expliquant comment classer une vidéo
 /// dans une sous-catégorie fraîchement créée, uniquement si un menu ⋯ de
@@ -848,6 +849,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   bool _reorderMode = false;
   bool _gridView = false;
   final GlobalKey _firstClipMenuKey = GlobalKey();
+  final GlobalKey _sharePlaylistKey = GlobalKey();
 
   @override
   void initState() {
@@ -957,6 +959,23 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           });
         }
 
+        // Bulle "partage ta playlist avec tes amis" — une seule fois, dès
+        // que le bouton de partage de playlist est visible (catégorie non
+        // vide).
+        if (widget.categoryId != null && raw.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            CoachMark.showOnce(
+              context: context,
+              prefsKey: _kOnboardingSharePlaylistKey,
+              anchorKey: _sharePlaylistKey,
+              message: l.t('onboardingSharePlaylist'),
+              dismissLabel: l.t('onboardingGotIt'),
+              preferredSide: CoachMarkSide.below,
+            );
+          });
+        }
+
         return Scaffold(
           backgroundColor: Colors.transparent,
           extendBodyBehindAppBar: true,
@@ -1028,27 +1047,24 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   ),
                 ),
               if (widget.categoryId != null) ...[
-                // Même direction artistique et même zone tactile que le
-                // bouton "coller un lien" de l'écran principal (icône 44×44,
-                // cercle Material, mêmes couleurs claires/sombres) —
-                // fonction inchangée : créer une sous-catégorie.
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _HeaderActionButton(
-                    icon: Icons.add_circle_outline_rounded,
-                    tooltip: l.t('add_subcategory_tooltip'),
-                    onPressed: () => _showAddSubcategoryDialog(context),
-                  ),
+                // Même aspect que les autres actions de cette barre (grille,
+                // manuel) : icône simple sans fond ni bordure — fonction
+                // inchangée : créer une sous-catégorie.
+                IconButton(
+                  // Icône pleine (et non "_outline", plus fine) pour
+                  // correspondre visuellement au poids des 3 autres icônes
+                  // de cette barre (grille, tri, partager).
+                  icon: const Icon(Icons.add_circle_rounded),
+                  tooltip: l.t('add_subcategory_tooltip'),
+                  onPressed: () => _showAddSubcategoryDialog(context),
                 ),
               ],
               if (widget.categoryId != null && raw.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _HeaderActionButton(
-                    icon: Icons.share_rounded,
-                    tooltip: l.t('sharePlaylist'),
-                    onPressed: () => _sharePlaylist(context, widget.title, raw),
-                  ),
+                IconButton(
+                  key: _sharePlaylistKey,
+                  icon: const Icon(Icons.share_rounded),
+                  tooltip: l.t('sharePlaylist'),
+                  onPressed: () => _sharePlaylist(context, widget.title, raw),
                 ),
               const SizedBox(width: 8),
             ],

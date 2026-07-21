@@ -185,16 +185,24 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final appLinks = AppLinks();
     // Cold start : URI qui a lancé l'app
     appLinks.getInitialLink().then((uri) {
+      debugPrint('[deeplink] getInitialLink: $uri');
       if (uri != null) _handleDeepLink(uri);
     });
     // App déjà en cours d'exécution
-    _deepLinkSub = appLinks.uriLinkStream.listen(_handleDeepLink);
+    _deepLinkSub = appLinks.uriLinkStream.listen((uri) {
+      debugPrint('[deeplink] uriLinkStream: $uri');
+      _handleDeepLink(uri);
+    }, onError: (e) {
+      debugPrint('[deeplink] uriLinkStream error: $e');
+    });
   }
 
   void _handleDeepLink(Uri uri) {
+    debugPrint('[deeplink] _handleDeepLink scheme=${uri.scheme} host=${uri.host}');
     if (uri.scheme != 'reelr') return;
     if (uri.host == 'playlist') {
       final playlist = PlaylistLink.tryDecode(uri);
+      debugPrint('[deeplink] playlist decode -> ${playlist == null ? "NULL (échec)" : "${playlist.items.length} vidéos"}');
       if (playlist == null) return;
       _openPlaylistImportWhenReady(playlist);
       return;
@@ -230,12 +238,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   void _drainPendingPlaylist() {
+    debugPrint('[deeplink] _drainPendingPlaylist prefsLoaded=$_prefsLoaded onboardingDone=$_onboardingDone pending=${_pendingPlaylist != null}');
     if (!_prefsLoaded || !_onboardingDone) return;
     final playlist = _pendingPlaylist;
     if (playlist == null) return;
     _pendingPlaylist = null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final ctx = _navigatorKey.currentContext;
+      debugPrint('[deeplink] opening PlaylistImportScreen, ctx=${ctx != null}');
       if (ctx == null) {
         // Pas encore monté, on remet en file.
         _pendingPlaylist = playlist;

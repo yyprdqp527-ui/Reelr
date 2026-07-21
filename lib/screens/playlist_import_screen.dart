@@ -4,6 +4,7 @@ import '../core/l10n.dart';
 import '../services/oembed.dart';
 import '../services/playlist_link.dart';
 import '../state/clips_state.dart';
+import '../widgets/resilient_thumbnail.dart';
 
 // ─────────────────────────────────────────────
 // PLAYLIST IMPORT SCREEN
@@ -123,16 +124,33 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
           final platform = SocialPlatform.detect(item.url);
           return CheckboxListTile(
             value: _selected.contains(index),
-            onChanged: duplicate
-                ? null
-                : (checked) => setState(() {
-                      if (checked ?? false) {
-                        _selected.add(index);
-                      } else {
-                        _selected.remove(index);
-                      }
-                    }),
-            secondary: Icon(platform.icon, color: platform.color),
+            // Toujours cochable, y compris pour les vidéos déjà présentes
+            // (l'import ignore silencieusement les doublons) — seul l'état
+            // par défaut (décochée) diffère pour celles-ci.
+            onChanged: (checked) => setState(() {
+              if (checked ?? false) {
+                _selected.add(index);
+              } else {
+                _selected.remove(index);
+              }
+            }),
+            secondary: SizedBox(
+              width: 48,
+              height: 48,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: ResilientThumbnail(
+                  url: item.thumbnailUrl,
+                  cacheKeyId: 'playlist_import_$index',
+                  platformId: platform.id,
+                  fit: BoxFit.cover,
+                  fallbackBuilder: (_) => Container(
+                    color: platform.color.withValues(alpha: 0.12),
+                    child: Icon(platform.icon, color: platform.color, size: 20),
+                  ),
+                ),
+              ),
+            ),
             title: Text(
               item.title.isEmpty ? item.url : item.title,
               maxLines: 2,

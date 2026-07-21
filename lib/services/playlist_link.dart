@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../models/clip.dart';
+import 'oembed.dart';
 
 /// Encodage/décodage du lien de partage de playlist (Part 6 — étape 1).
 ///
@@ -14,15 +15,28 @@ import '../models/clip.dart';
 class PlaylistLinkItem {
   final String title;
   final String url;
+  // Miniature déjà connue de l'appareil qui partage — encodée directement
+  // dans le lien pour que le destinataire l'affiche sans requête réseau
+  // supplémentaire à l'ouverture.
+  final String? thumbnailUrl;
 
-  const PlaylistLinkItem({required this.title, required this.url});
+  const PlaylistLinkItem({
+    required this.title,
+    required this.url,
+    this.thumbnailUrl,
+  });
 
-  Map<String, dynamic> toJson() => {'t': title, 'u': url};
+  Map<String, dynamic> toJson() => {
+        't': title,
+        'u': url,
+        if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) 'th': thumbnailUrl,
+      };
 
   factory PlaylistLinkItem.fromJson(Map<String, dynamic> json) =>
       PlaylistLinkItem(
         title: (json['t'] as String?) ?? '',
         url: (json['u'] as String?) ?? '',
+        thumbnailUrl: json['th'] as String?,
       );
 }
 
@@ -36,7 +50,11 @@ class PlaylistLink {
       PlaylistLink(
         name: name,
         items: clips
-            .map((c) => PlaylistLinkItem(title: c.title, url: c.url))
+            .map((c) => PlaylistLinkItem(
+                  title: c.title,
+                  url: c.url,
+                  thumbnailUrl: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl),
+                ))
             .toList(),
       );
 
