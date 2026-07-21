@@ -12,50 +12,61 @@ class GradientBackground extends StatelessWidget {
     return Positioned.fill(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: isDark
-                ? const [
-                    AppTheme.background,
-                    Color(0xFF1A0A2E),
-                  ]
-                // Dégradé sobre à 2 teintes (plus de halo rose en bas) :
-                // lavande très légère en haut vers le fond neutre Reelr.
-                : const [
-                    AppTheme.lightLavenderTint,
-                    AppTheme.lightBackground,
-                  ],
-          ),
+          // Sombre : dégradé identité inchangé. Clair : fond uni — plus de
+          // dégradé/voile coloré sur tout l'écran.
+          color: isDark ? null : AppTheme.lightBackground,
+          gradient: isDark
+              ? const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppTheme.background, Color(0xFF1A0A2E)],
+                )
+              : null,
         ),
         child: Stack(
-          children: [
-            Positioned(
-              top: -120,
-              right: -80,
-              child: Orb(
-                size: 360,
-                color: Color.fromRGBO(124, 58, 237, isDark ? 0.18 : 0.25),
-              ),
-            ),
-            Positioned(
-              top: 220,
-              left: -120,
-              child: Orb(
-                size: 300,
-                color: Color.fromRGBO(37, 99, 235, isDark ? 0.15 : 0.20),
-              ),
-            ),
-            Positioned(
-              bottom: 40,
-              right: -60,
-              child: Orb(
-                size: 280,
-                color: AppTheme.darkGreen
-                    .withValues(alpha: isDark ? 0.4 : 0.15),
-              ),
-            ),
-          ],
+          children: isDark
+              ? const [
+                  Positioned(
+                    top: -120,
+                    right: -80,
+                    child: Orb(
+                      size: 360,
+                      color: Color.fromRGBO(124, 58, 237, 0.18),
+                    ),
+                  ),
+                  Positioned(
+                    top: 220,
+                    left: -120,
+                    child: Orb(
+                      size: 300,
+                      color: Color.fromRGBO(37, 99, 235, 0.15),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 40,
+                    right: -60,
+                    child: Orb(
+                      size: 280,
+                      color: Color.fromRGBO(10, 10, 31, 0.4),
+                    ),
+                  ),
+                ]
+              // Un seul reflet, très discret, centré en haut autour de la
+              // zone du logo — presque imperceptible, plus de voile violet
+              // ni de halo rose sur le reste de l'écran.
+              : [
+                  Positioned(
+                    top: -60,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Orb(
+                        size: 200,
+                        color: AppTheme.lightLavenderTint.withValues(alpha: 0.22),
+                      ),
+                    ),
+                  ),
+                ],
         ),
       ),
     );

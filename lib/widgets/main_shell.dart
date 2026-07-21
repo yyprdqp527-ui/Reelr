@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../screens/categories_screen.dart';
 import '../screens/home_screen.dart';
@@ -38,10 +37,9 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final l = AppL10n.of(context);
     final bg = isDark ? AppTheme.background : AppTheme.lightBackground;
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navBarHeight = 64 + 16 + safeBottom; // dock + padding + safe area
+    final navBarHeight = 80 + 16 + safeBottom; // dock + padding + safe area
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -65,9 +63,9 @@ class _MainShellState extends State<MainShell> {
             ),
             Positioned(
               bottom: safeBottom + 16,
-              left: 16,
-              right: 16,
-              child: _buildNavBar(isDark, l),
+              left: 24,
+              right: 24,
+              child: _buildNavBar(isDark),
             ),
           ],
         ),
@@ -76,51 +74,41 @@ class _MainShellState extends State<MainShell> {
     );
   }
 
-  Widget _buildNavBar(bool isDark, AppL10n l) {
-    // Surface élevée : distincte du fond ET des cartes (hiérarchie
-    // fond < surface < surface élevée), pour une barre de nav identifiable
-    // sans redevenir un aplat gris massif.
+  Widget _buildNavBar(bool isDark) {
+    // Dock translucide façon iOS : juste 3 icônes, pas de libellé, pas de
+    // pastille derrière l'icône active.
     final bgColor = isDark
-        ? AppTheme.surfaceElevated.withValues(alpha: 0.72)
-        : AppTheme.lightSurface(alpha: 0.80);
+        ? const Color(0xFF19162B).withValues(alpha: 0.60)
+        : Colors.white.withValues(alpha: 0.50);
     final borderColor = isDark
         ? AppTheme.darkBorder
-        : Colors.white.withValues(alpha: 0.50);
+        : Colors.white.withValues(alpha: 0.45);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: BorderRadius.circular(30),
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
         child: Container(
-          // Hauteur réduite (72 → 64) malgré l'ajout des libellés.
-          height: 64,
+          height: 80,
           decoration: BoxDecoration(
             color: bgColor,
-            borderRadius: BorderRadius.circular(24),
-            // Bordure très fine (1.1 → 1.0).
+            borderRadius: BorderRadius.circular(30),
             border: Border.all(color: borderColor, width: 1.0),
+            // Ombre très légère uniquement — pas d'ombre lourde.
             boxShadow: [
-              // Ombre allégée en sombre (faible élévation plutôt qu'une
-              // ombre noire lourde) — inchangée en clair.
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.14),
-                blurRadius: isDark ? 16 : 28,
-                offset: Offset(0, isDark ? 4 : 8),
-              ),
-              BoxShadow(
-                color: Colors.white.withValues(alpha: isDark ? 0.04 : 0.55),
-                blurRadius: 22,
-                offset: const Offset(0, -2),
+                color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
             ],
           ),
           child: Row(
             children: [
-              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark,
-                  l.t('home')),
-              _navItem(Icons.grid_view_rounded, Icons.grid_view_outlined, 1,
-                  isDark, l.t('categories')),
-              _navItem(Icons.settings_rounded, Icons.settings_outlined, 2,
-                  isDark, l.t('settings')),
+              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark),
+              _navItem(
+                  Icons.grid_view_rounded, Icons.grid_view_outlined, 1, isDark),
+              _navItem(
+                  Icons.settings_rounded, Icons.settings_outlined, 2, isDark),
             ],
           ),
         ),
@@ -133,52 +121,26 @@ class _MainShellState extends State<MainShell> {
     IconData unselIcon,
     int idx,
     bool isDark,
-    String label,
   ) {
     final sel = _index == idx;
-    // Couleur de marque réservée à l'état actif (violet Reelr) — plus de
-    // bleu ad hoc distinct du reste de l'identité.
     final activeColor = AppTheme.violet;
     final inactiveColor =
-        isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
+        isDark ? AppTheme.darkTextSecondary : AppTheme.navInactiveLight;
 
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _index = idx),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(30),
+        // Aucun fond individuel derrière l'icône : seules la couleur et
+        // une très légère variation de taille (≤5%) distinguent l'état actif.
         child: SizedBox(
           height: double.infinity,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Petite capsule discrète — plus de grand carré arrondi —
-              // et taille d'icône identique quel que soit l'état.
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                decoration: BoxDecoration(
-                  color: sel
-                      ? activeColor.withValues(alpha: isDark ? 0.18 : 0.12)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(
-                  sel ? selIcon : unselIcon,
-                  size: 24,
-                  color: sel ? activeColor : inactiveColor,
-                ),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: (sel ? AppTheme.navLabelStyleActive : AppTheme.navLabelStyle)
-                    .copyWith(color: sel ? activeColor : inactiveColor),
-              ),
-            ],
+          child: Center(
+            child: Icon(
+              sel ? selIcon : unselIcon,
+              size: sel ? 27 : 26,
+              color: sel ? activeColor : inactiveColor,
+            ),
           ),
         ),
       ),

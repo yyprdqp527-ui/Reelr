@@ -29,15 +29,24 @@ class AppTheme {
   );
 
   // ── Palette mode clair — sobre / technologique / premium ─────────────
-  static const Color lightBackground   = Color(0xFFF7F7FC);
+  static const Color lightBackground   = Color(0xFFF4F5FA);
+  // Réservé à un reflet très discret autour du logo — plus utilisé comme
+  // teinte de fond principale (l'ancien voile lavande plein écran a été
+  // retiré).
   static const Color lightLavenderTint = Color(0xFFF1EDFF);
-  static const Color lightTextPrimary  = Color(0xFF171622);
-  static const Color lightTextSecondary= Color(0xFF6F6B7D);
+  static const Color lightTextPrimary  = Color(0xFF181725);
+  static const Color lightTextSecondary= Color(0xFF666476);
+  // Placeholder de la barre de recherche — distinct du texte secondaire.
+  static const Color lightPlaceholder  = Color(0xFF706D7D);
   static const Color lightBlue         = Color(0xFF2582F0);
   static Color lightSurface({double alpha = 0.82}) =>
-      Colors.white.withValues(alpha: alpha.clamp(0.70, 0.90));
-  static Color get lightBorder =>
-      lightTextPrimary.withValues(alpha: 0.08);
+      Colors.white.withValues(alpha: alpha.clamp(0.78, 0.85));
+  static const Color lightBorder = Color(0xFFDADBE5);
+
+  /// Icône inactive de la barre de navigation en mode clair — distincte de
+  /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock
+  /// de navigation.
+  static const Color navInactiveLight = Color(0xFF777485);
 
   // ── Bordures des cartes de catégorie (écran d'accueil) ───────────────
   // Neutres et discrètes pour les cartes normales — la couleur de marque

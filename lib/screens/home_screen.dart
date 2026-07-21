@@ -537,11 +537,12 @@ class _CategoryTileState extends State<_CategoryTile> {
                           color: tintColor.withValues(alpha: 0.12),
                         ),
                       ),
-                      // Overlay gradient sombre en bas : transparent sur la
-                      // moitié supérieure, assombrissement progressif à
-                      // partir de 45% de la hauteur, jusqu'à ~75% de noir
-                      // au bord inférieur — pour garder titre/compteur
-                      // lisibles quelle que soit la miniature.
+                      // Overlay gradient sombre en bas : transparent jusqu'à
+                      // 40% de la hauteur, puis assombrissement progressif
+                      // (deux paliers pour une courbe douce, sans barre
+                      // noire nette) jusqu'à ~88% de noir au bord inférieur
+                      // — pour garder titre/compteur lisibles quelle que
+                      // soit la miniature (texte clair, texte foncé, visage).
                       const IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
@@ -551,9 +552,10 @@ class _CategoryTileState extends State<_CategoryTile> {
                               colors: [
                                 Colors.transparent,
                                 Colors.transparent,
-                                Color(0xBF000000),
+                                Color(0x99000000),
+                                Color(0xE0000000),
                               ],
-                              stops: [0.0, 0.45, 1.0],
+                              stops: [0.0, 0.40, 0.70, 1.0],
                             ),
                           ),
                         ),
@@ -562,13 +564,18 @@ class _CategoryTileState extends State<_CategoryTile> {
                         Positioned(
                           top: 8,
                           left: 8,
-                          child: CategoryIconBadge(
-                            icon: badgeIcon,
-                            color: badgeColor,
-                          ),
+                          // Tuile "Tout" : icône seule, sans pastille de
+                          // fond — évite une tache sombre sur le dégradé
+                          // violet de la carte.
+                          child: widget.isAllTile
+                              ? Icon(badgeIcon, size: 28, color: AppTheme.violet)
+                              : CategoryIconBadge(
+                                  icon: badgeIcon,
+                                  color: badgeColor,
+                                ),
                         ),
                         Positioned(
-                          left: 8, right: 8, bottom: 8,
+                          left: 14, right: 8, bottom: 14,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -659,10 +666,15 @@ class _CategoryTileState extends State<_CategoryTile> {
                         Positioned(
                           top: 8,
                           left: 8,
-                          child: CategoryIconBadge(
-                            icon: badgeIcon,
-                            color: badgeColor,
-                          ),
+                          // Tuile "Tout" : icône seule, sans pastille de
+                          // fond — évite une tache sombre sur le dégradé
+                          // violet de la carte.
+                          child: widget.isAllTile
+                              ? Icon(badgeIcon, size: 28, color: AppTheme.violet)
+                              : CategoryIconBadge(
+                                  icon: badgeIcon,
+                                  color: badgeColor,
+                                ),
                         ),
                         Padding(
                           // Même marge interne que le mode miniature (8pt)
@@ -1351,8 +1363,8 @@ class _SearchBarState extends State<_SearchBar> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? AppTheme.darkTextPrimary : AppTheme.lightTextPrimary;
-    final hintColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightTextSecondary;
-    final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSurface(alpha: 0.84);
+    final hintColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightPlaceholder;
+    final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSurface(alpha: 0.82);
     // Bordure légèrement plus visible au focus — sans lueur ajoutée.
     final borderColor = _focused
         ? AppTheme.violet.withValues(alpha: isDark ? 0.45 : 0.35)
