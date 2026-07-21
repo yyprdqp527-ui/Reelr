@@ -14,7 +14,9 @@ import 'core/l10n.dart';
 import 'core/theme.dart';
 import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/playlist_import_screen.dart';
 import 'services/oembed.dart';
+import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
 import 'widgets/main_shell.dart';
 import 'state/clips_state.dart';
@@ -88,6 +90,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       (p) => p.setBool('onboarding_done', true),
     );
     _drainPendingShare();
+    _drainPendingPlaylist();
   }
 
   /// Variante qui attend la persistance avant de rendre la main.
@@ -99,6 +102,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (!mounted) return;
     setState(() => _onboardingDone = true);
     _drainPendingShare();
+    _drainPendingPlaylist();
   }
 
   @override
@@ -173,6 +177,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       }
     });
     _drainPendingShare();
+    _drainPendingPlaylist();
   }
 
   void _initDeepLinks() {
@@ -187,7 +192,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   void _handleDeepLink(Uri uri) {
-    if (uri.scheme != 'reelr' || uri.host != 'add') return;
+    if (uri.scheme != 'reelr') return;
+    if (uri.host == 'playlist') {
+      final playlist = PlaylistLink.tryDecode(uri);
+      if (playlist == null) return;
+      _openPlaylistImportWhenReady(playlist);
+      return;
+    }
+    if (uri.host != 'add') return;
     final encoded = uri.queryParameters['url'];
     if (encoded == null || encoded.isEmpty) return;
     final url = Uri.decodeComponent(encoded);
@@ -206,7 +218,38 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   String? _lastSharedUrl;
   DateTime? _lastSharedAt;
   String? _pendingSharedUrl;
+  PlaylistLink? _pendingPlaylist;
   final Set<String> _ingestingUrls = {};
+
+  /// Met la playlist reçue en file d'attente et tente d'ouvrir l'écran
+  /// d'aperçu/import si l'app est prête (mêmes garde-fous que pour un lien
+  /// vidéo unique : prefs chargées + onboarding terminé).
+  void _openPlaylistImportWhenReady(PlaylistLink playlist) {
+    _pendingPlaylist = playlist;
+    _drainPendingPlaylist();
+  }
+
+  void _drainPendingPlaylist() {
+    if (!_prefsLoaded || !_onboardingDone) return;
+    final playlist = _pendingPlaylist;
+    if (playlist == null) return;
+    _pendingPlaylist = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx == null) {
+        // Pas encore monté, on remet en file.
+        _pendingPlaylist = playlist;
+        return;
+      }
+      Navigator.of(ctx).push(MaterialPageRoute(
+        builder: (_) => PlaylistImportScreen(
+          state: widget.state,
+          playlist: playlist,
+          onImportUrl: _ingestSharedUrl,
+        ),
+      ));
+    });
+  }
 
   /// Met l'URL en file d'attente et tente de l'ouvrir si l'app est prête.
   void _openShareSheetWhenReady(String url) {
