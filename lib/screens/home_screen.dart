@@ -60,6 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
         final filtered = widget.state.clips;
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
+        // Padding de fin de liste adapté à la SafeArea plutôt qu'une valeur
+        // fixe pensée pour un seul iPhone — la barre de nav elle-même est
+        // déjà entièrement dégagée par le padding du MainShell ; ceci ne
+        // fait qu'ajouter une marge de respiration (échelle : 32) sous la
+        // dernière rangée.
+        final scrollBottomPad = 32 + MediaQuery.of(context).padding.bottom;
         return CustomScrollView(
           slivers: [
             _buildAppBar(l, widget.state.allClips),
@@ -68,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Padding(
                   // Même marge gauche que la barre de recherche (16pt) pour
                   // un alignement constant sous le logo/les actions.
-                  padding: const EdgeInsets.only(left: 16, bottom: 6),
+                  padding: const EdgeInsets.only(left: 16, bottom: 8),
                   child: Text(
                     l.videosSaved(widget.state.totalCount),
                     style: AppTheme.homeCounterStyle.copyWith(
@@ -115,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
               filtered.isEmpty
                   ? SliverFillRemaining(child: _EmptyState(l: l))
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 140),
+                      padding: EdgeInsets.fromLTRB(16, 0, 16, scrollBottomPad),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (ctx, i) => Padding(
@@ -129,7 +135,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     )
             else
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
+                // Même marge horizontale que la recherche/le compteur (20 → 16).
+                padding: EdgeInsets.fromLTRB(16, 0, 16, scrollBottomPad),
                 sliver: SliverToBoxAdapter(
                   child: Transform.translate(
                     offset: const Offset(0, -16),
@@ -177,7 +184,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.only(bottom: 8),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -332,8 +339,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 3,
-        mainAxisSpacing: 14,
-        crossAxisSpacing: 14,
+        // Échelle d'espacement commune (4/8/12/16/20/24/32) : 14 → 16.
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
         childAspectRatio: 1,
       ),
       itemCount: total,
@@ -571,7 +579,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTheme.categoryTitleStyle.copyWith(color: Colors.white)),
                               if (!widget.isAdd) ...[
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(l.videosCount(widget.count),
                                     style: AppTheme.categoryCounterStyle.copyWith(
                                         color: Colors.white.withValues(alpha: 0.75))),
@@ -657,7 +665,9 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ),
                         ),
                         Padding(
-                          padding: const EdgeInsets.all(10),
+                          // Même marge interne que le mode miniature (8pt)
+                          // pour des cartes uniformes dans les deux modes.
+                          padding: const EdgeInsets.all(8),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -675,7 +685,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                                 ),
                               ),
                               if (!widget.isAdd) ...[
-                                const SizedBox(height: 2),
+                                const SizedBox(height: 4),
                                 Text(
                                   l.videosCount(widget.count),
                                   style: AppTheme.categoryCounterStyle.copyWith(
@@ -1361,7 +1371,7 @@ class _SearchBarState extends State<_SearchBar> {
       child: Row(
         children: [
           Icon(Icons.search_rounded, size: 22, color: hintColor),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
               controller: widget.controller,
@@ -1407,14 +1417,14 @@ class _SuggestionsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
         children: suggestions
             .map((s) => InkWell(
                   onTap: () => onTap(s),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                        horizontal: 16, vertical: 8),
                     child: Row(
                       children: [
                         Icon(
@@ -1424,7 +1434,7 @@ class _SuggestionsList extends StatelessWidget {
                           size: 16,
                           color: Colors.grey,
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                             child: Text(s,
                                 maxLines: 1,
