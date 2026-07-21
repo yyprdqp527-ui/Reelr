@@ -64,6 +64,27 @@ class AppTheme {
   /// de navigation.
   static const Color navInactiveLight = Color(0xFF777485);
 
+  // ── Dock de navigation "classique" : grande capsule sombre uniforme +
+  // carré arrondi visible derrière l'icône active (style restauré). ──────
+  static const Color darkDockSolid        = Color(0xFF191827);
+  static const Color darkDockActiveSquare = Color(0xFF343445);
+  static const Color darkDockActiveIcon   = Color(0xFF93C5FD);
+  static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
+
+  /// Capsule claire, légèrement teintée lavande — plus opaque que
+  /// `lightDockSurface` (pas d'effet verre pour ce style).
+  static Color get lightDockSolid =>
+      Color.lerp(Colors.white, lightBackground, 0.55)!;
+
+  /// Carré actif, légèrement plus foncé que la capsule claire.
+  static Color get lightDockActiveSquare =>
+      Color.lerp(Colors.white, lightBackground, 0.85)!;
+
+  /// Marge horizontale d'écran — même valeur que celle utilisée par la
+  /// grille de catégories (`home_screen.dart`), pour un alignement exact
+  /// entre la grille et la barre de navigation.
+  static const double screenHorizontalMargin = 16.0;
+
   // ── Bordures des cartes de catégorie (écran d'accueil) ───────────────
   // Neutres et discrètes pour les cartes normales — la couleur de marque
   // (violet) est réservée à la carte mise en avant ("Tout" / "All").

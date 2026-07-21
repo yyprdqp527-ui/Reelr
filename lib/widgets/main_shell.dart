@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -39,7 +37,7 @@ class _MainShellState extends State<MainShell> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bg = isDark ? AppTheme.background : AppTheme.lightBackground;
     final safeBottom = MediaQuery.of(context).padding.bottom;
-    final navBarHeight = 80 + 16 + safeBottom; // dock + padding + safe area
+    final navBarHeight = 62 + 16 + safeBottom; // dock + padding + safe area
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
@@ -63,8 +61,10 @@ class _MainShellState extends State<MainShell> {
             ),
             Positioned(
               bottom: safeBottom + 16,
-              left: 24,
-              right: 24,
+              // Même marge que la grille de catégories, pour un alignement
+              // exact des bords gauche/droit.
+              left: AppTheme.screenHorizontalMargin,
+              right: AppTheme.screenHorizontalMargin,
               child: _buildNavBar(isDark),
             ),
           ],
@@ -75,42 +75,39 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildNavBar(bool isDark) {
-    // Dock translucide façon iOS : juste 3 icônes, pas de libellé, pas de
-    // pastille derrière l'icône active.
+    // Grande capsule sombre uniforme (style restauré) : pas de libellé,
+    // pas d'effet verre marqué, pas de transparence excessive.
     final bgColor = isDark
-        ? const Color(0xFF19162B).withValues(alpha: 0.60)
-        // Blanc mélangé au fond lavande — jamais blanc pur — pour rester
-        // cohérent avec le nouveau fond du mode clair.
-        : AppTheme.lightDockSurface();
-    final borderColor = isDark ? AppTheme.darkBorder : AppTheme.lightBorder;
+        ? AppTheme.darkDockSolid.withValues(alpha: 0.97)
+        : AppTheme.lightDockSolid.withValues(alpha: 0.95);
+    final borderColor =
+        isDark ? Colors.white.withValues(alpha: 0.15) : AppTheme.lightBorder;
     return ClipRRect(
-      borderRadius: BorderRadius.circular(30),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 26, sigmaY: 26),
-        child: Container(
-          height: 80,
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: BorderRadius.circular(30),
-            border: Border.all(color: borderColor, width: 1.0),
-            // Ombre très légère uniquement — pas d'ombre lourde.
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.10 : 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark),
-              _navItem(
-                  Icons.grid_view_rounded, Icons.grid_view_outlined, 1, isDark),
-              _navItem(
-                  Icons.settings_rounded, Icons.settings_outlined, 2, isDark),
-            ],
-          ),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        height: 62,
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor, width: 1.0),
+          // Ombre discrète uniquement — pas d'ombre lourde.
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.14 : 0.06),
+              blurRadius: 14,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _navItem(Icons.home_rounded, Icons.home_outlined, 0, isDark),
+            _navItem(
+                Icons.grid_view_rounded, Icons.grid_view_outlined, 1, isDark),
+            _navItem(
+                Icons.settings_rounded, Icons.settings_outlined, 2, isDark),
+          ],
         ),
       ),
     );
@@ -123,23 +120,38 @@ class _MainShellState extends State<MainShell> {
     bool isDark,
   ) {
     final sel = _index == idx;
-    final activeColor = AppTheme.violet;
-    final inactiveColor =
-        isDark ? AppTheme.darkTextSecondary : AppTheme.navInactiveLight;
+    final activeIconColor =
+        isDark ? AppTheme.darkDockActiveIcon : AppTheme.violet;
+    final inactiveIconColor =
+        isDark ? AppTheme.darkDockInactiveIcon : AppTheme.navInactiveLight;
+    final activeSquareColor =
+        isDark ? AppTheme.darkDockActiveSquare : AppTheme.lightDockActiveSquare;
+    final activeSquareBorder = isDark
+        ? Colors.white.withValues(alpha: 0.20)
+        : Colors.white.withValues(alpha: 0.55);
 
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => _index = idx),
-        borderRadius: BorderRadius.circular(30),
-        // Aucun fond individuel derrière l'icône : seules la couleur et
-        // une très légère variation de taille (≤5%) distinguent l'état actif.
-        child: SizedBox(
-          height: double.infinity,
-          child: Center(
+        borderRadius: BorderRadius.circular(16),
+        child: Center(
+          // Carré arrondi visible uniquement derrière l'icône active —
+          // rien derrière les icônes inactives. Taille d'icône fixe
+          // (pas d'agrandissement), aucune animation.
+          child: Container(
+            width: 46,
+            height: 46,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: sel ? activeSquareColor : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border:
+                  sel ? Border.all(color: activeSquareBorder, width: 1.0) : null,
+            ),
             child: Icon(
               sel ? selIcon : unselIcon,
-              size: sel ? 27 : 26,
-              color: sel ? activeColor : inactiveColor,
+              size: 26,
+              color: sel ? activeIconColor : inactiveIconColor,
             ),
           ),
         ),
