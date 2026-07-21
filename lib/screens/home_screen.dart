@@ -450,15 +450,23 @@ class _CategoryTileState extends State<_CategoryTile> {
                           color: tintColor.withValues(alpha: 0.12),
                         ),
                       ),
-                      // Overlay gradient sombre en bas
+                      // Overlay gradient sombre en bas : transparent sur la
+                      // moitié supérieure, assombrissement progressif à
+                      // partir de 45% de la hauteur, jusqu'à ~75% de noir
+                      // au bord inférieur — pour garder titre/compteur
+                      // lisibles quelle que soit la miniature.
                       const IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [Colors.transparent, Color(0xB3000000)],
-                              stops: [0.4, 1.0],
+                              colors: [
+                                Colors.transparent,
+                                Colors.transparent,
+                                Color(0xBF000000),
+                              ],
+                              stops: [0.0, 0.45, 1.0],
                             ),
                           ),
                         ),

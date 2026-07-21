@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../screens/categories_screen.dart';
 import '../screens/home_screen.dart';
@@ -39,32 +40,36 @@ class _MainShellState extends State<MainShell> {
     final safeBottom = MediaQuery.of(context).padding.bottom;
     final navBarHeight = 72 + 16 + safeBottom; // dock + padding + safe area
 
-    return Scaffold(
-      backgroundColor: bg,
-      extendBody: true,
-      body: Stack(
-        children: [
-          GradientBackground(isDark: isDark),
-          Padding(
-            padding: EdgeInsets.only(bottom: navBarHeight + 8),
-            child: IndexedStack(
-              index: _index,
-              children: [
-                HomeScreen(state: widget.state, onPasteUrl: widget.onPasteUrl),
-                CategoriesScreen(state: widget.state),
-                SettingsScreen(state: widget.state),
-              ],
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(statusBarColor: Colors.transparent),
+      child: Scaffold(
+        backgroundColor: bg,
+        extendBody: true,
+        body: Stack(
+          children: [
+            GradientBackground(isDark: isDark),
+            Padding(
+              padding: EdgeInsets.only(bottom: navBarHeight + 8),
+              child: IndexedStack(
+                index: _index,
+                children: [
+                  HomeScreen(state: widget.state, onPasteUrl: widget.onPasteUrl),
+                  CategoriesScreen(state: widget.state),
+                  SettingsScreen(state: widget.state),
+                ],
+              ),
             ),
-          ),
-          Positioned(
-            bottom: safeBottom + 16,
-            left: 16,
-            right: 16,
-            child: _buildNavBar(isDark),
-          ),
-        ],
+            Positioned(
+              bottom: safeBottom + 16,
+              left: 16,
+              right: 16,
+              child: _buildNavBar(isDark),
+            ),
+          ],
+        ),
+        bottomNavigationBar: null,
       ),
-      bottomNavigationBar: null,
     );
   }
 
