@@ -71,12 +71,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   padding: const EdgeInsets.only(left: 16, bottom: 6),
                   child: Text(
                     l.videosSaved(widget.state.totalCount),
-                    style: TextStyle(
-                      fontSize: 15,
+                    style: AppTheme.homeCounterStyle.copyWith(
                       color: isDark
                           ? AppTheme.darkTextSecondary
                           : AppTheme.lightTextSecondary,
-                      fontWeight: FontWeight.w400,
                     ),
                   ),
                 ),
@@ -567,14 +565,16 @@ class _CategoryTileState extends State<_CategoryTile> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.name,
+                              Text(widget.name.toUpperCase(),
                                 textAlign: TextAlign.left,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, height: 1.15, color: Colors.white)),
+                                style: AppTheme.categoryTitleStyle.copyWith(color: Colors.white)),
                               if (!widget.isAdd) ...[
                                 const SizedBox(height: 2),
-                                Text(l.videosCount(widget.count), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.75))),
+                                Text(l.videosCount(widget.count),
+                                    style: AppTheme.categoryCounterStyle.copyWith(
+                                        color: Colors.white.withValues(alpha: 0.75))),
                               ],
                             ],
                           ),
@@ -664,14 +664,11 @@ class _CategoryTileState extends State<_CategoryTile> {
                             children: [
                               const Spacer(),
                               Text(
-                                widget.name,
+                                widget.name.toUpperCase(),
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.left,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 15,
-                                  height: 1.15,
+                                style: AppTheme.categoryTitleStyle.copyWith(
                                   color: isDark
                                       ? Colors.white
                                       : AppTheme.lightTextPrimary,
@@ -681,12 +678,9 @@ class _CategoryTileState extends State<_CategoryTile> {
                                 const SizedBox(height: 2),
                                 Text(
                                   l.videosCount(widget.count),
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
+                                  style: AppTheme.categoryCounterStyle.copyWith(
                                     color: isDark
-                                        ? Colors.white
-                                            .withValues(alpha: 0.55)
+                                        ? Colors.white.withValues(alpha: 0.55)
                                         : AppTheme.lightTextSecondary,
                                   ),
                                 ),
@@ -1376,13 +1370,13 @@ class _SearchBarState extends State<_SearchBar> {
                 widget.onChanged(v);
                 setState(() {});
               },
-              style: TextStyle(fontSize: 16, color: textColor),
+              style: AppTheme.searchTextStyle.copyWith(color: textColor),
               decoration: InputDecoration(
                 isDense: true,
                 isCollapsed: true,
                 border: InputBorder.none,
                 hintText: widget.hint,
-                hintStyle: TextStyle(fontSize: 16, color: hintColor),
+                hintStyle: AppTheme.searchTextStyle.copyWith(color: hintColor),
               ),
             ),
           ),

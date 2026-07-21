@@ -175,11 +175,8 @@ class _MainShellState extends State<MainShell> {
                 label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: sel ? FontWeight.w600 : FontWeight.w400,
-                  color: sel ? activeColor : inactiveColor,
-                ),
+                style: (sel ? AppTheme.navLabelStyleActive : AppTheme.navLabelStyle)
+                    .copyWith(color: sel ? activeColor : inactiveColor),
               ),
             ],
           ),

@@ -57,6 +57,41 @@ class AppTheme {
         ),
       ];
 
+  // ── Typographie de l'écran d'accueil — centralisée ici plutôt que
+  // répétée dans chaque widget. Aucune police externe : `fontFamily` n'est
+  // jamais fixé, ce qui laisse Flutter utiliser la police système (San
+  // Francisco sur iOS). Les tailles restent des `double` pures pour ne
+  // pas interférer avec MediaQuery.textScaler / Dynamic Type.
+  static const TextStyle homeCounterStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w400,
+  );
+
+  static const TextStyle searchTextStyle = TextStyle(
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+  );
+
+  static const TextStyle categoryTitleStyle = TextStyle(
+    fontSize: 15,
+    fontWeight: FontWeight.w600,
+    height: 1.15,
+  );
+
+  static const TextStyle categoryCounterStyle = TextStyle(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+  );
+
+  static const TextStyle navLabelStyle = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w400,
+  );
+  static const TextStyle navLabelStyleActive = TextStyle(
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+  );
+
   static ThemeData light() => _buildTheme(Brightness.light);
   static ThemeData dark()  => _buildTheme(Brightness.dark);
 
