@@ -9,6 +9,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/category_visuals.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../models/category.dart';
@@ -19,6 +20,7 @@ import '../services/oembed.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
+import '../widgets/category_icon_badge.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/sheet_field.dart';
 import 'categories_screen.dart';
@@ -283,6 +285,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
             icon: Icons.grid_view_rounded,
             count: widget.state.totalCount,
             isPending: widget.state.hasPendingClassification,
+            isAllTile: true,
             onTap: () => widget.onOpenCategory(context, null, l.t('all')),
           );
         }
@@ -378,6 +381,7 @@ class _CategoryTile extends StatefulWidget {
   final String? thumbnailUrl;
   final bool showBadge;
   final bool isPending;
+  final bool isAllTile;
 
   const _CategoryTile({
     required this.name,
@@ -389,6 +393,7 @@ class _CategoryTile extends StatefulWidget {
     this.thumbnailUrl,
     this.showBadge = false,
     this.isPending = false,
+    this.isAllTile = false,
   });
 
   // ignore: unused_element
@@ -416,6 +421,13 @@ class _CategoryTileState extends State<_CategoryTile> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final tintColor = widget.color;
+    // Icône et couleur de badge uniformisées (visuel uniquement — n'affecte
+    // ni les données persistées ni la classification IA).
+    final badgeIcon = CategoryVisuals.iconFor(
+        widget.name, widget.icon ?? Icons.folder_outlined);
+    final badgeColor = widget.isAllTile
+        ? AppTheme.violet
+        : CategoryVisuals.desaturate(tintColor);
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -475,11 +487,9 @@ class _CategoryTileState extends State<_CategoryTile> {
                         Positioned(
                           top: 8,
                           left: 8,
-                          child: Icon(
-                            widget.icon ?? Icons.folder_outlined,
-                            size: 28,
-                            color: tintColor,
-                            shadows: [Shadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 4)],
+                          child: CategoryIconBadge(
+                            icon: badgeIcon,
+                            color: badgeColor,
                           ),
                         ),
                         Positioned(
@@ -559,29 +569,21 @@ class _CategoryTileState extends State<_CategoryTile> {
                           const Positioned.fill(
                             child: Center(child: CupertinoActivityIndicator(radius: 16, color: Colors.white)),
                           )
-                        else
+                        else ...[
+                        Positioned(
+                          top: 8,
+                          left: 8,
+                          child: CategoryIconBadge(
+                            icon: badgeIcon,
+                            color: badgeColor,
+                          ),
+                        ),
                         Padding(
                           padding: const EdgeInsets.all(10),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               const Spacer(),
-                              Icon(
-                                widget.icon ?? Icons.folder_outlined,
-                                size: 38,
-                                color: isDark
-                                    ? tintColor
-                                    : tintColor.withValues(alpha: 0.80),
-                                shadows: [
-                                  Shadow(
-                                    color: AppTheme.shadowGrey
-                                        .withValues(alpha: 0.35),
-                                    blurRadius: 6,
-                                    offset: const Offset(0, 3),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
                               Text(
                                 widget.name.toUpperCase(),
                                 maxLines: 1,
@@ -615,6 +617,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                             ],
                           ),
                         ),
+                        ],
                       ],
                     ),
                   ),
