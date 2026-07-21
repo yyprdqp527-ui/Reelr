@@ -70,6 +70,22 @@ class AppL10n {
       'settings_share_app': 'Partager l\'app',
       'rate_app': 'Noter l\'app',
       'share_app': 'Partager l\'app',
+      'sort': 'Trier',
+      'sort_date_added': 'Date d\'ajout',
+      'sort_alphabetical': 'Alphabétique',
+      'sort_manual': 'Manuel',
+      'reorder': 'Réorganiser',
+      'reorder_done': 'Terminé',
+      'reorder_hint': 'Maintenez la poignée et faites glisser la vidéo',
+      'reorder_order_saved': 'Ordre enregistré',
+      'reorder_move_up': 'Déplacer vers le haut',
+      'reorder_move_down': 'Déplacer vers le bas',
+      'onboardingReorderCategoryTiles':
+          'Maintenez une tuile, puis faites-la glisser pour réorganiser vos catégories.',
+      'onboardingAssignVideoToSubcategory':
+          'Sous-catégorie créée. Pour y ajouter une vidéo, ouvrez le menu ⋯ de la vidéo, puis choisissez cette sous-catégorie.',
+      'onboardingGotIt': 'Compris',
+      'add_subcategory_tooltip': 'Ajouter une sous-catégorie',
     },
     'en': {
       'app_name': 'Reelr',
@@ -131,6 +147,22 @@ class AppL10n {
       'settings_share_app': 'Share the app',
       'rate_app': 'Rate the app',
       'share_app': 'Share the app',
+      'sort': 'Sort',
+      'sort_date_added': 'Date added',
+      'sort_alphabetical': 'Alphabetical',
+      'sort_manual': 'Manual',
+      'reorder': 'Reorder',
+      'reorder_done': 'Done',
+      'reorder_hint': 'Hold the handle and drag the video',
+      'reorder_order_saved': 'Order saved',
+      'reorder_move_up': 'Move up',
+      'reorder_move_down': 'Move down',
+      'onboardingReorderCategoryTiles':
+          'Touch and hold a tile, then drag it to reorder your categories.',
+      'onboardingAssignVideoToSubcategory':
+          'Subcategory created. To add a video, open the video\'s ⋯ menu, then choose this subcategory.',
+      'onboardingGotIt': 'Got it',
+      'add_subcategory_tooltip': 'Add a subcategory',
     },
   };
 

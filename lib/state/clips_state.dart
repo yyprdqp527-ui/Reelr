@@ -473,13 +473,28 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
   /// Réordonne les catégories après un drag & drop sur l'accueil.
-  /// oldIndex/newIndex sont relatifs à la liste affichée (sans la tuile "Tout").
-  Future<void> reorderCategories(int oldIndex, int newIndex) async {
+  ///
+  /// Travaille exclusivement par identifiants (jamais par index de
+  /// position) : [draggedId] prend exactement la place de [targetId] dans
+  /// la liste des catégories visibles (celles ayant au moins un clip). La
+  /// position finale est recalculée en une seule fois, à partir de la
+  /// liste actuellement persistée — jamais à partir d'un état de
+  /// prévisualisation local — ce qui élimine les décalages d'index
+  /// observés précédemment (déplacement qui « ratait » sa cible selon la
+  /// direction du glisser).
+  Future<void> reorderCategoryById(String draggedId, String targetId) async {
+    if (draggedId == targetId) return;
     final visible = _categories.where((c) => countForCategory(c.id) > 0).toList();
-    if (oldIndex < 0 || oldIndex >= visible.length) return;
+    final oldIndex = visible.indexWhere((c) => c.id == draggedId);
+    if (oldIndex == -1) return;
     final moved = visible.removeAt(oldIndex);
-    final target = newIndex > oldIndex ? newIndex - 1 : newIndex;
-    visible.insert(target.clamp(0, visible.length), moved);
+    // Réinsère juste avant la cible, quelle que soit la direction du
+    // déplacement — la cible est retrouvée par id après le retrait, donc
+    // aucun ajustement manuel d'index n'est nécessaire.
+    final targetIndex = visible.indexWhere((c) => c.id == targetId);
+    final insertAt = (targetIndex == -1 ? visible.length : targetIndex)
+        .clamp(0, visible.length);
+    visible.insert(insertAt, moved);
 
     // 1) Mise à jour immédiate en mémoire + notify pour un rendu instantané,
     //    avant toute écriture en base (évite le "rebond" visuel).

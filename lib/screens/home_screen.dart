@@ -2,10 +2,11 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,9 +22,61 @@ import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/category_icon_badge.dart';
+import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/resilient_thumbnail.dart';
 import '../widgets/sheet_field.dart';
 import 'categories_screen.dart';
+
+// ─────────────────────────────────────────────
+// ONBOARDING COACH MARKS — clés persistantes partagées
+// ─────────────────────────────────────────────
+//
+// Mémorisation indépendante de la langue (clés techniques), persistante
+// après fermeture de l'app, réutilisant le pattern SharedPreferences déjà
+// en place ailleurs dans le projet (ex. reorder_hint_seen).
+
+const String _kOnboardingReorderTilesKey = 'onboarding_reorder_category_tiles';
+const String _kOnboardingAssignVideoKey =
+    'onboarding_assign_video_to_subcategory';
+const String _kOnboardingAssignVideoPendingKey =
+    'onboarding_assign_video_to_subcategory_pending';
+
+/// Affiche (une seule fois) la bulle expliquant comment classer une vidéo
+/// dans une sous-catégorie fraîchement créée, uniquement si un menu ⋯ de
+/// vidéo est visible sur l'écran courant (anchorKey monté). Si aucun menu
+/// n'est visible, ne fait rien : l'appel sera retenté automatiquement à la
+/// prochaine ouverture d'un écran listant des vidéos, tant que le drapeau
+/// "pending" reste actif (voir [_armAssignVideoHint]).
+Future<void> _maybeShowAssignVideoHint(
+    BuildContext context, AppL10n l, GlobalKey anchorKey) async {
+  final prefs = await SharedPreferences.getInstance();
+  final pending = prefs.getBool(_kOnboardingAssignVideoPendingKey) ?? false;
+  if (!pending) return;
+  if (!context.mounted) return;
+  final shown = await CoachMark.showOnce(
+    context: context,
+    prefsKey: _kOnboardingAssignVideoKey,
+    anchorKey: anchorKey,
+    message: l.t('onboardingAssignVideoToSubcategory'),
+    dismissLabel: l.t('onboardingGotIt'),
+    preferredSide: CoachMarkSide.above,
+  );
+  if (shown) {
+    await prefs.setBool(_kOnboardingAssignVideoPendingKey, false);
+  }
+}
+
+/// Arme l'affichage différé de la bulle ci-dessus — à appeler juste après
+/// la création réussie d'une sous-catégorie (jamais si l'utilisateur annule).
+/// N'a aucun effet si la bulle a déjà été vue, ce qui évite qu'elle ne soit
+/// réarmée après chaque nouvelle création.
+Future<void> _armAssignVideoHint() async {
+  final prefs = await SharedPreferences.getInstance();
+  final alreadySeen = prefs.getBool(_kOnboardingAssignVideoKey) ?? false;
+  if (alreadySeen) return;
+  await prefs.setBool(_kOnboardingAssignVideoPendingKey, true);
+}
 
 // ─────────────────────────────────────────────
 // HOME SCREEN
@@ -41,11 +94,34 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final _searchCtrl = TextEditingController();
+  final GlobalKey _categoryGridKey = GlobalKey();
+  final GlobalKey _firstSearchClipMenuKey = GlobalKey();
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  /// Bulle "maintenez une tuile pour la réorganiser" — affichée une seule
+  /// fois, uniquement lorsque la grille de catégories est visible et
+  /// contient au moins 2 tuiles déplaçables (sans quoi le geste n'a pas
+  /// de sens). Même filtre que celui utilisé par la grille elle-même pour
+  /// déterminer les tuiles visibles (catégories non vides).
+  Future<void> _maybeShowReorderTilesHint(AppL10n l) async {
+    final visibleCategoryTiles = widget.state.categories
+        .where((c) => widget.state.countForCategory(c.id) > 0)
+        .length;
+    if (visibleCategoryTiles < 2) return;
+    if (!mounted) return;
+    await CoachMark.showOnce(
+      context: context,
+      prefsKey: _kOnboardingReorderTilesKey,
+      anchorKey: _categoryGridKey,
+      message: l.t('onboardingReorderCategoryTiles'),
+      dismissLabel: l.t('onboardingGotIt'),
+      preferredSide: CoachMarkSide.below,
+    );
   }
 
   @override
@@ -58,6 +134,18 @@ class _HomeScreenState extends State<HomeScreen> {
         final searching = widget.state.searchQuery.isNotEmpty;
         final suggestions = widget.state.searchSuggestions;
         final filtered = widget.state.clips;
+
+        // Bulles d'aide contextuelles (une seule à la fois, une seule fois
+        // chacune) : après le rendu de cette frame, tenter d'afficher la
+        // bulle pertinente si son ancre est bien montée à l'écran.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (!searching && widget.state.totalCount > 0) {
+            _maybeShowReorderTilesHint(l);
+          } else if (searching && filtered.isNotEmpty) {
+            _maybeShowAssignVideoHint(context, l, _firstSearchClipMenuKey);
+          }
+        });
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
         // Padding de fin de liste adapté à la SafeArea plutôt qu'une valeur
@@ -127,7 +215,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           (ctx, i) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: ClipCard(
-                                clip: filtered[i], state: widget.state),
+                                clip: filtered[i],
+                                state: widget.state,
+                                menuKey: i == 0 ? _firstSearchClipMenuKey : null),
                           ),
                           childCount: filtered.length,
                         ),
@@ -140,11 +230,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 sliver: SliverToBoxAdapter(
                   child: Transform.translate(
                     offset: const Offset(0, -16),
-                    child: _ReorderableCategoryGrid(
-                    state: widget.state,
-                    l: l,
-                    onOpenCategory: _openCategory,
-                  ),
+                    child: KeyedSubtree(
+                      key: _categoryGridKey,
+                      child: _ReorderableCategoryGrid(
+                        state: widget.state,
+                        l: l,
+                        onOpenCategory: _openCategory,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -309,8 +402,10 @@ class _ReorderableCategoryGrid extends StatefulWidget {
 }
 
 class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
-  int? _draggingIndex;
-  int? _hoverIndex;
+  // Identifiants (jamais d'index de position) : évite tout décalage entre
+  // la prévisualisation affichée pendant le glisser et l'ordre réellement
+  // persisté — cause du déplacement imprécis corrigé ici.
+  String? _hoverTargetId;
   List<ClipCategory>? _previewOrder;
 
   List<ClipCategory> _baseOrder() => widget.state.categories
@@ -351,7 +446,6 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         final cat = visibleCats[catIndex];
         final catClips = widget.state.clipsForCategory(cat.id);
         final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
-        final isBeingDragged = _draggingIndex == catIndex;
         final tile = _CategoryTile(
           name: localizedName,
           color: cat.color,
@@ -375,50 +469,61 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
           showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
         );
 
-        return DragTarget<int>(
+        return DragTarget<String>(
+          key: ValueKey('cat_drag_target_${cat.id}'),
           onWillAcceptWithDetails: (details) {
-            final fromIndex = details.data;
-            if (fromIndex == catIndex) return false;
+            final draggedId = details.data;
+            if (draggedId == cat.id) return false;
             setState(() {
-              _hoverIndex = catIndex;
-              final base = List<ClipCategory>.of(_previewOrder ?? _baseOrder());
-              if (fromIndex < 0 || fromIndex >= base.length) return;
-              final moved = base.removeAt(fromIndex);
-              base.insert(catIndex.clamp(0, base.length), moved);
+              _hoverTargetId = cat.id;
+              // Toujours recalculée à partir de la liste stable persistée
+              // (jamais à partir de la prévisualisation précédente) : évite
+              // que les décalages ne s'accumulent au fil des cellules
+              // survolées pendant un même geste.
+              final base = List<ClipCategory>.of(_baseOrder());
+              final fromIdx = base.indexWhere((c) => c.id == draggedId);
+              if (fromIdx == -1) return;
+              final moved = base.removeAt(fromIdx);
+              final targetIdx = base.indexWhere((c) => c.id == cat.id);
+              base.insert(
+                  (targetIdx == -1 ? base.length : targetIdx)
+                      .clamp(0, base.length),
+                  moved);
               _previewOrder = base;
-              _draggingIndex = catIndex;
             });
             return true;
           },
-          onLeave: (_) => setState(() => _hoverIndex = null),
+          onLeave: (_) => setState(() => _hoverTargetId = null),
           onAcceptWithDetails: (details) {
+            final draggedId = details.data;
             setState(() {
-              _hoverIndex = null;
-              _draggingIndex = null;
+              _hoverTargetId = null;
               _previewOrder = null;
             });
-            widget.state.reorderCategories(details.data, catIndex);
+            // Identifiants uniquement — la position finale est recalculée
+            // en une seule fois par ClipsState à partir de la liste
+            // persistée, sans dépendre d'aucun index de prévisualisation.
+            widget.state.reorderCategoryById(draggedId, cat.id);
           },
           builder: (ctx, candidate, rejected) {
-            final isHovering = _hoverIndex == catIndex && candidate.isNotEmpty;
-            return AnimatedOpacity(
-              opacity: isBeingDragged ? 0.4 : 1.0,
-              duration: const Duration(milliseconds: 150),
-              child: AnimatedScale(
+            final isHovering = _hoverTargetId == cat.id && candidate.isNotEmpty;
+            // Le grisé de la tuile source pendant le glisser est géré
+            // nativement par `childWhenDragging` ci-dessous (interne à
+            // LongPressDraggable) : il se réinitialise toujours correctement
+            // à la fin du geste. L'ancien effet dupliqué, piloté par un flag
+            // maison (_draggingId), pouvait rester bloqué à 0.4 d'opacité
+            // après un dépôt si la grille se réordonnait pendant le geste —
+            // supprimé pour ne garder qu'une seule source de vérité.
+            return AnimatedScale(
               scale: isHovering ? 1.06 : 1.0,
               duration: const Duration(milliseconds: 150),
-              child: LongPressDraggable<int>(
-                data: catIndex,
+              child: LongPressDraggable<String>(
+                data: cat.id,
                 delay: const Duration(milliseconds: 350),
                 feedback: Opacity(opacity: 0.85, child: SizedBox(width: 100, height: 100, child: tile)),
                 childWhenDragging: Opacity(opacity: 0.3, child: tile),
-                onDragStarted: () => setState(() => _draggingIndex = catIndex),
-                onDragEnd: (_) => setState(() {
-                  _draggingIndex = null;
-                  _hoverIndex = null;
-                }),
+                onDragEnd: (_) => setState(() => _hoverTargetId = null),
                 child: tile,
-              ),
               ),
             );
           },
@@ -519,10 +624,13 @@ class _CategoryTileState extends State<_CategoryTile> {
                 ? Stack(
                     fit: StackFit.expand,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: widget.thumbnailUrl!,
+                      ResilientThumbnail(
+                        key: ValueKey('cat_thumb_${widget.name}'),
+                        url: widget.thumbnailUrl,
+                        cacheKeyId: widget.name,
+                        platformId: 'category_tile',
                         fit: BoxFit.cover,
-                        errorWidget: (_, _, _) => Container(
+                        fallbackBuilder: (_) => Container(
                           color: tintColor.withValues(alpha: 0.12),
                         ),
                       ),
@@ -733,9 +841,12 @@ class CategoryDetailScreen extends StatefulWidget {
 }
 
 class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
+  static const String _reorderHintPrefKey = 'reorder_hint_seen';
+
   SortOrder _sortOrder = SortOrder.chronological;
   bool _reorderMode = false;
   bool _gridView = false;
+  final GlobalKey _firstClipMenuKey = GlobalKey();
 
   @override
   void initState() {
@@ -744,6 +855,39 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     _gridView = widget.state.gridViewFor(widget.categoryId);
   }
   String? _selectedSubcategoryId;
+
+  /// Active/désactive le mode réorganisation. Affiche l'aide de première
+  /// utilisation à l'entrée (une seule fois, mémorisée via SharedPreferences)
+  /// et un message discret "Ordre enregistré" à la sortie — l'ordre est en
+  /// réalité déjà persisté à chaque déplacement (voir [ClipsState.reorderClips]),
+  /// ce message ne fait que confirmer visuellement la sauvegarde.
+  Future<void> _toggleReorderMode(AppL10n l) async {
+    final enteringReorderMode = !_reorderMode;
+    setState(() => _reorderMode = enteringReorderMode);
+    if (!mounted) return;
+    if (enteringReorderMode) {
+      final prefs = await SharedPreferences.getInstance();
+      final alreadySeen = prefs.getBool(_reorderHintPrefKey) ?? false;
+      if (!alreadySeen && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l.t('reorder_hint')),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        await prefs.setBool(_reorderHintPrefKey, true);
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l.t('reorder_order_saved')),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   List<Clip> _sorted(List<Clip> src) => sortClipsByOrder(src, _sortOrder);
 
@@ -788,6 +932,17 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         final topPad =
             MediaQuery.of(context).padding.top + kToolbarHeight + 8;
 
+        // Bulle "classer une vidéo dans une sous-catégorie" — tente de
+        // s'afficher près du premier menu ⋯ visible, uniquement si elle a
+        // été armée par une création de sous-catégorie (voir
+        // _armAssignVideoHint) et jamais plus d'une fois.
+        if (clips.isNotEmpty) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _maybeShowAssignVideoHint(context, l, _firstClipMenuKey);
+          });
+        }
+
         return Scaffold(
           backgroundColor: Colors.transparent,
           extendBodyBehindAppBar: true,
@@ -817,7 +972,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               // Menu tri
               PopupMenuButton<SortOrder>(
                 icon: const Icon(Icons.sort_rounded),
-                tooltip: 'Trier',
+                tooltip: l.t('sort'),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
                 onSelected: (order) => setState(() {
@@ -827,32 +982,49 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 }),
                 itemBuilder: (_) => [
                   _sortItem(SortOrder.chronological,
-                      Icons.access_time_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Chronologique' : 'Recent'),
+                      Icons.access_time_rounded, l.t('sort_date_added')),
                   _sortItem(SortOrder.alphabetical,
-                      Icons.sort_by_alpha_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Alphabétique' : 'A-Z'),
+                      Icons.sort_by_alpha_rounded, l.t('sort_alphabetical')),
                   _sortItem(
-                      SortOrder.manual, Icons.drag_handle_rounded, Localizations.localeOf(context).languageCode == 'fr' ? 'Manuel' : 'Manual'),
+                      SortOrder.manual, Icons.drag_handle_rounded, l.t('sort_manual')),
                 ],
               ),
-              // Toggle réorganiser (visible uniquement en mode Manuel)
-              if (_sortOrder == SortOrder.manual)
-                IconButton(
-                  icon: Icon(_reorderMode
-                      ? Icons.check_circle_rounded
-                      : Icons.reorder_rounded),
-                  tooltip: _reorderMode
-                      ? (Localizations.localeOf(context).languageCode == 'fr' ? 'Terminé' : 'Done')
-                      : (Localizations.localeOf(context).languageCode == 'fr' ? 'Réorganiser' : 'Reorder'),
-                  onPressed: () =>
-                      setState(() => _reorderMode = !_reorderMode),
+              // Bouton Reorder/Done — visible uniquement en mode Manuel et
+              // uniquement s'il y a au moins 2 vidéos à réordonner.
+              if (_sortOrder == SortOrder.manual && clips.length >= 2)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+                    child: TextButton.icon(
+                      onPressed: () => _toggleReorderMode(l),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.orange,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: const Size(44, 44),
+                      ),
+                      icon: Icon(_reorderMode
+                          ? Icons.check_circle_rounded
+                          : Icons.reorder_rounded),
+                      label: Text(
+                        _reorderMode ? l.t('reorder_done') : l.t('reorder'),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
                 ),
-              if (widget.categoryId != null) ...[  
-                IconButton(
-                  icon: const Icon(Icons.add_circle_outline_rounded),
-                  tooltip: Localizations.localeOf(context).languageCode == 'fr'
-                      ? 'Ajouter une sous-catégorie'
-                      : 'Add a subcategory',
-                  onPressed: () => _showAddSubcategoryDialog(context),
+              if (widget.categoryId != null) ...[
+                // Même direction artistique et même zone tactile que le
+                // bouton "coller un lien" de l'écran principal (icône 44×44,
+                // cercle Material, mêmes couleurs claires/sombres) —
+                // fonction inchangée : créer une sous-catégorie.
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _HeaderActionButton(
+                    icon: Icons.add_circle_outline_rounded,
+                    tooltip: l.t('add_subcategory_tooltip'),
+                    onPressed: () => _showAddSubcategoryDialog(context),
+                  ),
                 ),
               ],
               const SizedBox(width: 8),
@@ -880,7 +1052,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   Expanded(
                     child: clips.isEmpty
                         ? _EmptyState(l: l)
-                        : _reorderMode
+                        : _reorderMode && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
                                     16, 8, 16, 32),
@@ -915,22 +1087,49 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Expanded(
-                                        child: ClipCard(
-                                            clip: clips[i],
-                                            state: widget.state,
-                                            currentCategoryId: widget.categoryId),
+                                        // En mode réorganisation, seule la
+                                        // poignée doit déclencher une action :
+                                        // un appui sur le reste de la carte
+                                        // ne doit pas ouvrir la vidéo.
+                                        child: AbsorbPointer(
+                                          absorbing: true,
+                                          child: ClipCard(
+                                              clip: clips[i],
+                                              state: widget.state,
+                                              currentCategoryId: widget.categoryId),
+                                        ),
                                       ),
-                                      ReorderableDragStartListener(
-                                        index: i,
-                                        child: Container(
-                                          padding:
-                                              const EdgeInsets.symmetric(
-                                                  horizontal: 8,
-                                                  vertical: 16),
-                                          child: Icon(
-                                            Icons.drag_handle_rounded,
-                                            color: Colors.grey
-                                                .withValues(alpha: 0.6),
+                                      Semantics(
+                                        label: l.t('reorder'),
+                                        customSemanticsActions: {
+                                          if (i > 0)
+                                            CustomSemanticsAction(
+                                                label: l.t('reorder_move_up')): () =>
+                                                widget.state.reorderClips(
+                                                    widget.categoryId, i, i - 1),
+                                          if (i < clips.length - 1)
+                                            CustomSemanticsAction(
+                                                label: l.t('reorder_move_down')): () =>
+                                                widget.state.reorderClips(
+                                                    widget.categoryId, i, i + 1),
+                                        },
+                                        child: ReorderableDragStartListener(
+                                          index: i,
+                                          child: ConstrainedBox(
+                                            constraints: const BoxConstraints(
+                                                minWidth: 44, minHeight: 44),
+                                            child: Container(
+                                              alignment: Alignment.center,
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 10,
+                                                      vertical: 16),
+                                              child: Icon(
+                                                Icons.drag_handle_rounded,
+                                                color: Colors.grey
+                                                    .withValues(alpha: 0.6),
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
@@ -980,10 +1179,13 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                             fit: StackFit.expand,
                                             children: [
                                               c.thumbnailUrl != null
-                                                  ? CachedNetworkImage(
-                                                      imageUrl: c.thumbnailUrl!,
+                                                  ? ResilientThumbnail(
+                                                      key: ValueKey('recent_thumb_${c.id}'),
+                                                      url: c.thumbnailUrl,
+                                                      cacheKeyId: c.id,
+                                                      platformId: c.platform,
                                                       fit: BoxFit.cover,
-                                                      errorWidget: (_, _, _) => Container(
+                                                      fallbackBuilder: (_) => Container(
                                                           color: AppTheme.orange.withValues(alpha: 0.2)),
                                                     )
                                                   : Container(color: AppTheme.orange.withValues(alpha: 0.2)),
@@ -1090,7 +1292,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                       child: ClipCard(
                                           clip: clip,
                                           state: widget.state,
-                                          currentCategoryId: widget.categoryId),
+                                          currentCategoryId: widget.categoryId,
+                                          menuKey: i == 0 ? _firstClipMenuKey : null),
                                     ),
                                   );
                                 },
@@ -1179,6 +1382,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   color: pickedColor,
                   icon: Icons.label_rounded,
                 ));
+                // Création réussie (et non une annulation) : arme la bulle
+                // d'aide "classer une vidéo dans une sous-catégorie", qui ne
+                // s'affichera qu'une fois, dès qu'un menu ⋯ sera visible.
+                _armAssignVideoHint();
                 Navigator.pop(ctx);
               },
               child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Créer' : 'Create'),
@@ -1617,8 +1824,13 @@ class _PhoneMockup extends StatelessWidget {
 class _ThumbnailBanner extends StatelessWidget {
   final String? thumbUrl;
   final SocialPlatform platform;
+  final String clipId;
 
-  const _ThumbnailBanner({required this.thumbUrl, required this.platform});
+  const _ThumbnailBanner({
+    required this.thumbUrl,
+    required this.platform,
+    required this.clipId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1627,13 +1839,17 @@ class _ThumbnailBanner extends StatelessWidget {
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         child: thumbUrl != null
-            ? CachedNetworkImage(
-                imageUrl: thumbUrl!,
+            ? ResilientThumbnail(
+                key: ValueKey('card_thumb_$clipId'),
+                url: thumbUrl,
+                cacheKeyId: clipId,
+                platformId: platform.id,
                 fit: BoxFit.cover,
                 // Loader
-                placeholder: (ctx, url) => _fallback(shimmer: true),
-                // Erreur → icône plateforme
-                errorWidget: (_, _, _) => _fallback(),
+                loadingBuilder: (_) => _fallback(shimmer: true),
+                // Erreur → icône plateforme (uniquement si aucune miniature
+                // valide n'a jamais été chargée avec succès pour ce clip)
+                fallbackBuilder: (_) => _fallback(),
               )
             : _fallback(),
       ),
@@ -1670,8 +1886,18 @@ class ClipCard extends StatelessWidget {
   final Clip clip;
   final ClipsState state;
   final String? currentCategoryId;
+  // Ancre optionnelle pour la bulle d'aide "classer une vidéo dans une
+  // sous-catégorie" — n'est fournie que pour le tout premier ClipCard visible
+  // d'un écran ; sans effet visuel ou fonctionnel sur les autres cartes.
+  final GlobalKey? menuKey;
 
-  const ClipCard({super.key, required this.clip, required this.state, this.currentCategoryId});
+  const ClipCard({
+    super.key,
+    required this.clip,
+    required this.state,
+    this.currentCategoryId,
+    this.menuKey,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1692,7 +1918,7 @@ class ClipCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Miniature 16:9 ──────────────────────────────────────────
-          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform),
+          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform, clipId: clip.id),
           // ── Infos principales ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
@@ -1762,6 +1988,7 @@ class ClipCard extends StatelessWidget {
                   ),
                 ),
                 PopupMenuButton<String>(
+                  key: menuKey,
                   icon: Icon(
                     Icons.more_vert_rounded,
                     color: Colors.grey.withValues(alpha: 0.7),
