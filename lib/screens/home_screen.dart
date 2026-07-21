@@ -59,18 +59,23 @@ class _HomeScreenState extends State<HomeScreen> {
         final suggestions = widget.state.searchSuggestions;
         final filtered = widget.state.clips;
 
+        final isDark = Theme.of(context).brightness == Brightness.dark;
         return CustomScrollView(
           slivers: [
             _buildAppBar(l, widget.state.allClips),
             if (widget.state.totalCount > 0)
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.only(left: 20, bottom: 4),
+                  // Même marge gauche que la barre de recherche (16pt) pour
+                  // un alignement constant sous le logo/les actions.
+                  padding: const EdgeInsets.only(left: 16, bottom: 6),
                   child: Text(
                     l.videosSaved(widget.state.totalCount),
                     style: TextStyle(
-                      fontSize: 13,
-                      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45),
+                      fontSize: 15,
+                      color: isDark
+                          ? AppTheme.darkTextSecondary
+                          : AppTheme.lightTextSecondary,
                       fontWeight: FontWeight.w400,
                     ),
                   ),
@@ -160,7 +165,9 @@ class _HomeScreenState extends State<HomeScreen> {
       snap: true,
       backgroundColor: Colors.transparent,
       elevation: 0,
-      expandedHeight: 110,
+      // Réduit avec le logo (110 → 96) pour resserrer l'espace vertical
+      // avant le compteur / la recherche.
+      expandedHeight: 96,
       // Note : on n'utilise pas FlexibleSpaceBar.centerTitle ici — il centre
       // le titre entre `leading` et `actions`, et comme il n'y a qu'une icône
       // à droite (aucun leading), le résultat est visuellement décalé à
@@ -172,20 +179,22 @@ class _HomeScreenState extends State<HomeScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.only(bottom: 10),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
                   // Lueur douce derrière le texte pour un rendu plus premium.
+                  // Logo réduit d'environ 12 % (32 → 28pt) — même dégradé,
+                  // même traitement, juste moins massif visuellement.
                   Text(
                     l.t('app_name'),
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 32,
-                      letterSpacing: -1.2,
+                      fontSize: 28,
+                      letterSpacing: -1.0,
                       foreground: Paint()
                         ..color = const Color(0xFF7C3AED).withValues(alpha: 0.55)
-                        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+                        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
                     ),
                   ),
                   ShaderMask(
@@ -199,8 +208,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       l.t('app_name'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 32,
-                        letterSpacing: -1.2,
+                        fontSize: 28,
+                        letterSpacing: -1.0,
                         color: Colors.white,
                       ),
                     ),
@@ -212,8 +221,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       actions: [
-          IconButton(
-            icon: const Icon(Icons.add_link_rounded),
+          _HeaderActionButton(
+            icon: Icons.add_link_rounded,
             tooltip: 'Coller un lien',
             onPressed: () async {
               final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -228,8 +237,62 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             },
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 16),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// HEADER ACTION BUTTON — style uniforme pour les actions du header
+// (taille tactile, poids d'icône et couleur identiques quel que soit le
+// thème ; réutilisable si une deuxième action rejoint un jour le header).
+// ─────────────────────────────────────────────
+
+class _HeaderActionButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  const _HeaderActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return SizedBox(
+      width: 44,
+      height: 44,
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: isDark
+              ? AppTheme.surfaceElevated.withValues(alpha: 0.55)
+              : AppTheme.lightSurface(alpha: 0.80),
+          shape: CircleBorder(
+            side: BorderSide(
+              color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              width: 1,
+            ),
+          ),
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: onPressed,
+            child: Center(
+              child: Icon(
+                icon,
+                size: 20,
+                color: isDark
+                    ? AppTheme.darkTextPrimary
+                    : AppTheme.lightTextPrimary,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
