@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/theme.dart';
 import '../screens/categories_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/settings_screen.dart';
@@ -36,7 +37,7 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF08081A) : const Color(0xFFF0EFFF);
+    final bg = isDark ? AppTheme.background : AppTheme.lightBackground;
     final safeBottom = MediaQuery.of(context).padding.bottom;
     final navBarHeight = 72 + 16 + safeBottom; // dock + padding + safe area
 
@@ -74,11 +75,14 @@ class _MainShellState extends State<MainShell> {
   }
 
   Widget _buildNavBar(bool isDark) {
+    // Surface élevée : distincte du fond ET des cartes (hiérarchie
+    // fond < surface < surface élevée), pour une barre de nav identifiable
+    // sans redevenir un aplat gris massif.
     final bgColor = isDark
-        ? const Color.fromRGBO(24, 29, 45, 0.62)
-        : const Color.fromRGBO(235, 228, 255, 0.75);
+        ? AppTheme.surfaceElevated.withValues(alpha: 0.72)
+        : AppTheme.lightSurface(alpha: 0.80);
     final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.16)
+        ? AppTheme.darkBorder
         : Colors.white.withValues(alpha: 0.50);
     return ClipRRect(
       borderRadius: BorderRadius.circular(28),
@@ -91,10 +95,12 @@ class _MainShellState extends State<MainShell> {
             borderRadius: BorderRadius.circular(28),
             border: Border.all(color: borderColor, width: 1.1),
             boxShadow: [
+              // Ombre allégée en sombre (faible élévation plutôt qu'une
+              // ombre noire lourde) — inchangée en clair.
               BoxShadow(
-                color: Colors.black.withValues(alpha: isDark ? 0.28 : 0.14),
-                blurRadius: 28,
-                offset: const Offset(0, 8),
+                color: Colors.black.withValues(alpha: isDark ? 0.16 : 0.14),
+                blurRadius: isDark ? 16 : 28,
+                offset: Offset(0, isDark ? 4 : 8),
               ),
               BoxShadow(
                 color: Colors.white.withValues(alpha: isDark ? 0.04 : 0.55),

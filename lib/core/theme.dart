@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   // ── Palette Reelr — Liquid Glass violet / bleu néon ──────────────
-  static const Color violet     = Color(0xFF7C3AED); // accent primaire
-  static const Color blue       = Color(0xFF2563EB); // accent secondaire
-  static const Color background = Color(0xFF0A0E1F); // fond principal
-  static const Color surface    = Color(0xFF10142A); // surface
+  // (utilisée par le mode sombre ; le mode clair a sa propre section plus
+  // bas et ne référence plus ces constantes)
+  static const Color violet     = Color(0xFF7C3AED); // violet principal
+  static const Color blue       = Color(0xFF2582F0); // bleu principal
+  static const Color background = Color(0xFF0A0A1F); // fond principal sombre
+  static const Color surface    = Color(0xFF181726); // surface principale sombre
+  static const Color surfaceElevated = Color(0xFF222132); // surface élevée (nav, barre de recherche, hover)
   static const Color textAccent = Color(0xFFA78BFA); // texte accent
+
+  // Texte du mode sombre — hiérarchie principal / secondaire
+  static const Color darkTextPrimary   = Color(0xFFF7F7FB);
+  static const Color darkTextSecondary = Color(0xFFAAA6B7);
+  static Color get darkBorder => Colors.white.withValues(alpha: 0.11);
 
   // Alias conservés pour compatibilité avec les widgets existants
   static const Color orange     = violet;
@@ -20,16 +28,26 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
+  // ── Palette mode clair — sobre / technologique / premium ─────────────
+  static const Color lightBackground   = Color(0xFFF7F7FC);
+  static const Color lightLavenderTint = Color(0xFFF1EDFF);
+  static const Color lightTextPrimary  = Color(0xFF171622);
+  static const Color lightTextSecondary= Color(0xFF6F6B7D);
+  static const Color lightBlue         = Color(0xFF2582F0);
+  static Color lightSurface({double alpha = 0.82}) =>
+      Colors.white.withValues(alpha: alpha.clamp(0.70, 0.90));
+  static Color get lightBorder =>
+      lightTextPrimary.withValues(alpha: 0.08);
+
   // ── Bordures des cartes de catégorie (écran d'accueil) ───────────────
   // Neutres et discrètes pour les cartes normales — la couleur de marque
   // (violet) est réservée à la carte mise en avant ("Tout" / "All").
-  static const Color _cardBorderLightBase = Color(0xFF171622);
   static const double categoryCardBorderWidth = 1.0;
   static const double categoryCardBorderWidthSelected = 2.0;
 
   static Color categoryCardBorder(bool isDark) => isDark
-      ? Colors.white.withValues(alpha: 0.12)
-      : _cardBorderLightBase.withValues(alpha: 0.10);
+      ? darkBorder
+      : lightTextPrimary.withValues(alpha: 0.10);
 
   /// Lueur très discrète, réservée à la carte sélectionnée.
   static List<BoxShadow> get categoryCardSelectedGlow => [
@@ -44,21 +62,19 @@ class AppTheme {
 
   static ThemeData _buildTheme(Brightness brightness) {
     final isDark = brightness == Brightness.dark;
-    final textPrimary   = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final textSecondary = isDark
-        ? Colors.white.withValues(alpha: 0.55)
-        : background.withValues(alpha: 0.55);
+    final textPrimary   = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
 
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      scaffoldBackgroundColor: isDark ? background : const Color(0xFFF5F3FF),
+      scaffoldBackgroundColor: isDark ? background : lightBackground,
       colorScheme: ColorScheme.fromSeed(
         seedColor: violet,
         brightness: brightness,
         primary: violet,
-        secondary: blue,
-        surface: isDark ? surface : const Color(0xFFEEECFF),
+        secondary: isDark ? blue : lightBlue,
+        surface: isDark ? surface : lightSurface(),
         onSurface: textPrimary,
         onPrimary: Colors.white,
         onSecondary: Colors.white,

@@ -545,13 +545,20 @@ class _CategoryTileState extends State<_CategoryTile> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
                             color: tintColor.withValues(alpha: 0.12),
+                            // Ombre allégée en sombre (faible élévation) —
+                            // inchangée en clair.
                             boxShadow: [
                               BoxShadow(
-                                color: AppTheme.shadowGrey
-                                    .withValues(
+                                color: isDark
+                                    ? Colors.black.withValues(
+                                        alpha: _hover ? 0.18 : 0.12)
+                                    : AppTheme.shadowGrey.withValues(
                                         alpha: _hover ? 0.22 : 0.14),
-                                blurRadius: _hover ? 36 : 28,
-                                offset: Offset(0, _hover ? 12 : 8),
+                                blurRadius: isDark
+                                    ? (_hover ? 20 : 14)
+                                    : (_hover ? 36 : 28),
+                                offset: Offset(
+                                    0, isDark ? (_hover ? 6 : 4) : (_hover ? 12 : 8)),
                               ),
                             ],
                           ),
@@ -604,7 +611,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                                   height: 1.15,
                                   color: isDark
                                       ? Colors.white
-                                      : AppTheme.darkGreen,
+                                      : AppTheme.lightTextPrimary,
                                 ),
                               ),
                               if (!widget.isAdd) ...[
@@ -617,8 +624,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                                     color: isDark
                                         ? Colors.white
                                             .withValues(alpha: 0.55)
-                                        : AppTheme.darkGreen
-                                            .withValues(alpha: 0.5),
+                                        : AppTheme.lightTextSecondary,
                                   ),
                                 ),
                               ],
@@ -1593,7 +1599,7 @@ class ClipCard extends StatelessWidget {
                           color: Theme.of(context).brightness ==
                                   Brightness.dark
                               ? Colors.white
-                              : AppTheme.darkGreen,
+                              : AppTheme.lightTextPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),

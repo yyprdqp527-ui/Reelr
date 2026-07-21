@@ -17,13 +17,14 @@ class GradientBackground extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: isDark
                 ? const [
-                    Color(0xFF0A0A0F),
+                    AppTheme.background,
                     Color(0xFF1A0A2E),
                   ]
+                // Dégradé sobre à 2 teintes (plus de halo rose en bas) :
+                // lavande très légère en haut vers le fond neutre Reelr.
                 : const [
-                    Color(0xFFF3EEFF),
-                    Color(0xFFEEF2FF),
-                    Color(0xFFFFF0F5),
+                    AppTheme.lightLavenderTint,
+                    AppTheme.lightBackground,
                   ],
           ),
         ),

@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../core/theme.dart';
+
 class GlassCard extends StatelessWidget {
   final Widget child;
   final double borderRadius;
@@ -32,36 +34,45 @@ class GlassCard extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
           child: Container(
             decoration: BoxDecoration(
-              // Reflet lumineux RadialGradient haut gauche + fond glass
+              // Reflet lumineux RadialGradient haut gauche + fond glass —
+              // teinté avec les surfaces centralisées (au lieu d'un blanc
+              // uni) pour bien se distinguer du fond sombre uni.
               gradient: isDark
-                  ? const RadialGradient(
-                      center: Alignment(-0.8, -0.8),
+                  ? RadialGradient(
+                      center: const Alignment(-0.8, -0.8),
                       radius: 1.5,
                       colors: [
-                        Color.fromRGBO(255, 255, 255, 0.14),
-                        Color.fromRGBO(255, 255, 255, 0.06),
+                        AppTheme.surfaceElevated.withValues(alpha: 0.70),
+                        AppTheme.surface.withValues(alpha: 0.55),
                       ],
                     )
+                  // Surface blanche translucide (0.70–0.90) : se détache
+                  // clairement du fond clair sobre, au lieu de se fondre
+                  // dans une teinte lavande proche du fond.
                   : LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        const Color.fromRGBO(245, 240, 255, 0.92),
-                        const Color.fromRGBO(238, 232, 255, 0.75),
+                        AppTheme.lightSurface(alpha: 0.88),
+                        AppTheme.lightSurface(alpha: 0.74),
                       ],
                     ),
               borderRadius: BorderRadius.circular(borderRadius),
-              // Bordüre cristal
+              // Bordure cristal
               border: Border.all(
-                color: const Color.fromRGBO(255, 255, 255, 0.12),
+                color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
                 width: 1,
               ),
               boxShadow: [
-                // Ombre portée
-                const BoxShadow(
-                  color: Color.fromRGBO(0, 0, 20, 0.4),
-                  blurRadius: 40,
-                  offset: Offset(0, 8),
+                // Ombre portée — allégée en sombre (fine bordure + faible
+                // élévation plutôt qu'une ombre noire lourde) ; inchangée
+                // en clair.
+                BoxShadow(
+                  color: isDark
+                      ? Colors.black.withValues(alpha: 0.22)
+                      : const Color.fromRGBO(0, 0, 20, 0.4),
+                  blurRadius: isDark ? 16 : 40,
+                  offset: Offset(0, isDark ? 4 : 8),
                 ),
                 // Lumière interne (reflet bas)
                 BoxShadow(
