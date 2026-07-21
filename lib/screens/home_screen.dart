@@ -420,6 +420,7 @@ class _CategoryTileState extends State<_CategoryTile> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final l = AppL10n.of(context);
     final tintColor = widget.color;
     // Icône et couleur de badge uniformisées (visuel uniquement — n'affecte
     // ni les données persistées ni la classification IA).
@@ -498,11 +499,14 @@ class _CategoryTileState extends State<_CategoryTile> {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(widget.name.toUpperCase(), maxLines: 1, overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, letterSpacing: 0.4, color: Colors.white)),
+                              Text(widget.name,
+                                textAlign: TextAlign.left,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15, height: 1.15, color: Colors.white)),
                               if (!widget.isAdd) ...[
-                                const SizedBox(height: 1),
-                                Text('${widget.count}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.75))),
+                                const SizedBox(height: 2),
+                                Text(l.videosCount(widget.count), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.white.withValues(alpha: 0.75))),
                               ],
                             ],
                           ),
@@ -582,17 +586,18 @@ class _CategoryTileState extends State<_CategoryTile> {
                           padding: const EdgeInsets.all(10),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Spacer(),
                               Text(
-                                widget.name.toUpperCase(),
-                                maxLines: 1,
+                                widget.name,
+                                maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
+                                textAlign: TextAlign.left,
                                 style: TextStyle(
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 13,
-                                  letterSpacing: 0.4,
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 15,
+                                  height: 1.15,
                                   color: isDark
                                       ? Colors.white
                                       : AppTheme.darkGreen,
@@ -601,10 +606,10 @@ class _CategoryTileState extends State<_CategoryTile> {
                               if (!widget.isAdd) ...[
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${widget.count}',
+                                  l.videosCount(widget.count),
                                   style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
                                     color: isDark
                                         ? Colors.white
                                             .withValues(alpha: 0.55)

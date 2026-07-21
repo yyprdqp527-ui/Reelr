@@ -144,6 +144,16 @@ class AppL10n {
     return '$count vidéo${count > 1 ? "s" : ""} sauvegardée${count > 1 ? "s" : ""}';
   }
 
+  /// Compteur court affiché sur les cartes de catégories de l'accueil
+  /// ("1 vidéo", "2 vidéos", "23 vidéos") — gère le singulier/pluriel,
+  /// contrairement à [videosSaved] qui inclut "sauvegardée(s)".
+  String videosCount(int count) {
+    if (locale.languageCode == 'en') {
+      return '$count ${count == 1 ? "video" : "videos"}';
+    }
+    return '$count vidéo${count > 1 ? "s" : ""}';
+  }
+
   String subcategoriesCount(int count) {
     if (locale.languageCode == 'en') {
       return '$count ${count == 1 ? "subcategory" : "subcategories"}';
