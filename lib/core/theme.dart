@@ -20,6 +20,25 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
+  // ── Bordures des cartes de catégorie (écran d'accueil) ───────────────
+  // Neutres et discrètes pour les cartes normales — la couleur de marque
+  // (violet) est réservée à la carte mise en avant ("Tout" / "All").
+  static const Color _cardBorderLightBase = Color(0xFF171622);
+  static const double categoryCardBorderWidth = 1.0;
+  static const double categoryCardBorderWidthSelected = 2.0;
+
+  static Color categoryCardBorder(bool isDark) => isDark
+      ? Colors.white.withValues(alpha: 0.12)
+      : _cardBorderLightBase.withValues(alpha: 0.10);
+
+  /// Lueur très discrète, réservée à la carte sélectionnée.
+  static List<BoxShadow> get categoryCardSelectedGlow => [
+        BoxShadow(
+          color: violet.withValues(alpha: 0.18),
+          blurRadius: 8,
+        ),
+      ];
+
   static ThemeData light() => _buildTheme(Brightness.light);
   static ThemeData dark()  => _buildTheme(Brightness.dark);
 

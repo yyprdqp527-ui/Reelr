@@ -445,9 +445,14 @@ class _CategoryTileState extends State<_CategoryTile> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: isDark ? tintColor.withValues(alpha: 0.45) : tintColor.withValues(alpha: 0.70),
-              width: isDark ? 1.2 : 1.8,
+              color: widget.isAllTile
+                  ? AppTheme.violet
+                  : AppTheme.categoryCardBorder(isDark),
+              width: widget.isAllTile
+                  ? AppTheme.categoryCardBorderWidthSelected
+                  : AppTheme.categoryCardBorderWidth,
             ),
+            boxShadow: widget.isAllTile ? AppTheme.categoryCardSelectedGlow : null,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -534,13 +539,12 @@ class _CategoryTileState extends State<_CategoryTile> {
                     child: Stack(
                       children: [
                         Container(
+                          // Pas de bordure ici : la carte n'a qu'une seule
+                          // bordure, portée par l'AnimatedContainer parent
+                          // (évite la double bordure colorée).
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
                             color: tintColor.withValues(alpha: 0.12),
-                            border: Border.all(
-                              color: isDark ? tintColor.withValues(alpha: 0.45) : tintColor.withValues(alpha: 0.70),
-                              width: isDark ? 1.2 : 1.8,
-                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: AppTheme.shadowGrey
