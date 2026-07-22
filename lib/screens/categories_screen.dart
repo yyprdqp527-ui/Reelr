@@ -641,13 +641,19 @@ class CategoriesScreen extends StatelessWidget {
                   letterSpacing: -0.5),
             ),
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add_rounded),
+              // Même bouton que le "+" Lien de la page principale : forme,
+              // taille, bordure, fond, ombre et zone tactile identiques
+              // (HeaderActionButton, réutilisé depuis home_screen.dart).
+              // Seule l'icône change (Plus au lieu de Lien).
+              HeaderActionButton(
+                icon: Icons.add_rounded,
+                tooltip: l.t('new_category'),
                 onPressed: () => showDialog(
                   context: context,
                   builder: (_) => AddCategoryDialog(state: state),
                 ),
               ),
+              const SizedBox(width: 16),
             ],
           ),
           if (state.categories.isEmpty)

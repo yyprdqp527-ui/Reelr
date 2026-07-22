@@ -310,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       actions: [
-          _HeaderActionButton(
+          HeaderActionButton(
             icon: Icons.add_link_rounded,
             tooltip: 'Coller un lien',
             onPressed: () async {
@@ -338,12 +338,13 @@ class _HomeScreenState extends State<HomeScreen> {
 // thème ; réutilisable si une deuxième action rejoint un jour le header).
 // ─────────────────────────────────────────────
 
-class _HeaderActionButton extends StatelessWidget {
+class HeaderActionButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final VoidCallback onPressed;
 
-  const _HeaderActionButton({
+  const HeaderActionButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onPressed,
@@ -587,13 +588,21 @@ class _CategoryTileState extends State<_CategoryTile> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final l = AppL10n.of(context);
     final tintColor = widget.color;
+    // Accent de la tuile "Tout" : bleu foncé du logo en clair, violet en
+    // sombre (inchangé). N'affecte que cette tuile.
+    final allTileAccent =
+        isDark ? AppTheme.violet : AppTheme.allTileAccentLight;
     // Icône et couleur de badge uniformisées (visuel uniquement — n'affecte
     // ni les données persistées ni la classification IA).
     final badgeIcon = CategoryVisuals.iconFor(
         widget.name, widget.icon ?? Icons.folder_outlined);
     final badgeColor = widget.isAllTile
-        ? AppTheme.violet
+        ? allTileAccent
         : CategoryVisuals.desaturate(tintColor);
+    // Icône de la tuile "Tout" : violet en sombre (identité d'origine,
+    // cohérente avec la teinte plate violette), blanc en clair (lisible
+    // sur le dégradé du logo).
+    final allTileIconColor = isDark ? AppTheme.violet : Colors.white;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -611,13 +620,15 @@ class _CategoryTileState extends State<_CategoryTile> {
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
               color: widget.isAllTile
-                  ? AppTheme.violet
+                  ? allTileAccent
                   : AppTheme.categoryCardBorder(isDark),
               width: widget.isAllTile
                   ? AppTheme.categoryCardBorderWidthSelected
                   : AppTheme.categoryCardBorderWidth,
             ),
-            boxShadow: widget.isAllTile ? AppTheme.categoryCardSelectedGlow : null,
+            boxShadow: widget.isAllTile
+                ? AppTheme.categoryCardSelectedGlow(allTileAccent)
+                : null,
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
@@ -667,7 +678,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // fond — évite une tache sombre sur le dégradé
                           // violet de la carte.
                           child: widget.isAllTile
-                              ? Icon(badgeIcon, size: 28, color: AppTheme.violet)
+                              ? Icon(badgeIcon, size: 28, color: allTileIconColor)
                               : CategoryIconBadge(
                                   icon: badgeIcon,
                                   color: badgeColor,
@@ -721,7 +732,16 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // (évite la double bordure colorée).
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
-                            color: tintColor.withValues(alpha: 0.12),
+                            // Tuile "Tout" : dégradé du logo en clair
+                            // uniquement. Mode sombre revenu à l'identité
+                            // d'origine — simple teinte violette plate.
+                            gradient: (widget.isAllTile && !isDark)
+                                ? AppTheme.logoGradient
+                                : null,
+                            color: (widget.isAllTile && !isDark)
+                                ? null
+                                : (widget.isAllTile ? allTileAccent : tintColor)
+                                    .withValues(alpha: 0.12),
                             // Ombre allégée en sombre (faible élévation) —
                             // inchangée en clair.
                             boxShadow: [
@@ -769,7 +789,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // fond — évite une tache sombre sur le dégradé
                           // violet de la carte.
                           child: widget.isAllTile
-                              ? Icon(badgeIcon, size: 28, color: AppTheme.violet)
+                              ? Icon(badgeIcon, size: 28, color: allTileIconColor)
                               : CategoryIconBadge(
                                   icon: badgeIcon,
                                   color: badgeColor,
@@ -790,7 +810,9 @@ class _CategoryTileState extends State<_CategoryTile> {
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.left,
                                 style: AppTheme.categoryTitleStyle.copyWith(
-                                  color: isDark
+                                  // Tuile "Tout" en clair : texte blanc,
+                                  // lisible sur le dégradé du logo.
+                                  color: (isDark || widget.isAllTile)
                                       ? Colors.white
                                       : AppTheme.lightTextPrimary,
                                 ),
@@ -802,7 +824,9 @@ class _CategoryTileState extends State<_CategoryTile> {
                                   style: AppTheme.categoryCounterStyle.copyWith(
                                     color: isDark
                                         ? Colors.white.withValues(alpha: 0.55)
-                                        : AppTheme.lightTextSecondary,
+                                        : widget.isAllTile
+                                            ? Colors.white.withValues(alpha: 0.85)
+                                            : AppTheme.lightTextSecondary,
                                   ),
                                 ),
                               ],

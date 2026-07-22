@@ -21,6 +21,46 @@ class AppTheme {
   static const Color darkGreen  = background;
   static const Color shadowGrey = Color(0xFF4C1D95);
 
+  /// Bleu exact du dégradé du logo Reelr (couleur médiane du `ShaderMask`
+  /// du header : #8B5CF6 violet → #2563EB bleu → #22D3EE cyan). Référence
+  /// unique réutilisée partout où l'on veut "le bleu du logo".
+  static const Color logoBlue = Color(0xFF2563EB);
+
+  /// Couleur de la dernière lettre ("r") du logo Reelr — extrémité cyan du
+  /// dégradé du `ShaderMask` du header.
+  static const Color logoLetterR = Color(0xFF22D3EE);
+
+  /// Couleurs exactes du logo Reelr (violet → bleu → cyan), utilisées pour
+  /// la tuile "Tout" / "All" en mode clair. Structure radiale douce
+  /// ("fumée"), centrée en haut à gauche — même structure que le halo
+  /// blanc de la tuile "Tout" en mode sombre (`Alignment(-0.7, -0.8)`,
+  /// `radius: 0.9`), pour harmoniser l'aspect du dégradé entre les deux
+  /// modes sans toucher aux couleurs propres à chacun.
+  // Couleurs légèrement atténuées (alpha ~72%) pour un rendu moins saturé
+  // qu'un aplat plein, tout en gardant les mêmes teintes.
+  static const RadialGradient logoGradient = RadialGradient(
+    center: Alignment(-0.7, -0.8),
+    radius: 0.9,
+    colors: [Color(0xB88B5CF6), Color(0xB82563EB), Color(0xB822D3EE)],
+    stops: [0.0, 0.55, 1.0],
+  );
+
+  /// Même structure que `logoGradient` (mêmes stops, même direction) pour
+  /// la tuile "Tout" en mode sombre — mais avec le bleu-gris utilisé
+  /// auparavant à la place du bleu vif, pour rester cohérent avec
+  /// l'identité du mode sombre.
+  static const LinearGradient logoGradientDark = LinearGradient(
+    colors: [Color(0xFF8B5CF6), Color(0xFF93C5FD), Color(0xFF22D3EE)],
+    stops: [0.0, 0.6, 1.0],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Accent de la tuile "Tout" / "All" en mode clair — bleu foncé repris du
+  /// dégradé du logo Reelr (au lieu du violet, moins harmonieux avec le
+  /// fond bleu glacier du mode clair). Le mode sombre garde `violet`.
+  static const Color allTileAccentLight = logoBlue;
+
   // Gradient accent réutilisable
   static const LinearGradient accentGradient = LinearGradient(
     colors: [violet, blue],
@@ -94,10 +134,12 @@ class AppTheme {
       ? darkBorder
       : lightTextPrimary.withValues(alpha: 0.10);
 
-  /// Lueur très discrète, réservée à la carte sélectionnée.
-  static List<BoxShadow> get categoryCardSelectedGlow => [
+  /// Lueur très discrète, réservée à la carte sélectionnée. `accent` permet
+  /// de faire varier la couleur (violet en sombre, bleu foncé du logo en
+  /// clair pour la tuile "Tout").
+  static List<BoxShadow> categoryCardSelectedGlow(Color accent) => [
         BoxShadow(
-          color: violet.withValues(alpha: 0.18),
+          color: accent.withValues(alpha: 0.18),
           blurRadius: 8,
         ),
       ];
@@ -216,21 +258,22 @@ class AppTheme {
           );
         }),
       ),
-      // ── SegmentedButton (Settings) ─────────────────────────────────
+      // ── SegmentedButton (Settings) — bleu de marque plutôt que violet,
+      // en harmonie avec le reste de l'app (nav bar, tuile "Tout"). ──────
       segmentedButtonTheme: SegmentedButtonThemeData(
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.selected)) {
-              return violet.withValues(alpha: 0.25);
+              return blue.withValues(alpha: 0.25);
             }
             return Colors.transparent;
           }),
           foregroundColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return violet;
+            if (states.contains(WidgetState.selected)) return blue;
             return textPrimary.withValues(alpha: 0.55);
           }),
           side: WidgetStatePropertyAll(
-            BorderSide(color: violet.withValues(alpha: 0.35), width: 1),
+            BorderSide(color: blue.withValues(alpha: 0.35), width: 1),
           ),
         ),
       ),

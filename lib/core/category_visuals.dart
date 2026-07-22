@@ -46,13 +46,16 @@ class CategoryVisuals {
   static IconData iconFor(String name, IconData fallback) =>
       _icons[name] ?? fallback;
 
-  /// Réduit la saturation d'une couleur de catégorie et calibre sa
-  /// luminosité pour un contraste net sur le fond sombre du badge, tout en
-  /// conservant une teinte reconnaissable associée à la catégorie.
-  static Color desaturate(Color color, {double amount = 0.35}) {
+  /// Calibre la saturation et la luminosité d'une couleur de catégorie pour
+  /// un rendu franc et lisible sur les miniatures (claires ou sombres),
+  /// tout en conservant sa teinte d'origine (même famille chromatique).
+  /// Renforce légèrement la saturation (~+25 %, plafonnée pour éviter tout
+  /// rendu néon) et vise une luminosité plus riche (0.42–0.60) plutôt que
+  /// pâle, sans jamais assombrir une couleur déjà nette.
+  static Color desaturate(Color color) {
     final hsl = HSLColor.fromColor(color);
-    final targetSaturation = (hsl.saturation * (1 - amount)).clamp(0.0, 1.0);
-    final targetLightness = hsl.lightness.clamp(0.60, 0.84);
+    final targetSaturation = (hsl.saturation * 1.25).clamp(0.0, 0.90);
+    final targetLightness = hsl.lightness.clamp(0.42, 0.60);
     return hsl
         .withSaturation(targetSaturation)
         .withLightness(targetLightness)
