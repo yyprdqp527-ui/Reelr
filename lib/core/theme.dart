@@ -28,41 +28,42 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
-  // ── Palette mode clair — pastel affirmé, lumineux, cohérent avec le
-  // dégradé violet/bleu du logo. Toujours pastel (jamais saturé/flashy),
-  // jamais blanc pur ni gris terne, jamais de ton chaud.
-  static const Color lightBackgroundSecondary = Color(0xFFE9DDF8); // lavande pastel (haut)
-  static const Color lightBackground          = Color(0xFFE6DDF9); // lilas pastel (centre, référence générale)
-  static const Color lightBackgroundDeep      = Color(0xFFDEE7FB); // bleu pastel (bas)
-  static const Color lightTextPrimary  = Color(0xFF332E45);
-  static const Color lightTextSecondary= Color(0xFF6C6781);
+  // ── Palette mode clair — direction "bleu glacier / bleu brume" : version
+  // lumineuse et pastel du bleu nuit du mode sombre. Toujours bleu froid et
+  // légèrement grisé, jamais lavande, jamais rosé, jamais blanc pur.
+  static const Color lightBackgroundSecondary = Color(0xFFE1EDF9); // bleu glacier (haut)
+  static const Color lightBackground          = Color(0xFFDCE8F5); // bleu glacier (centre, référence générale)
+  static const Color lightBackgroundDeep      = Color(0xFFD5E3F2); // bleu brume (bas)
+  static const Color lightTextPrimary  = Color(0xFF172033);
+  static const Color lightTextSecondary= Color(0xFF647186);
   // Placeholder de la barre de recherche — distinct du texte secondaire.
-  static const Color lightPlaceholder  = Color(0xFF7B748C);
+  static const Color lightPlaceholder  = Color(0xFF6C788C);
   // Texte principal et icône spécifiques à la barre de recherche.
-  static const Color lightSearchText   = Color(0xFF5F5971);
-  static const Color lightSearchIcon   = Color(0xFF6C6781);
+  static const Color lightSearchText   = Color(0xFF283449);
+  static const Color lightSearchIcon   = Color(0xFF647186);
   static const Color lightBlue         = Color(0xFF2582F0);
+  // Surface claire principale — base bleu glacier, jamais blanc pur.
+  static const Color lightSurfaceBase = Color(0xFFF4F8FC);
   static Color lightSurface({double alpha = 0.82}) =>
-      Colors.white.withValues(alpha: alpha.clamp(0.78, 0.85));
-  static const Color lightBorder = Color(0xFFCFC4E4);
+      lightSurfaceBase.withValues(alpha: alpha.clamp(0.78, 0.85));
+  static const Color lightBorder = Color(0xFFBFCEE0);
 
-  /// Surface translucide de la barre de recherche : blanc teinté lavande,
-  /// jamais blanc neutre.
-  static Color lightSearchSurface({double alpha = 0.64}) =>
-      Color.lerp(Colors.white, lightBackground, 0.22)!
-          .withValues(alpha: alpha.clamp(0.58, 0.70));
+  /// Surface translucide de la barre de recherche : bleu glacier, jamais
+  /// blanc neutre.
+  static Color lightSearchSurface({double alpha = 0.77}) =>
+      lightSurfaceBase.withValues(alpha: alpha.clamp(0.72, 0.82));
 
-  /// Surface translucide du dock de navigation : lavande givrée, plus
-  /// teintée que la barre de recherche pour bien se distinguer du fond
-  /// tout en restant cohérente avec lui.
+  /// Surface translucide du dock de navigation : bleu brume, plus teinté
+  /// que la barre de recherche pour bien se distinguer du fond tout en
+  /// restant cohérente avec lui.
   static Color lightDockSurface({double alpha = 0.62}) =>
-      Color.lerp(Colors.white, lightBackgroundDeep, 0.48)!
+      Color.lerp(lightSurfaceBase, lightBackgroundDeep, 0.48)!
           .withValues(alpha: alpha.clamp(0.55, 0.70));
 
   /// Icône inactive de la barre de navigation en mode clair — distincte de
   /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock
   /// de navigation.
-  static const Color navInactiveLight = Color(0xFF777485);
+  static const Color navInactiveLight = Color(0xFF697589);
 
   // ── Dock de navigation "classique" : grande capsule sombre uniforme +
   // carré arrondi visible derrière l'icône active (style restauré). ──────
@@ -71,14 +72,12 @@ class AppTheme {
   static const Color darkDockActiveIcon   = Color(0xFF93C5FD);
   static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
 
-  /// Capsule claire, légèrement teintée lavande — plus opaque que
+  /// Capsule claire, teintée bleu glacier — plus opaque que
   /// `lightDockSurface` (pas d'effet verre pour ce style).
-  static Color get lightDockSolid =>
-      Color.lerp(Colors.white, lightBackground, 0.55)!;
+  static const Color lightDockSolid = Color(0xFFEDF4FA);
 
   /// Carré actif, légèrement plus foncé que la capsule claire.
-  static Color get lightDockActiveSquare =>
-      Color.lerp(Colors.white, lightBackground, 0.85)!;
+  static const Color lightDockActiveSquare = Color(0xFFDCE8F5);
 
   /// Marge horizontale d'écran — même valeur que celle utilisée par la
   /// grille de catégories (`home_screen.dart`), pour un alignement exact

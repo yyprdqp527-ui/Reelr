@@ -1602,8 +1602,11 @@ class _SearchBarState extends State<_SearchBar> {
     final iconColor = isDark ? AppTheme.darkTextSecondary : AppTheme.lightSearchIcon;
     final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSearchSurface();
     // Bordure légèrement plus visible au focus — sans lueur ajoutée.
+    // En clair : reste dans la famille bleu glacier (pas de violet ici).
     final borderColor = _focused
-        ? AppTheme.violet.withValues(alpha: isDark ? 0.45 : 0.35)
+        ? (isDark
+            ? AppTheme.violet.withValues(alpha: 0.45)
+            : AppTheme.lightBlue.withValues(alpha: 0.35))
         : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
 
     return AnimatedContainer(
@@ -1615,12 +1618,13 @@ class _SearchBarState extends State<_SearchBar> {
         color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: borderColor, width: _focused ? 1.3 : 1.0),
-        // Très légère profondeur en clair — jamais d'ombre lourde.
+        // Très légère profondeur en clair — jamais d'ombre lourde, jamais
+        // violette (reste dans la famille bleu glacier).
         boxShadow: isDark
             ? null
             : [
                 BoxShadow(
-                  color: AppTheme.violet.withValues(alpha: 0.05),
+                  color: AppTheme.lightTextPrimary.withValues(alpha: 0.05),
                   blurRadius: 12,
                   offset: const Offset(0, 4),
                 ),
