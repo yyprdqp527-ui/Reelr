@@ -13,6 +13,7 @@ import '../services/purchase_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
 import '../models/legal_content.dart';
+import '../models/clip.dart' as clip_model;
 import 'legal_document_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -37,18 +38,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _exportClips() async {
     final clips = widget.state.allClips;
-    final jsonStr = jsonEncode(clips.map((c) => c.toMap()).toList());
+    final categories = widget.state.categories;
+    final categoryNames = <String?, String>{
+      for (final cat in categories) cat.id: cat.name,
+    };
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final byCategory = <String, List<clip_model.Clip>>{};
+    for (final clip in clips) {
+      final categoryName = categoryNames[clip.categoryId] ??
+          (isFr ? 'Sans categorie' : 'Uncategorized');
+      byCategory.putIfAbsent(categoryName, () => []).add(clip);
+    }
+    final buffer = StringBuffer();
+    for (final entry in byCategory.entries) {
+      buffer.writeln(entry.key);
+      buffer.writeln('-' * entry.key.length);
+      for (final clip in entry.value) {
+        buffer.writeln(clip.url);
+      }
+      buffer.writeln();
+    }
     if (!mounted) return;
     final now = DateTime.now();
     final fileName = 'reelr_export_'
         '${now.year}-${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}.json';
+        '${now.day.toString().padLeft(2, '0')}.txt';
     await Share.shareXFiles(
-      [XFile.fromData(utf8.encode(jsonStr), mimeType: 'application/json')],
+      [XFile.fromData(utf8.encode(buffer.toString()), mimeType: 'text/plain')],
       fileNameOverrides: [fileName],
-      subject: Localizations.localeOf(context).languageCode == 'fr'
-          ? 'Mes clips Reelr'
-          : 'My Reelr clips',
+      subject: isFr ? 'Mes clips Reelr' : 'My Reelr clips',
       sharePositionOrigin: _sharePositionOrigin(context),
     );
   }
