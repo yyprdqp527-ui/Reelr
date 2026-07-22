@@ -1321,7 +1321,12 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
     // Construction du contenu (multimodal si thumbnail disponible)
     final dynamic messageContent;
-    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty && video.platform == 'youtube') {
+    // Miniature envoyée à Claude pour les plateformes où l'URL de vignette
+    // est stable. Facebook est exclu : ses URLs fbcdn.net contiennent des
+    // tokens à courte durée de vie qui expirent souvent avant que l'API
+    // Anthropic ne récupère l'image côté serveur.
+    const platformsWithReliableThumbnails = {'youtube', 'tiktok', 'instagram', 'twitch'};
+    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty && platformsWithReliableThumbnails.contains(video.platform)) {
       messageContent = [
         {
           'type': 'image',
