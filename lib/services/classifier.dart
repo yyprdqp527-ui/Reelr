@@ -1136,13 +1136,13 @@ Qui ouvre cette vidéo ? Une ado qui se maquille le matin ? Un gars de 25 ans qu
 CRÉATEURS FRANÇAIS — si tu reconnais la chaîne, c'est un signal fort :
 
 Gaming / Streaming :
-Squeezie, ZeratoR, Gotaga, Maghla, Mistermv, Ponce, Kameto, Mynthos, Domingo, Antoine Daniel, Sardoche, Alphacast, Deujna, Etoiles, Ultia, Joueur du Grenier, Valouzz, Luffyz, Atif, LittleBigWhale, Mickalow, Mister MV, Théo Sonics, Doigby, Lyloo, LRB, BaptisteWorld, Kenny Stream, DFG, Aypierre, Frigiel, Maxildan, CedricBelbo, InoxTag
+Squeezie, ZeratoR, Gotaga, Maghla, Mistermv, Ponce, Kameto, Mynthos, Domingo, Antoine Daniel, Sardoche, Alphacast, Deujna, Etoiles, Ultia, Joueur du Grenier, Valouzz, Luffyz, Atif, LittleBigWhale, Mickalow, Mister MV, Théo Sonics, Doigby, Lyloo, LRB, BaptisteWorld, Kenny Stream, DFG, Aypierre, Frigiel, Maxildan, CedricBelbo, InoxTag, Anyme023
 
 Humour / Divertissement :
-Mcfly & Carlito, Amixem, Kemar, Pierre Croce, Joyca, Natoo, Cyprien, Norman, Golden Moustache, Le Rire Jaune, Seb la Frite, David Lafarge, Maskey, Jhon Rachid, Wankil Studio, Wass Freestyle, Paul Pouyat, Aurélien Taché, Monsieur Phi, Nota Bene, Axotak, Vilebrequin, Gus on the Road
+Mcfly & Carlito, Amixem, Kemar, Pierre Croce, Joyca, Natoo, Cyprien, Norman, Golden Moustache, Le Rire Jaune, Seb la Frite, David Lafarge, Maskey, Jhon Rachid, Wankil Studio, Wass Freestyle, Paul Pouyat, Aurélien Taché, Monsieur Phi, Nota Bene, Axotak, Vilebrequin, Gus on the Road, Nicocapone, OVSIE, Tuvok12, Michou
 
 Beauté / Mode / Lifestyle :
-EnjoyPhoenix, Léna Situations, Sananas, Lufy, Joyca, Noholita, Habiba da Silva, Camille Dg, Sissy Mua, Pauline Tantot, Margaud Lys, Melek Zerrak, Bilal Hassani, Maquillage de Camille, Justine Gallice, Stéphanie Durant, Aline Dessine, Lena Mahfouf, Virginie Sauveur
+EnjoyPhoenix, Léna Situations, Sananas, Lufy, Joyca, Noholita, Habiba da Silva, Camille Dg, Sissy Mua, Pauline Tantot, Margaud Lys, Melek Zerrak, Bilal Hassani, Maquillage de Camille, Justine Gallice, Stéphanie Durant, Aline Dessine, Lena Mahfouf, Virginie Sauveur, Léa Elui
 
 Fitness / Sport / Nutrition :
 Tibo InShape, Ilona Verley, Ultime Santé, Bertrand Loreau, Yoanass Fitness, Florian Lenormand, Fabrice Gaignard, Maud Chauvin, Marine Leleu, Dr Nozman, Médicament ou Poison, Max Gicquel
@@ -1176,6 +1176,43 @@ Weinstein, MeToo France, balance ton porc
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+CRÉATEURS ANGLOPHONES / INTERNATIONAUX — mêmes réflexes que pour les créateurs français, à utiliser quand la vidéo est en anglais ou vient d'un créateur non-francophone :
+
+Gaming / Streaming :
+MrBeast Gaming, PewDiePie, xQc, Ninja, Pokimane, Ludwig, Valkyrae, Dream, TommyInnit, KSI, Sidemen, Jacksepticeye, Markiplier, DanTDM, Khaby Lame, IShowSpeed
+
+Humour / Divertissement :
+Emma Chamberlain, David Dobrik, Logan Paul, Jake Paul, Charli D'Amelio, Zach King, Good Mythical Morning, Rhett and Link, SNL, James Corden, MrBeast, Alix Earle, Jake Shane, Brooke Monk, Lexi Rivera, Druski
+
+Beauté / Mode / Lifestyle :
+James Charles, NikkieTutorials, Huda Kattan, Jeffree Star, Bretman Rock, Wisdom Kaye, Alix Earle, Hyram, Mikayla Nogueira
+
+Fitness / Sport / Nutrition :
+Chloe Ting, Athlean-X, Jeff Nippard, Whitney Simmons, Jeremy Ethier, Stephanie Buttermore
+
+Voyage / Aventure :
+Kara and Nate, Yes Theory, Drew Binsky, Nomadic Matt, Eva zu Beck
+
+Finance / Business :
+Graham Stephan, Meet Kevin, Ali Abdaal, Gary Vaynerchuk, Andrei Jikh, Minority Mindset
+
+Tech / Science / Culture :
+MKBHD, Marques Brownlee, Linus Tech Tips, Veritasium, Kurzgesagt, MinutePhysics, Mark Rober, Vsauce, SmarterEveryDay
+
+Cuisine / Food :
+Gordon Ramsay, Binging with Babish, Joshua Weissman, Bon Appétit, Tasty, Uncle Roger, Nara Smith
+
+Podcasts anglophones connus — si la chaîne ou le titre contient un de ces noms, c'est un Podcast :
+The Joe Rogan Experience, Call Her Daddy, Crime Junkie, My Favorite Murder,
+The Tim Ferriss Show, The Daily (New York Times), Serial, This American Life,
+Armchair Expert, The Diary of a CEO
+
+Affaires & Scandales internationaux — si le titre ou la chaîne mentionne ces noms propres, c'est Actu & Société :
+MeToo, Harvey Weinstein, Depp v. Heard, Elon Musk (controverses), Diddy (affaire judiciaire),
+cancel culture, Epstein
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 MARQUES & ENSEIGNES — si la vidéo tourne principalement autour d'une enseigne :
 
 Déstockage / Petits prix : Action, Noz, Gifi, Centrakor, Stokomani, B&M, Temu, Shein, Aliexpress, Vinted, Leboncoin
@@ -1192,34 +1229,59 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 
 CATÉGORIES — Tu DOIS retourner EXACTEMENT un de ces IDs dans "categorie_principale", rien d'autre :
 
-cat_food        → cuisine, recettes, restaurants, chefs, gastronomie
-cat_fitness     → sport, musculation, yoga, running, santé, nutrition
-cat_gaming      → jeux vidéo, gaming, streaming, esport, Twitch
-cat_beauty      → maquillage, skincare, makeup, soins, beauté
-cat_mode        → vêtements, fashion, style, outfit, haul mode
-cat_travel      → voyage, aventure, tourisme, découverte, destinations
-cat_tech        → technologie, high-tech, science, IA, gadgets
-cat_humour      → humour, comédie, prank, sketch, funny, mdr
-cat_musique     → musique, chansons, concerts, clips, artistes
-cat_wellness    → bien-être, méditation, développement spirituel
-cat_podcast     → podcast, interview longue durée, débat, talk-show
-cat_famille     → famille, enfants, bébé, parentalité, vlog famille
-cat_finance     → finance personnelle, investissement, bourse, épargne, budget
-cat_business    → entrepreneuriat, business, startup, marketing, management
-cat_actu        → actualité, news, politique, élections, guerre, faits divers
-cat_societe     → société, féminisme, inégalités, éducation, conditions de vie, débats sociaux
-cat_diy         → DIY, création, art, dessin, procreate, artisanat
-cat_deco        → décoration, intérieur, maison, home, architecture
-cat_auto        → voiture, moto, automobile, conduite, mécanque
-cat_culture     → culture, histoire, littérature, philosophie, éducation
-cat_cinema      → cinéma, séries, films, critiques, Netflix
-cat_growth      → développement personnel, motivation, productivité
-cat_pets        → animaux, chiens, chats, animaux de compagnie, vétérinaire
-cat_nature      → nature, écologie, plantes, jardinage, environnement, biodiversité
-cat_truecrime   → true crime, affaires criminelles, enquêtes, faits divers
-cat_astro       → astrologie, horoscope, zodiaque, tarot, ésotérisme
-cat_wellness    → bien-être, méditation, mindfulness, spiritualité, développement intérieur
-cat_vibes       → lifestyle, ambiance, esthétique, aesthetic, vibes
+cat_food            → cuisine, recettes, restaurants, chefs, gastronomie
+cat_nutrition       → diététique, rééquilibrage alimentaire, calories, macros, régimes. Diff. cat_food : food = plaisir de cuisiner/manger ; nutrition = logique diététique/santé.
+cat_fitness         → musculation, entraînement, yoga, running, cardio. Diff. cat_sport_extreme : ici entraînement classique, pas la prise de risque.
+cat_sport           → sport en général, compétition, matchs, résultats, équipes
+cat_sport_extreme   → sports à sensations et prise de risque (parkour, base jump, surf de gros, freeride). Diff. cat_fitness : ici risque/adrénaline, pas entraînement classique.
+cat_sante           → santé physique, maladies, médecine, système de santé. Diff. cat_fitness : santé/médical vs entraînement volontaire.
+cat_gaming          → jeux vidéo, gaming, streaming, esport, Twitch
+cat_beauty          → maquillage, skincare, makeup, soins du visage. Règle : ce qu'on APPLIQUE sur le corps.
+cat_mode            → vêtements, fashion, style, outfit, haul mode. Règle : ce qu'on PORTE.
+cat_luxe            → produits/lifestyle haut de gamme, marques de luxe, montres, sacs de luxe. Diff. cat_mode : luxe = univers très haut de gamme mis en avant comme sujet.
+cat_vintage         → mode ou objets rétro/seconde main d'époque (friperie, brocante). Diff. cat_mode : provenance ancienne/rétro, pas tendance actuelle.
+cat_travel          → voyage, découverte de destinations, tourisme, road trip
+cat_outdoor         → activités en pleine nature sans notion de destination touristique (randonnée, camping, survie). Diff. cat_travel : travel = destination/pays ; outdoor = activité elle-même.
+cat_humour          → humour, prank, sketch, situations comiques, mdr
+cat_comedy          → stand-up, one-man-show. Diff. cat_humour : humour = contenu drôle spontané/court ; comedy = spectacle structuré.
+cat_fail            → compilations d'échecs, "fail", "gone wrong". Diff. cat_humour : ratés/accidents, même sans intention comique.
+cat_musique         → chansons, concerts, clips, artistes musicaux
+cat_dance           → chorégraphie, danse, battle de danse. Diff. cat_musique : mouvement/chorégraphie est le sujet, pas la musique elle-même.
+cat_wellness        → bien-être, méditation, mindfulness, spiritualité intérieure, slow life
+cat_growth          → développement personnel, motivation, productivité. Diff. cat_wellness : wellness = apaisement ; growth = action/performance.
+cat_psycho          → psychologie, comportement humain, relations, santé mentale expliquée. Diff. cat_wellness : psycho analyse/explique, wellness pratique/ressent.
+cat_astro           → astrologie, horoscope, zodiaque, tarot, ésotérisme
+cat_podcast         → interview longue durée, débat, talk-show, format micro/casque
+cat_famille         → vie de famille, parentalité, vlog familial (enfants déjà nés)
+cat_bebe            → grossesse, nouveau-né, petite enfance. Diff. cat_famille : bebe cible grossesse/tout-petit, famille = vie de famille au sens large.
+cat_finance         → finance personnelle, épargne, bourse, budget individuel
+cat_business        → entrepreneuriat au sens large, startup, marketing, management
+cat_entrepreneuriat → parcours/récit de création d'entreprise, storytelling de fondateur. Diff. cat_business : business = techniques/conseils ; entrepreneuriat = histoire d'un fondateur.
+cat_crypto          → cryptomonnaies, blockchain, Web3, NFT
+cat_actu            → actualité chaude, news, élections, guerre
+cat_politique       → analyse/débat politique, partis, personnalités. Diff. cat_actu : actu = événement brut, politique = angle partisan explicite.
+cat_societe         → débats de société, féminisme, inégalités, conditions de vie
+cat_truecrime       → affaires criminelles, enquêtes, tueurs en série. Diff. cat_actu : fait divers criminel en profondeur/storytelling, pas actualité du jour.
+cat_diy             → création manuelle, artisanat, procreate, bricolage créatif
+cat_tricot          → couture, tricot, crochet. Diff. cat_diy : tricot = sous-univers textile/aiguilles.
+cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
+cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
+cat_cosplay         → cosplay, costumes de personnages, geek culture
+cat_manga           → anime, manga, culture japonaise animée. Diff. cat_cosplay : manga = œuvres, cosplay = déguisement inspiré d'œuvres.
+cat_deco            → décoration intérieure, home tour, aménagement
+cat_immo            → achat/vente/investissement immobilier, visites de biens à vendre. Diff. cat_deco : immo = transaction, déco = esthétique du bien habité.
+cat_jardin          → jardinage, potager, plantes d'extérieur
+cat_nature          → écologie, environnement, biodiversité au sens large. Diff. cat_jardin : jardin = pratique personnelle, nature = sujet environnemental large.
+cat_pets            → animaux de compagnie, chiens, chats, vétérinaire
+cat_auto            → voitures, motos, mécanique, conduite
+cat_culture         → culture générale, littérature, philosophie
+cat_histoire        → faits et récits historiques passés. Diff. cat_culture : histoire = événements du passé, culture = réflexion actuelle.
+cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré.
+cat_lang            → apprentissage des langues étrangères
+cat_science         → sciences dures, espace, physique, biologie
+cat_doc             → documentaire long format, reportage de fond. Le FORMAT prime sur le sujet : un doc scientifique reste cat_doc.
+cat_religion        → religion, foi, spiritualité religieuse organisée. Diff. cat_astro/cat_wellness : lié à une religion établie, pas ésotérisme ou bien-être individuel.
+cat_cinema          → cinéma, séries, films, critiques, Netflix
 
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
