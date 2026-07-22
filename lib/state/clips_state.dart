@@ -3,8 +3,39 @@ import 'package:flutter/material.dart';
 import '../models/category.dart';
 import '../models/clip.dart';
 import '../services/classifier.dart';
+import '../models/classification_result.dart';
 import '../services/database.dart';
+import 'dart:async';
 import '../services/profile_service.dart';
+
+/// Limite le nombre de classifications Claude simultanées (utile lors de
+/// l'import de playlists avec plusieurs clips d'un coup) pour éviter les
+/// timeouts en cascade quand trop d'appels réseau partent en parallèle
+/// sans contrôle. Les appels au-delà de la limite patientent en file
+/// plutôt que d'échouer.
+class _ClassifyLimiter {
+  static const int _maxConcurrent = 2;
+  static int _active = 0;
+  static final List<Completer<void>> _waiting = [];
+
+  static Future<void> acquire() async {
+    if (_active < _maxConcurrent) {
+      _active++;
+      return;
+    }
+    final completer = Completer<void>();
+    _waiting.add(completer);
+    await completer.future;
+  }
+
+  static void release() {
+    if (_waiting.isNotEmpty) {
+      _waiting.removeAt(0).complete();
+    } else {
+      _active--;
+    }
+  }
+}
 
 // ─────────────────────────────────────────────
 // SUBCATEGORY MODEL
@@ -262,15 +293,21 @@ class ClipsState extends ChangeNotifier {
 
       if (catName == null) {
         try {
-          final result = await ClaudeClassifier.classify(
-            video: VideoData(
-              title: effectiveTitle,
-              platform: clip.platform,
-              thumbnailUrl: clip.thumbnailUrl,
-              channel: clip.channel,
-            ),
-            profile: profile,
-          );
+          await _ClassifyLimiter.acquire();
+          final ClassificationResult result;
+          try {
+            result = await ClaudeClassifier.classify(
+              video: VideoData(
+                title: effectiveTitle,
+                platform: clip.platform,
+                thumbnailUrl: clip.thumbnailUrl,
+                channel: clip.channel,
+              ),
+              profile: profile,
+            );
+          } finally {
+            _ClassifyLimiter.release();
+          }
           catName = result.categoriePrincipale;
           debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
           debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
@@ -296,15 +333,21 @@ class ClipsState extends ChangeNotifier {
           debugPrint('[classify] Claude failed, retrying once: $e');
           try {
             await Future.delayed(const Duration(milliseconds: 300));
-            final retryResult = await ClaudeClassifier.classify(
-              video: VideoData(
-                title: effectiveTitle,
-                platform: clip.platform,
-                thumbnailUrl: clip.thumbnailUrl,
-                channel: clip.channel,
-              ),
-              profile: profile,
-            );
+            await _ClassifyLimiter.acquire();
+            final ClassificationResult retryResult;
+            try {
+              retryResult = await ClaudeClassifier.classify(
+                video: VideoData(
+                  title: effectiveTitle,
+                  platform: clip.platform,
+                  thumbnailUrl: clip.thumbnailUrl,
+                  channel: clip.channel,
+                ),
+                profile: profile,
+              );
+            } finally {
+              _ClassifyLimiter.release();
+            }
             catName = retryResult.categoriePrincipale;
             debugPrint('[classify] retry succeeded: $catName');
           } catch (e2) {
