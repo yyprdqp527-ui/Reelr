@@ -13,7 +13,6 @@ import '../services/purchase_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
 import '../models/legal_content.dart';
-import '../models/clip.dart' as clip_model;
 import 'legal_document_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -36,6 +35,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
   }
 
+  String _csvField(String value) {
+    if (value.contains(',') || value.contains('"') || value.contains('\n')) {
+      return '"${value.replaceAll('"', '""')}"';
+    }
+    return value;
+  }
+
   Future<void> _exportClips() async {
     final clips = widget.state.allClips;
     final categories = widget.state.categories;
@@ -43,28 +49,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
       for (final cat in categories) cat.id: cat.name,
     };
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
-    final byCategory = <String, List<clip_model.Clip>>{};
+    final buffer = StringBuffer();
+    buffer.writeln(
+      'id,url,title,platform,category,tags,addedAt,channel',
+    );
     for (final clip in clips) {
       final categoryName = categoryNames[clip.categoryId] ??
           (isFr ? 'Sans categorie' : 'Uncategorized');
-      byCategory.putIfAbsent(categoryName, () => []).add(clip);
-    }
-    final buffer = StringBuffer();
-    for (final entry in byCategory.entries) {
-      buffer.writeln(entry.key);
-      buffer.writeln('-' * entry.key.length);
-      for (final clip in entry.value) {
-        buffer.writeln(clip.url);
-      }
-      buffer.writeln();
+      final row = [
+        clip.id,
+        clip.url,
+        clip.title,
+        clip.platform,
+        categoryName,
+        clip.tags.join(';'),
+        clip.addedAt.toIso8601String(),
+        clip.channel ?? '',
+      ].map(_csvField).join(',');
+      buffer.writeln(row);
     }
     if (!mounted) return;
     final now = DateTime.now();
     final fileName = 'reelr_export_'
         '${now.year}-${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}.txt';
+        '${now.day.toString().padLeft(2, '0')}.csv';
     await Share.shareXFiles(
-      [XFile.fromData(utf8.encode(buffer.toString()), mimeType: 'text/plain')],
+      [XFile.fromData(utf8.encode(buffer.toString()), mimeType: 'text/csv')],
       fileNameOverrides: [fileName],
       subject: isFr ? 'Mes clips Reelr' : 'My Reelr clips',
       sharePositionOrigin: _sharePositionOrigin(context),
