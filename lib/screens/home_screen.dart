@@ -1798,7 +1798,9 @@ class _EmptyStateState extends State<_EmptyState> {
               ),
               const SizedBox(height: 10),
               Text(
-                isFr ? 'Appuie sur le bouton Partager, puis choisis Reelr' : 'Tap the Share button, then choose Reelr',
+                isFr
+                    ? 'Va sur ta plateforme préférée, sélectionne une vidéo,\npuis partage-la vers Reelr'
+                    : 'Go to your favorite platform, pick a video,\nthen share it to Reelr',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
               ),
@@ -1813,8 +1815,8 @@ class _EmptyStateState extends State<_EmptyState> {
                   _AppShortcut(label: 'Instagram', assetImage: 'assets/icons/instagram.png', url: 'https://www.instagram.com'),
                   _AppShortcut(label: 'Facebook', assetImage: 'assets/icons/facebook.png', url: 'https://www.facebook.com'),
                   _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv'),
-                  _AppShortcut(label: 'Pinterest', icon: Icons.push_pin_rounded, color: const Color(0xFFE60023), url: 'https://www.pinterest.com'),
-                  _AppShortcut(label: 'Reddit', icon: Icons.forum_rounded, color: const Color(0xFFFF4500), url: 'https://www.reddit.com'),
+                  _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com'),
+                  _AppShortcut(label: 'Reddit', assetImage: 'assets/icons/reddit.png', url: 'https://www.reddit.com'),
                 ],
               ),
             ],
@@ -1827,40 +1829,43 @@ class _EmptyStateState extends State<_EmptyState> {
 
 class _AppShortcut extends StatelessWidget {
   final String label;
-  final IconData? icon;
-  final Color? color;
-  final String? assetImage;
+  final String assetImage;
   final String url;
-  const _AppShortcut({required this.label, this.icon, this.color, this.assetImage, required this.url});
+  const _AppShortcut({required this.label, required this.assetImage, required this.url});
   @override
   Widget build(BuildContext context) {
-    final isImage = assetImage != null;
-    return GestureDetector(
-      onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
-      child: Column(
-        children: [
-          Container(
-            width: 56, height: 56,
-            padding: isImage ? const EdgeInsets.all(10) : EdgeInsets.zero,
-            decoration: BoxDecoration(
-              color: isImage ? Colors.white : color,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: (isImage ? Colors.black : color!).withValues(alpha: isImage ? 0.15 : 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: isImage
-                ? Image.asset(assetImage!, fit: BoxFit.contain)
-                : Icon(icon, color: Colors.white, size: 26),
+    return Column(
+      children: [
+        Container(
+          width: 56, height: 56,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
           ),
-          const SizedBox(height: 6),
-          Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-        ],
-      ),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              splashColor: const Color(0xFF7C3AED).withValues(alpha: 0.25),
+              highlightColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+              child: Padding(
+                padding: const EdgeInsets.all(10),
+                child: Image.asset(assetImage, fit: BoxFit.contain),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 }
