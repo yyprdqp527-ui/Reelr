@@ -309,7 +309,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      actions: [
+      actions: clips.isEmpty
+          ? []
+          : [
           HeaderActionButton(
             icon: Icons.add_link_rounded,
             tooltip: 'Coller un lien',
@@ -1741,110 +1743,119 @@ class _EmptyState extends StatefulWidget {
   @override
   State<_EmptyState> createState() => _EmptyStateState();
 }
-class _EmptyStateState extends State<_EmptyState>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scroll;
-  late final Animation<double> _shareAppear;
-  late final Animation<double> _arrowBounce;
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 2800))..repeat(period: const Duration(milliseconds: 4000));
-    _scroll = CurvedAnimation(parent: _ctrl, curve: const Interval(0.0, 0.45, curve: Curves.easeInOut));
-    _shareAppear = CurvedAnimation(parent: _ctrl, curve: const Interval(0.5, 0.7, curve: Curves.elasticOut));
-    _arrowBounce = CurvedAnimation(parent: _ctrl, curve: const Interval(0.72, 1.0, curve: Curves.easeInOut));
-  }
-  @override
-  void dispose() { _ctrl.dispose(); super.dispose(); }
+class _EmptyStateState extends State<_EmptyState> {
   @override
   Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
     final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.4);
+    final borderColor = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06);
+
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              height: 160,
-              child: AnimatedBuilder(
-                animation: _ctrl,
-                builder: (context, _) => Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Positioned(top: 0, child: _PhoneMockup(scrollProgress: _scroll.value, isDark: isDark)),
-                    if (_shareAppear.value > 0)
-                      Positioned(
-                        bottom: 10, right: 40,
-                        child: Transform.scale(
-                          scale: _shareAppear.value,
-                          child: Container(
-                            width: 44, height: 44,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF7C3AED),
-                              borderRadius: BorderRadius.circular(12),
-                              boxShadow: [BoxShadow(color: const Color(0xFF7C3AED).withValues(alpha: 0.4), blurRadius: 12, offset: const Offset(0, 4))],
-                            ),
-                            child: const Icon(Icons.ios_share_rounded, color: Colors.white, size: 22),
-                          ),
-                        ),
-                      ),
-                    if (_arrowBounce.value > 0)
-                      Positioned(
-                        bottom: 0, right: 48,
-                        child: Transform.translate(
-                          offset: Offset(0, 6 * (1 - _arrowBounce.value).abs()),
-                          child: Opacity(opacity: _arrowBounce.value, child: const Icon(Icons.arrow_downward_rounded, color: Color(0xFF7C3AED), size: 20)),
-                        ),
-                      ),
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.30),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
                 ),
+                child: const Icon(Icons.ios_share_rounded, size: 30, color: Color(0xFFA855F7)),
               ),
-            ),
-            const SizedBox(height: 28),
-            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Tes vidéos préférées,\nenfin au même endroit' : 'Your favorite videos,\nall in one place', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor)),
-            const SizedBox(height: 12),
-            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Va sur YouTube, Instagram ou TikTok\nappuie sur  ↑  puis choisis Reelr' : 'Go to YouTube, Instagram or TikTok\ntap  ↑  then choose Reelr', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, height: 1.6, color: subColor)),
-            const SizedBox(height: 28),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _AppShortcut(label: 'YouTube', icon: Icons.play_circle_fill_rounded, color: const Color(0xFFFF0000), url: 'https://www.youtube.com'),
-                const SizedBox(width: 16),
-                _AppShortcut(label: 'TikTok', icon: Icons.music_note_rounded, color: const Color(0xFF010101), url: 'https://www.tiktok.com'),
-                const SizedBox(width: 16),
-                _AppShortcut(label: 'Instagram', icon: Icons.camera_alt_rounded, color: const Color(0xFFE1306C), url: 'https://www.instagram.com'),
-              ],
-            ),
-          ],
+              const SizedBox(height: 18),
+              Text(
+                isFr ? 'COMMENCE ICI' : 'GET STARTED',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
+                  color: Color(0xFFA855F7),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr ? 'Tes vidéos préférées,\nenfin au même endroit' : 'Your favorite videos,\nall in one place',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr ? 'Appuie sur le bouton Partager, puis choisis Reelr' : 'Tap the Share button, then choose Reelr',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
+              ),
+              const SizedBox(height: 26),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  _AppShortcut(label: 'YouTube', assetImage: 'assets/icons/youtube.png', url: 'https://www.youtube.com'),
+                  _AppShortcut(label: 'TikTok', assetImage: 'assets/icons/tiktok.png', url: 'https://www.tiktok.com'),
+                  _AppShortcut(label: 'Instagram', assetImage: 'assets/icons/instagram.png', url: 'https://www.instagram.com'),
+                  _AppShortcut(label: 'Facebook', assetImage: 'assets/icons/facebook.png', url: 'https://www.facebook.com'),
+                  _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv'),
+                  _AppShortcut(label: 'Pinterest', icon: Icons.push_pin_rounded, color: const Color(0xFFE60023), url: 'https://www.pinterest.com'),
+                  _AppShortcut(label: 'Reddit', icon: Icons.forum_rounded, color: const Color(0xFFFF4500), url: 'https://www.reddit.com'),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
 class _AppShortcut extends StatelessWidget {
   final String label;
-  final IconData icon;
-  final Color color;
+  final IconData? icon;
+  final Color? color;
+  final String? assetImage;
   final String url;
-  const _AppShortcut({required this.label, required this.icon, required this.color, required this.url});
+  const _AppShortcut({required this.label, this.icon, this.color, this.assetImage, required this.url});
   @override
   Widget build(BuildContext context) {
+    final isImage = assetImage != null;
     return GestureDetector(
       onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
       child: Column(
         children: [
           Container(
             width: 56, height: 56,
+            padding: isImage ? const EdgeInsets.all(10) : EdgeInsets.zero,
             decoration: BoxDecoration(
-              color: color,
+              color: isImage ? Colors.white : color,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 4))],
+              boxShadow: [
+                BoxShadow(
+                  color: (isImage ? Colors.black : color!).withValues(alpha: isImage ? 0.15 : 0.35),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
-            child: Icon(icon, color: Colors.white, size: 26),
+            child: isImage
+                ? Image.asset(assetImage!, fit: BoxFit.contain)
+                : Icon(icon, color: Colors.white, size: 26),
           ),
           const SizedBox(height: 6),
           Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
@@ -1854,40 +1865,6 @@ class _AppShortcut extends StatelessWidget {
   }
 }
 
-class _PhoneMockup extends StatelessWidget {
-  final double scrollProgress;
-  final bool isDark;
-  const _PhoneMockup({required this.scrollProgress, required this.isDark});
-  @override
-  Widget build(BuildContext context) {
-    final bg = isDark ? const Color(0xFF1A1A2E) : const Color(0xFFF5F5F5);
-    final cardColor = isDark ? Colors.white.withValues(alpha: 0.08) : Colors.black.withValues(alpha: 0.06);
-    return Container(
-      width: 110, height: 130,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isDark ? Colors.white.withValues(alpha: 0.15) : Colors.black.withValues(alpha: 0.1)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: Stack(
-          children: [
-            Positioned(
-              top: -60 * scrollProgress + 8, left: 8, right: 8,
-              child: Column(
-                children: List.generate(4, (i) => Container(
-                  height: 28, margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(color: cardColor, borderRadius: BorderRadius.circular(6)),
-                )),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 class _ThumbnailBanner extends StatelessWidget {
   final String? thumbUrl;
   final SocialPlatform platform;

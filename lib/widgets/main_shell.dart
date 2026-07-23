@@ -59,14 +59,15 @@ class _MainShellState extends State<MainShell> {
                 ],
               ),
             ),
-            Positioned(
-              bottom: safeBottom + 16,
-              // Même marge que la grille de catégories, pour un alignement
-              // exact des bords gauche/droit.
-              left: AppTheme.screenHorizontalMargin,
-              right: AppTheme.screenHorizontalMargin,
-              child: _buildNavBar(isDark),
-            ),
+            if (!(_index == 0 && widget.state.totalClipsCount == 0))
+              Positioned(
+                bottom: safeBottom + 16,
+                // Même marge que la grille de catégories, pour un alignement
+                // exact des bords gauche/droit.
+                left: AppTheme.screenHorizontalMargin,
+                right: AppTheme.screenHorizontalMargin,
+                child: _buildNavBar(isDark),
+              ),
           ],
         ),
         bottomNavigationBar: null,
