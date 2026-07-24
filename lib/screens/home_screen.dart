@@ -1116,7 +1116,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     ),
                   Expanded(
                     child: clips.isEmpty
-                        ? _EmptyState(l: l)
+                        ? (_selectedSubcategoryId != null
+                            ? _SubcategoryEmptyState(l: l)
+                            : _EmptyState(l: l))
                         : _reorderMode && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
@@ -1827,6 +1829,76 @@ class _EmptyStateState extends State<_EmptyState> {
   }
 }
 
+class _SubcategoryEmptyState extends StatelessWidget {
+  final AppL10n l;
+  const _SubcategoryEmptyState({required this.l});
+
+  @override
+  Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.4);
+    final borderColor = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.30),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.checklist_rounded, size: 30, color: Color(0xFFA855F7)),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                isFr ? 'ORGANISE TES CLIPS' : 'ORGANIZE YOUR CLIPS',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
+                  color: Color(0xFFA855F7),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr ? 'Cette liste est vide\npour l\'instant' : 'This list is empty\nfor now',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr
+                    ? 'Va dans l\'onglet Tout, appuie sur le menu ⋮ d\'un clip,\npuis choisis Classer pour l\'ajouter ici'
+                    : 'Go to the All tab, tap the ⋮ menu on a clip,\nthen choose Sort to add it here',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 class _AppShortcut extends StatelessWidget {
   final String label;
   final String assetImage;
