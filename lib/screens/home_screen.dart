@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../services/classifier.dart';
 import '../services/database.dart';
 import '../services/oembed.dart';
 import '../services/playlist_link.dart';
+import '../services/playlist_link_shortener.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
@@ -921,14 +923,23 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   /// Génère le lien de playlist (voir [PlaylistLink]) et le partage via le
   /// mécanisme natif déjà utilisé pour le partage d'une vidéo unique.
   /// Aucun backend : la playlist entière est encodée dans l'URL.
-  void _sharePlaylist(BuildContext context, String name, List<Clip> clips) {
-    final link = PlaylistLink.fromClips(name, clips).toAppUri();
+  Future<void> _sharePlaylist(
+      BuildContext context, String name, List<Clip> clips) async {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final box = context.findRenderObject() as RenderBox?;
     final screenSize = MediaQuery.of(context).size;
     final origin = (box != null && box.hasSize)
         ? box.localToGlobal(Offset.zero) & box.size
         : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
-    Share.share(link.toString(), sharePositionOrigin: origin);
+
+    final playlistLink = PlaylistLink.fromClips(name, clips);
+    final link = await PlaylistLinkShortener.shorten(playlistLink);
+    if (!context.mounted) return;
+
+    final message = isFr
+        ? 'Un ami te propose de découvrir sa playlist « $name » sur Reelr 🎬\n\n$link'
+        : 'A friend wants to share their playlist "$name" on Reelr 🎬\n\n$link';
+    Share.share(message, sharePositionOrigin: origin);
   }
 
   List<Clip> _sorted(List<Clip> src) => sortClipsByOrder(src, _sortOrder);
@@ -1090,7 +1101,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   key: _sharePlaylistKey,
                   icon: const Icon(Icons.share_rounded),
                   tooltip: l.t('sharePlaylist'),
-                  onPressed: () => _sharePlaylist(context, widget.title, raw),
+                  onPressed: () => unawaited(_sharePlaylist(context, widget.title, raw)),
                 ),
               const SizedBox(width: 8),
             ],
@@ -2127,11 +2138,6 @@ class ClipCard extends StatelessWidget {
                         child: _MenuItem(
                             icon: Icons.share_rounded, label: l.t('share'))),
                     PopupMenuItem(
-                        value: 'open',
-                        child: _MenuItem(
-                            icon: Icons.open_in_new_rounded,
-                            label: l.t('open'))),
-                    PopupMenuItem(
                         value: 'move',
                         child: _MenuItem(
                             icon: Icons.drive_file_move_rounded,
@@ -2236,9 +2242,6 @@ class ClipCard extends StatelessWidget {
           '${clip.title}\n${clip.url}',
           sharePositionOrigin: origin,
         );
-        return;
-      case 'open':
-        _openUrl(context, clip.url);
         return;
       case 'move':
         showModalBottomSheet(

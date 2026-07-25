@@ -63,6 +63,11 @@ class PlaylistLink {
     return base64Url.encode(utf8.encode(json.encode(jsonList)));
   }
 
+  /// Expose le payload encodé (même valeur que le paramètre `items` de
+  /// [toWebUri]/[toAppUri]) pour que [PlaylistLinkShortener] puisse envoyer
+  /// exactement les mêmes données au Worker de raccourcissement.
+  String encodedItemsForSharing() => _encodedPayload();
+
   /// Lien à schéma personnalisé (ouvre directement l'app si installée).
   /// Même mécanisme que le `reelr://add?url=...` déjà utilisé pour
   /// l'ajout d'un lien unique.
@@ -70,6 +75,20 @@ class PlaylistLink {
         scheme: 'reelr',
         host: 'playlist',
         queryParameters: {
+          'name': name,
+          'items': _encodedPayload(),
+        },
+      );
+
+  /// Lien web (https, hébergé sur la page support GitHub Pages) utilisé
+  /// pour le partage. Contrairement à [toAppUri], celui-ci génère un vrai
+  /// lien cliquable avec aperçu dans les apps de messagerie, et permet un
+  /// fallback vers l'App Store / Play Store si le destinataire n'a pas
+  /// Reelr installée (voir playlist.html).
+  Uri toWebUri() => Uri.https(
+        'yyprdqp527-ui.github.io',
+        '/reelr-support/playlist.html',
+        {
           'name': name,
           'items': _encodedPayload(),
         },
