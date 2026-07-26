@@ -354,6 +354,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
     if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
+      final ctx = _navigatorKey.currentContext;
+      if (ctx != null) {
+        ScaffoldMessenger.of(ctx).showSnackBar(
+          SnackBar(
+            content: Text(
+              _locale.languageCode == 'fr'
+                  ? 'Tu as déjà sauvegardé $freeClipsLimit vidéos au total (certaines ont pu être supprimées depuis).'
+                  : "You've already saved $freeClipsLimit videos in total (some may have been deleted since).",
+            ),
+            duration: const Duration(seconds: 4),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
       showPaywall();
       return;
     }
