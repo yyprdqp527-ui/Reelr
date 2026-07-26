@@ -1847,6 +1847,7 @@ class _EmptyStateState extends State<_EmptyState> {
                   _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv'),
                   _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com'),
                   _AppShortcut(label: 'Reddit', assetImage: 'assets/icons/reddit.png', url: 'https://www.reddit.com'),
+                  _AppShortcut(label: 'LinkedIn', assetImage: 'assets/icons/linkedin.png', url: 'https://www.linkedin.com'),
                 ],
               ),
             ],
