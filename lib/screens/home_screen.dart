@@ -1998,31 +1998,96 @@ class _ThumbnailBanner extends StatelessWidget {
                 loadingBuilder: (_) => _fallback(shimmer: true),
                 // Erreur → icône plateforme (uniquement si aucune miniature
                 // valide n'a jamais été chargée avec succès pour ce clip)
-                fallbackBuilder: (_) => _fallback(),
+                fallbackBuilder: (_) => _fallback(context: context, isError: true),
               )
             : _fallback(),
       ),
     );
   }
 
-  Widget _fallback({bool shimmer = false}) {
+  Widget _fallback({bool shimmer = false, bool isError = false, BuildContext? context}) {
+    final showInfoBadge = isError &&
+        !shimmer &&
+        context != null &&
+        (platform.id == 'facebook' || platform.id == 'instagram');
     return Container(
       color: platform.color.withValues(alpha: 0.12),
-      child: shimmer
-          ? const Center(
-              child: SizedBox(
-                width: 28,
-                height: 28,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          : Center(
-              child: Icon(
-                platform.icon,
-                color: platform.color.withValues(alpha: 0.6),
-                size: 48,
+      child: Stack(
+        children: [
+          shimmer
+              ? const Center(
+                  child: SizedBox(
+                    width: 28,
+                    height: 28,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : Center(
+                  child: Icon(
+                    platform.icon,
+                    color: platform.color.withValues(alpha: 0.6),
+                    size: 48,
+                  ),
+                ),
+          if (showInfoBadge)
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: GestureDetector(
+                onTap: () => _showThumbnailInfo(context),
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.info_outline_rounded,
+                    color: Colors.white70,
+                    size: 14,
+                  ),
+                ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+
+  void _showThumbnailInfo(BuildContext context) {
+    final l = AppL10n.of(context);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0A0E1F),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l.t('thumbnail_unavailable_title'),
+              style: const TextStyle(
+                fontWeight: FontWeight.w700,
+                fontSize: 17,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              l.t('thumbnail_unavailable_body'),
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.4,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
