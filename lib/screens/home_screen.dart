@@ -1976,6 +1976,7 @@ class _AppShortcut extends StatelessWidget {
 String? _platformLogoAsset(String platformId) {
   const availableLogos = {
     'facebook', 'instagram', 'twitch', 'pinterest', 'reddit', 'tiktok', 'youtube',
+    'linkedin',
   };
   return availableLogos.contains(platformId)
       ? 'assets/icons/$platformId.png'
