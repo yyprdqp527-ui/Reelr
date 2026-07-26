@@ -437,7 +437,7 @@ class OEmbedService {
 
       if (response.statusCode != 200) return null;
 
-      final body = response.body;
+      final body = utf8.decode(response.bodyBytes, allowMalformed: true);
       final title = _extractMetaContent(body, property: 'og:title') ??
           _extractMetaContent(body, name: 'twitter:title') ??
           _extractHtmlTitle(body);
