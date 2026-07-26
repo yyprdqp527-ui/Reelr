@@ -267,7 +267,7 @@ class ClipsState extends ChangeNotifier {
       debugPrint('[classify] starting for: ${clip.title}');
       final sw = Stopwatch()..start();
       final profile = await ProfileService().loadProfile();
-      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || clip.title == "Instagram" || clip.title == "Facebook" ? "gaming streaming ${clip.url}" : clip.title;
+      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" ? "gaming streaming ${clip.url}" : clip.title;
       String? catName;
 
       // Court-circuit local, dans l'ordre de fiabilite :
