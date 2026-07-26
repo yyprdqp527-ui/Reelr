@@ -68,42 +68,33 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
-  // ── Palette mode clair — direction "bleu glacier / bleu brume" : version
-  // lumineuse et pastel du bleu nuit du mode sombre. Toujours bleu froid et
-  // légèrement grisé, jamais lavande, jamais rosé, jamais blanc pur.
-  static const Color lightBackgroundSecondary = Color(0xFFE1EDF9); // bleu glacier (haut)
-  static const Color lightBackground          = Color(0xFFDCE8F5); // bleu glacier (centre, référence générale)
-  static const Color lightBackgroundDeep      = Color(0xFFD5E3F2); // bleu brume (bas)
-  static const Color lightTextPrimary  = Color(0xFF172033);
-  static const Color lightTextSecondary= Color(0xFF647186);
+  // ── Palette mode clair — direction "bleu-blanc premium" : fond opaque
+  // uniforme, sans dégradé ni halo, cohérent avec l'identité bleu/violet/
+  // cyan du mode sombre. Jamais gris chaud, jamais blanc cassé jaune,
+  // jamais désaturé/boueux.
+  // Fond principal — opaque, uniforme sur toute la hauteur, sans dégradé.
+  static const Color lightBackground   = Color(0xFFEEF4FA);
+  static const Color lightTextPrimary  = Color(0xFF18243A);
+  static const Color lightTextSecondary= Color(0xFF66758B);
   // Placeholder de la barre de recherche — distinct du texte secondaire.
   static const Color lightPlaceholder  = Color(0xFF6C788C);
   // Texte principal et icône spécifiques à la barre de recherche.
   static const Color lightSearchText   = Color(0xFF283449);
-  static const Color lightSearchIcon   = Color(0xFF647186);
+  static const Color lightSearchIcon   = Color(0xFF63738A);
   static const Color lightBlue         = Color(0xFF2582F0);
-  // Surface claire principale — base bleu glacier, jamais blanc pur.
-  static const Color lightSurfaceBase = Color(0xFFF4F8FC);
+  // Surface claire principale — opaque, distincte du fond principal.
+  static const Color lightSurfaceBase = Color(0xFFF9FBFD);
   static Color lightSurface({double alpha = 0.82}) =>
       lightSurfaceBase.withValues(alpha: alpha.clamp(0.78, 0.85));
-  static const Color lightBorder = Color(0xFFBFCEE0);
+  static const Color lightBorder = Color(0xFFC8D6E5);
 
-  /// Surface translucide de la barre de recherche : bleu glacier, jamais
-  /// blanc neutre.
-  static Color lightSearchSurface({double alpha = 0.77}) =>
-      lightSurfaceBase.withValues(alpha: alpha.clamp(0.72, 0.82));
-
-  /// Surface translucide du dock de navigation : bleu brume, plus teinté
-  /// que la barre de recherche pour bien se distinguer du fond tout en
-  /// restant cohérente avec lui.
-  static Color lightDockSurface({double alpha = 0.62}) =>
-      Color.lerp(lightSurfaceBase, lightBackgroundDeep, 0.48)!
-          .withValues(alpha: alpha.clamp(0.55, 0.70));
+  /// Surface de la barre de recherche — opaque, sans transparence.
+  static Color lightSearchSurface() => lightSurfaceBase;
 
   /// Icône inactive de la barre de navigation en mode clair — distincte de
   /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock
   /// de navigation.
-  static const Color navInactiveLight = Color(0xFF697589);
+  static const Color navInactiveLight = Color(0xFF63738A);
 
   // ── Dock de navigation "classique" : grande capsule sombre uniforme +
   // carré arrondi visible derrière l'icône active (style restauré). ──────
@@ -112,12 +103,11 @@ class AppTheme {
   static const Color darkDockActiveIcon   = Color(0xFF93C5FD);
   static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
 
-  /// Capsule claire, teintée bleu glacier — plus opaque que
-  /// `lightDockSurface` (pas d'effet verre pour ce style).
-  static const Color lightDockSolid = Color(0xFFEDF4FA);
+  /// Capsule claire — surface principale opaque, sans effet de verre.
+  static const Color lightDockSolid = Color(0xFFF9FBFD);
 
   /// Carré actif, légèrement plus foncé que la capsule claire.
-  static const Color lightDockActiveSquare = Color(0xFFDCE8F5);
+  static const Color lightDockActiveSquare = Color(0xFFEEF4FA);
 
   /// Marge horizontale d'écran — même valeur que celle utilisée par la
   /// grille de catégories (`home_screen.dart`), pour un alignement exact

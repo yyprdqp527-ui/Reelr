@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
 import '../core/l10n.dart';
@@ -632,6 +633,22 @@ class CategoriesScreen extends StatelessWidget {
           SliverAppBar(
             floating: true,
             backgroundColor: Colors.transparent,
+            // Sans ceci, Flutter estime la luminosité de l'AppBar comme
+            // "sombre" (RGB à 0 malgré l'alpha nul de `Colors.transparent`)
+            // et impose des icônes de statut blanches, quel que soit le
+            // thème — cet AppBar l'emporte sur l'AnnotatedRegion de
+            // MainShell car il est plus profond dans l'arbre.
+            systemOverlayStyle: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarBrightness:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? Brightness.dark
+                      : Brightness.light,
+              statusBarIconBrightness:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? Brightness.light
+                      : Brightness.dark,
+            ),
             elevation: 0,
             title: Text(
               l.t('categories'),

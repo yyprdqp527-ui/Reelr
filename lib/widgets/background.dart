@@ -12,26 +12,17 @@ class GradientBackground extends StatelessWidget {
     return Positioned.fill(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          // Sombre : dégradé identité inchangé. Clair : dégradé vertical
-          // pastel plus affirmé (lavande lumineuse en haut → lavande
-          // principal au centre → bleu pastel en bas) — plus vivant que la
-          // version précédente, mais toujours pastel, jamais saturé.
+          // Sombre : dégradé identité inchangé. Clair : couleur opaque
+          // unie, sans dégradé ni halo — fond bleu-blanc premium, uniforme
+          // sur toute la hauteur de l'écran.
+          color: isDark ? null : AppTheme.lightBackground,
           gradient: isDark
               ? const LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [AppTheme.background, Color(0xFF1A0A2E)],
                 )
-              : const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    AppTheme.lightBackgroundSecondary,
-                    AppTheme.lightBackground,
-                    AppTheme.lightBackgroundDeep,
-                  ],
-                  stops: [0.0, 0.5, 1.0],
-                ),
+              : null,
         ),
         // Sombre : orbes identité inchangés. Clair : aucun halo/cercle —
         // la présence violet/bleu vient uniquement du dégradé de fond

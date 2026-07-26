@@ -262,10 +262,22 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   SliverAppBar _buildAppBar(AppL10n l, List<Clip> clips) {
+    // `backgroundColor: Colors.transparent` fait que Flutter estime la
+    // luminosité de l'AppBar comme "sombre" (RGB à 0 malgré l'alpha nul) et
+    // impose alors des icônes de barre de statut blanches par défaut, quel
+    // que soit le thème — cet AppBar étant plus profond dans l'arbre que
+    // l'AnnotatedRegion de MainShell, il l'emporte sur elle. On fixe donc
+    // explicitement le style ici, aligné sur le thème actif.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return SliverAppBar(
       floating: true,
       snap: true,
       backgroundColor: Colors.transparent,
+      systemOverlayStyle: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+        statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      ),
       elevation: 0,
       // Réduit avec le logo (110 → 96) pour resserrer l'espace vertical
       // avant le compteur / la recherche.
@@ -1018,6 +1030,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           extendBodyBehindAppBar: true,
           appBar: AppBar(
             backgroundColor: Colors.transparent,
+            systemOverlayStyle: SystemUiOverlayStyle(
+              statusBarColor: Colors.transparent,
+              statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+              statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+            ),
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded),

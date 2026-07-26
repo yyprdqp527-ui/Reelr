@@ -39,9 +39,19 @@ class _MainShellState extends State<MainShell> {
     final safeBottom = MediaQuery.of(context).padding.bottom;
     final navBarHeight = 62 + 16 + safeBottom; // dock + padding + safe area
 
+    // Barre de statut transparente ; icônes (heure, Wi-Fi, batterie)
+    // sombres en mode clair, blanches en mode sombre. Propriétés
+    // explicites plutôt que les presets `.light`/`.dark` : statusBarBrightness
+    // pilote iOS, statusBarIconBrightness pilote Android — dépend en
+    // permanence de Theme.of(context).brightness, recalculé à chaque build.
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light, // iOS
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark, // Android
+    );
+
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
-          .copyWith(statusBarColor: Colors.transparent),
+      value: overlayStyle,
       child: Scaffold(
         backgroundColor: bg,
         extendBody: true,
@@ -78,9 +88,11 @@ class _MainShellState extends State<MainShell> {
   Widget _buildNavBar(bool isDark) {
     // Grande capsule sombre uniforme (style restauré) : pas de libellé,
     // pas d'effet verre marqué, pas de transparence excessive.
+    // Clair : capsule totalement opaque (pas de transparence sur les
+    // surfaces principales). Sombre : inchangé.
     final bgColor = isDark
         ? AppTheme.darkDockSolid.withValues(alpha: 0.97)
-        : AppTheme.lightDockSolid.withValues(alpha: 0.95);
+        : AppTheme.lightDockSolid;
     final borderColor =
         isDark ? Colors.white.withValues(alpha: 0.15) : AppTheme.lightBorder;
     return ClipRRect(

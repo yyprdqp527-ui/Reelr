@@ -3,6 +3,7 @@ import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -170,6 +171,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SliverAppBar(
           floating: true,
           backgroundColor: Colors.transparent,
+          // Sans ceci, Flutter estime la luminosité de l'AppBar comme
+          // "sombre" (RGB à 0 malgré l'alpha nul de `Colors.transparent`)
+          // et impose des icônes de statut blanches, quel que soit le
+          // thème — cet AppBar l'emporte sur l'AnnotatedRegion de
+          // MainShell car il est plus profond dans l'arbre.
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarBrightness:
+                Theme.of(context).brightness == Brightness.dark
+                    ? Brightness.dark
+                    : Brightness.light,
+            statusBarIconBrightness:
+                Theme.of(context).brightness == Brightness.dark
+                    ? Brightness.light
+                    : Brightness.dark,
+          ),
           elevation: 0,
           title: Text(
             l.t('settings'),
