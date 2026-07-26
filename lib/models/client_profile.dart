@@ -192,11 +192,16 @@ class ClientProfile {
       'of', 'in', 'at', 'to', 'a', 'is', 'it', 'my', 'me',
       'this', 'that', 'how', 'why', 'what', 'when', 'pas', 'ne',
     };
+    const platformNames = {
+      'facebook', 'instagram', 'twitch', 'youtube', 'tiktok',
+      'twitter', 'reddit', 'pinterest', 'vimeo', 'linkedin',
+    };
     return title
         .toLowerCase()
         .replaceAll(RegExp(r'[^a-z0-9àâäéèêëîïôöùûüç\s]'), ' ')
         .split(RegExp(r'\s+'))
-        .where((w) => w.length >= 3 && !stopWords.contains(w))
+        .where((w) =>
+            w.length >= 3 && !stopWords.contains(w) && !platformNames.contains(w))
         .toSet() // déduplique
         .toList();
   }
