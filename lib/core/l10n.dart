@@ -64,6 +64,9 @@ class AppL10n {
       'settings_privacy_policy': 'Politique de confidentialité',
       'settings_terms': 'Conditions d\'utilisation',
       'settings_contact': 'Contact',
+      'thumbnail_unavailable_title': 'Vignette non disponible',
+      'thumbnail_unavailable_body':
+          'Certaines plateformes limitent la durée de vie des liens d\'image. Le contenu original reste accessible en ouvrant le lien.',
       'settings_about_section': 'À propos',
       'settings_version': 'Version',
       'settings_rate_app': 'Noter l\'app',
@@ -148,6 +151,9 @@ class AppL10n {
       'settings_privacy_policy': 'Privacy Policy',
       'settings_terms': 'Terms of Use',
       'settings_contact': 'Contact',
+      'thumbnail_unavailable_title': 'Thumbnail unavailable',
+      'thumbnail_unavailable_body':
+          'Some platforms limit how long image links stay valid. The original content is still accessible by opening the link.',
       'settings_about_section': 'About',
       'settings_version': 'Version',
       'settings_rate_app': 'Rate the app',
