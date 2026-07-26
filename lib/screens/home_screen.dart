@@ -1970,6 +1970,18 @@ class _AppShortcut extends StatelessWidget {
   }
 }
 
+/// Retourne le chemin de l'asset PNG du logo pour [platformId], si un logo
+/// dédié existe (voir assets/icons/). Sinon, retourne null : il faut alors
+/// utiliser l'icône Material générique de la plateforme en fallback.
+String? _platformLogoAsset(String platformId) {
+  const availableLogos = {
+    'facebook', 'instagram', 'twitch', 'pinterest', 'reddit', 'tiktok', 'youtube',
+  };
+  return availableLogos.contains(platformId)
+      ? 'assets/icons/$platformId.png'
+      : null;
+}
+
 class _ThumbnailBanner extends StatelessWidget {
   final String? thumbUrl;
   final SocialPlatform platform;
@@ -2023,11 +2035,18 @@ class _ThumbnailBanner extends StatelessWidget {
                   ),
                 )
               : Center(
-                  child: Icon(
-                    platform.icon,
-                    color: platform.color.withValues(alpha: 0.6),
-                    size: 48,
-                  ),
+                  child: _platformLogoAsset(platform.id) != null
+                      ? Image.asset(
+                          _platformLogoAsset(platform.id)!,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.contain,
+                        )
+                      : Icon(
+                          platform.icon,
+                          color: platform.color.withValues(alpha: 0.6),
+                          size: 48,
+                        ),
                 ),
           if (showInfoBadge)
             Positioned(
@@ -2147,7 +2166,15 @@ class ClipCard extends StatelessWidget {
                     color: platform.color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(platform.icon, color: platform.color, size: 20),
+                  child: _platformLogoAsset(platform.id) != null
+                      ? Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Image.asset(
+                            _platformLogoAsset(platform.id)!,
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                      : Icon(platform.icon, color: platform.color, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
