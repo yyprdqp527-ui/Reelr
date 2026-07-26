@@ -15,6 +15,7 @@ import 'core/theme.dart';
 import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/playlist_import_screen.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'services/oembed.dart';
 import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
@@ -490,6 +491,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       );
       return;
     }
+    final resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
+        ? clip.thumbnailUrl
+        : thumbnailUrl;
+    if (resolvedThumbnailUrl != null && resolvedThumbnailUrl.isNotEmpty) {
+      unawaited(_precacheThumbnail(resolvedThumbnailUrl));
+    }
     await widget.state.updateClip(
       Clip(
         id: clip.id,
@@ -499,13 +506,24 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         categoryId: clip.categoryId,
         tags: clip.tags,
         addedAt: clip.addedAt,
-        thumbnailUrl: (thumbnailUrl == null || thumbnailUrl.isEmpty)
-            ? clip.thumbnailUrl
-            : thumbnailUrl,
+        thumbnailUrl: resolvedThumbnailUrl,
         position: clip.position,
         channel: meta.channel ?? clip.channel,
       ),
     );
+  }
+
+  /// Télécharge la vignette en arrière-plan pour la mettre en cache disque
+  /// immédiatement après le partage, pendant que l'URL est encore fraîche
+  /// (jetons CDN à courte durée de vie sur Facebook/Instagram/TikTok/etc.).
+  /// Échec silencieux : ResilientThumbnail retentera au réseau à l'affichage.
+  Future<void> _precacheThumbnail(String url) async {
+    try {
+      await DefaultCacheManager().downloadFile(url);
+      debugPrint('[precache] vignette mise en cache: ${Uri.tryParse(url)?.host ?? url}');
+    } catch (e) {
+      debugPrint('[precache] échec pré-téléchargement vignette: $e');
+    }
   }
 
   @override
