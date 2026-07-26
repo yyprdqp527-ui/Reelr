@@ -110,6 +110,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Devine la langue du téléphone immédiatement et de façon synchrone,
+    // pour que le tout premier texte affiché (avant même la fin de la
+    // lecture asynchrone des préférences) soit déjà dans la bonne langue.
+    // _loadPrefs() pourra ensuite l'ajuster si l'utilisateur a choisi une
+    // langue manuellement dans les Réglages.
+    final deviceLang =
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    _locale = Locale(['fr', 'en'].contains(deviceLang) ? deviceLang : 'en');
     _loadPrefs();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _drainSilentShareInbox();
