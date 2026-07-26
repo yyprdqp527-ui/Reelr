@@ -2014,7 +2014,7 @@ class _ThumbnailBanner extends StatelessWidget {
                 // valide n'a jamais été chargée avec succès pour ce clip)
                 fallbackBuilder: (_) => _fallback(context: context, isError: true),
               )
-            : _fallback(),
+            : _fallback(context: context, isError: true),
       ),
     );
   }
@@ -2023,7 +2023,7 @@ class _ThumbnailBanner extends StatelessWidget {
     final showInfoBadge = isError &&
         !shimmer &&
         context != null &&
-        (platform.id == 'facebook' || platform.id == 'instagram');
+        platform.id != 'youtube';
     return Container(
       color: platform.color.withValues(alpha: 0.12),
       child: Stack(
