@@ -136,6 +136,33 @@ class OEmbedService {
   static Future<VideoData?> fetchMetadata(String url) async {
     final trimmed = url.trim();
     final lower = trimmed.toLowerCase();
+
+    // Liens de redirection Google Images (ex: partagés depuis l'app Google
+    // ou Google Images) : l'URL réelle du contenu est cachée dans le
+    // paramètre imgrefurl (page d'origine) — on la résout avant d'extraire
+    // les métadonnées, sinon on récupère le titre générique de la page de
+    // résultats Google au lieu du vrai contenu.
+    if (lower.contains('google.') && lower.contains('/imgres')) {
+      final googleUri = Uri.tryParse(trimmed);
+      final realUrl = googleUri?.queryParameters['imgrefurl'];
+      if (realUrl != null && realUrl.isNotEmpty && realUrl != trimmed) {
+        return fetchMetadata(realUrl);
+      }
+    }
+
+    // Liens de redirection Facebook (ex: partage d'un lien externe posté
+    // sur Facebook, enveloppé par Facebook via l.facebook.com/l.php?u=...)
+    // : l'URL réelle est dans le paramètre u= — on la résout avant
+    // d'extraire les métadonnées, sinon on récupère la page de redirection
+    // Facebook elle-même plutôt que le vrai contenu partagé.
+    if (lower.contains('facebook.com/l.php') || lower.contains('l.facebook.com')) {
+      final fbUri = Uri.tryParse(trimmed);
+      final realUrl = fbUri?.queryParameters['u'];
+      if (realUrl != null && realUrl.isNotEmpty && realUrl != trimmed) {
+        return fetchMetadata(realUrl);
+      }
+    }
+
     final uri = _parseHttpUri(trimmed);
 
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
