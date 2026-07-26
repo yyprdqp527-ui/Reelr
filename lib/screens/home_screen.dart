@@ -2134,14 +2134,14 @@ class ClipCard extends StatelessWidget {
                         child: _MenuItem(
                             icon: Icons.edit_rounded, label: l.t('edit'))),
                     PopupMenuItem(
-                        value: 'share',
-                        child: _MenuItem(
-                            icon: Icons.share_rounded, label: l.t('share'))),
-                    PopupMenuItem(
                         value: 'move',
                         child: _MenuItem(
                             icon: Icons.drive_file_move_rounded,
                             label: l.t('move_to_category'))),
+                    PopupMenuItem(
+                        value: 'share',
+                        child: _MenuItem(
+                            icon: Icons.send_rounded, label: l.t('share'))),
                     PopupMenuItem(
                         value: 'delete',
                         child: _MenuItem(
