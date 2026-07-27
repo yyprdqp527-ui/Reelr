@@ -27,6 +27,18 @@ class CategoryCorrection {
       );
 }
 
+/// Noms génériques de plateforme parfois utilisés comme "chaîne" faute de
+/// mieux (récupération OpenGraph : `og:site_name` renvoie littéralement
+/// "Pinterest", "Facebook", "LinkedIn"... au lieu d'un vrai créateur/chaîne).
+/// Ne représentent jamais un créateur précis : les ignorer partout où une
+/// "chaîne" est apprise/consultée évite qu'apprendre sur UN clip Pinterest
+/// ne fasse basculer TOUT le contenu Pinterest dans la même catégorie.
+const Set<String> genericPlatformChannelNames = {
+  'youtube', 'tiktok', 'instagram', 'x', 'x / twitter', 'twitter',
+  'facebook', 'twitch', 'vimeo', 'reddit', 'pinterest', 'linkedin',
+  'autre', 'other',
+};
+
 class ClientProfile {
   final String userId;
   final Map<String, int> categoryCount;
@@ -94,7 +106,12 @@ class ClientProfile {
   /// Renvoie la catégorie apprise pour une chaîne/créateur donné, si son
   /// score ≥ [minScore]. Permet de sauter Claude pour une chaîne déjà vue.
   String? learnedCategoryForChannel(String channel, {int minScore = 3}) {
-    final scores = channelVocabulary[channel.toLowerCase().trim()];
+    final key = channel.toLowerCase().trim();
+    // Filet de sécurité supplémentaire (voir `withLearnedChannel`) : même si
+    // une entrée générique existait déjà dans un profil chargé avant le
+    // nettoyage, on ne l'utilise jamais pour classer.
+    if (genericPlatformChannelNames.contains(key)) return null;
+    final scores = channelVocabulary[key];
     if (scores == null || scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
     return best.value >= minScore ? best.key : null;
@@ -155,6 +172,30 @@ class ClientProfile {
     );
   }
 
+  /// Purge les entrées de `channelVocabulary` déjà apprises par erreur sur un
+  /// nom générique de plateforme (bug corrigé : avant, un seul clip Pinterest
+  /// bien/mal classé suffisait à faire basculer TOUT le contenu Pinterest
+  /// dans la même catégorie, sans jamais repasser par l'IA). Ne touche à
+  /// rien d'autre dans le profil ; retourne `this` si rien à nettoyer.
+  ClientProfile withoutGenericPlatformChannels() {
+    if (channelVocabulary.keys
+        .every((k) => !genericPlatformChannelNames.contains(k))) {
+      return this;
+    }
+    final cleaned = Map<String, Map<String, int>>.from(channelVocabulary)
+      ..removeWhere((k, _) => genericPlatformChannelNames.contains(k));
+    return ClientProfile(
+      userId: userId,
+      categoryCount: categoryCount,
+      knownInfluencers: knownInfluencers,
+      lifestyleCount: lifestyleCount,
+      corrections: corrections,
+      totalVideosClassified: totalVideosClassified,
+      personalVocabulary: personalVocabulary,
+      channelVocabulary: cleaned,
+    );
+  }
+
   /// Crée un profil mis à jour en apprenant qu'une chaîne/créateur donné
   /// correspond à [category]. Appelé automatiquement après une classification
   /// Claude fiable (confiance haute), sans intervention humaine.
@@ -162,6 +203,9 @@ class ClientProfile {
       {int increment = 1}) {
     final key = channel.toLowerCase().trim();
     if (key.isEmpty) return this;
+    // Voir la doc de `genericPlatformChannelNames` : ce n'est pas un
+    // créateur/chaîne réel, donc on n'apprend jamais dessus.
+    if (genericPlatformChannelNames.contains(key)) return this;
     final newChannelVocab =
         Map<String, Map<String, int>>.from(channelVocabulary.map(
       (k, v) => MapEntry(k, Map<String, int>.from(v)),

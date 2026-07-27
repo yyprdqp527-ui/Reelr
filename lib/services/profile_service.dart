@@ -14,8 +14,16 @@ class ProfileService {
     final json = prefs.getString('$_prefix$userId');
     if (json == null) return ClientProfile.empty(userId: userId);
     try {
-      return ClientProfile.fromMap(
-          jsonDecode(json) as Map<String, dynamic>);
+      final loaded =
+          ClientProfile.fromMap(jsonDecode(json) as Map<String, dynamic>);
+      // Nettoyage rétroactif (une fois suffit, voir la doc de la méthode) :
+      // purge un éventuel apprentissage erroné sur un nom générique de
+      // plateforme (ex. "pinterest") datant d'avant ce correctif.
+      final cleaned = loaded.withoutGenericPlatformChannels();
+      if (!identical(cleaned, loaded)) {
+        await saveProfile(cleaned);
+      }
+      return cleaned;
     } catch (e) {
       debugPrint('[profile] corrupted profile for $userId, resetting: $e');
       return ClientProfile.empty(userId: userId);
