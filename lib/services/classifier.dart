@@ -1229,7 +1229,7 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 
 CATÉGORIES — Tu DOIS retourner EXACTEMENT un de ces IDs dans "categorie_principale", rien d'autre :
 
-cat_food            → cuisine, recettes, restaurants, chefs, gastronomie
+cat_food            → cuisine, recettes, restaurants, chefs, gastronomie. Diff. cat_humour : si la vidéo montre réellement une recette/un plat (même raté ou tourné sur un ton comique), reste cat_food ; cat_humour seulement si le comique est le vrai sujet et la nourriture n'est qu'un prétexte accessoire.
 cat_nutrition       → diététique, rééquilibrage alimentaire, calories, macros, régimes. Diff. cat_food : food = plaisir de cuisiner/manger ; nutrition = logique diététique/santé.
 cat_fitness         → musculation, entraînement, yoga, running, cardio. Diff. cat_sport_extreme : ici entraînement classique, pas la prise de risque.
 cat_sport           → sport en général, compétition, matchs, résultats, équipes
