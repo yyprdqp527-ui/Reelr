@@ -886,7 +886,9 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Catégorie similaire détectée' : 'Similar category detected'),
         content: Text(
-          'Vous voulez dire "${suggested.name}" au lieu de "$typedName" ?',
+          Localizations.localeOf(ctx).languageCode == 'fr'
+              ? 'Vous voulez dire "${suggested.name}" au lieu de "$typedName" ?'
+              : 'Did you mean "${suggested.name}" instead of "$typedName"?',
         ),
         actions: [
           TextButton(
@@ -899,7 +901,11 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Utiliser ${suggested.name}'),
+            child: Text(
+              Localizations.localeOf(ctx).languageCode == 'fr'
+                  ? 'Utiliser ${suggested.name}'
+                  : 'Use ${suggested.name}',
+            ),
           ),
         ],
       ),

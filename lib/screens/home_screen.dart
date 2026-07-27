@@ -328,7 +328,9 @@ class _HomeScreenState extends State<HomeScreen> {
           : [
           HeaderActionButton(
             icon: Icons.add_link_rounded,
-            tooltip: 'Coller un lien',
+            tooltip: Localizations.localeOf(context).languageCode == 'fr'
+                ? 'Coller un lien'
+                : 'Paste a link',
             onPressed: () async {
               final data = await Clipboard.getData(Clipboard.kTextPlain);
               final url = data?.text?.trim() ?? '';
@@ -1075,7 +1077,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             actions: [
               IconButton(
                 icon: Icon(_gridView ? Icons.list_rounded : Icons.grid_view_rounded),
-                tooltip: _gridView ? 'Vue liste' : 'Vue grille',
+                tooltip: Localizations.localeOf(context).languageCode == 'fr'
+                    ? (_gridView ? 'Vue liste' : 'Vue grille')
+                    : (_gridView ? 'List view' : 'Grid view'),
                 onPressed: () => setState(() {
                   _gridView = !_gridView;
                   widget.state.setGridViewFor(widget.categoryId, _gridView);
@@ -1545,7 +1549,7 @@ class _SubcategoryBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         children: [
           _SubChip(
-            label: 'Tout',
+            label: AppL10n.of(context).t('all'),
             color: categoryColor,
             selected: selectedId == null,
             onTap: () => onSelect(null),
@@ -3091,14 +3095,19 @@ class _AddClipSheetState extends State<AddClipSheet> {
                               ]),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.auto_awesome_rounded,
+                                const Icon(Icons.auto_awesome_rounded,
                                     size: 12, color: Colors.white),
-                                SizedBox(width: 4),
-                                Text('IA',
-                                    style: TextStyle(
+                                const SizedBox(width: 4),
+                                Text(
+                                    Localizations.localeOf(context)
+                                                .languageCode ==
+                                            'fr'
+                                        ? 'IA'
+                                        : 'AI',
+                                    style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 10,
                                         fontWeight: FontWeight.w700)),
