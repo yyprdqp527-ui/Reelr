@@ -21,28 +21,60 @@ class SocialPlatform {
 
   static SocialPlatform detect(String url) {
     final lower = url.toLowerCase();
-    if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
+    final host = _hostOf(lower);
+    if (_hostMatches(host, lower, const ['youtube.com', 'youtu.be'])) {
       return _platforms['youtube']!;
-    } else if (lower.contains('tiktok.com') || lower.contains('vm.tiktok.com')) {
+    } else if (_hostMatches(host, lower, const ['tiktok.com'])) {
       return _platforms['tiktok']!;
-    } else if (lower.contains('instagram.com')) {
+    } else if (_hostMatches(host, lower, const ['instagram.com', 'instagr.am'])) {
       return _platforms['instagram']!;
-    } else if (lower.contains('twitter.com') || lower.contains('x.com')) {
+    } else if (_hostMatches(host, lower, const ['twitter.com', 'x.com'])) {
       return _platforms['x']!;
-    } else if (lower.contains('facebook.com') || lower.contains('fb.watch')) {
+    } else if (_hostMatches(host, lower, const ['facebook.com', 'fb.watch'])) {
       return _platforms['facebook']!;
-    } else if (lower.contains('twitch.tv')) {
+    } else if (_hostMatches(host, lower, const ['twitch.tv'])) {
       return _platforms['twitch']!;
-    } else if (lower.contains('vimeo.com')) {
+    } else if (_hostMatches(host, lower, const ['vimeo.com'])) {
       return _platforms['vimeo']!;
-    } else if (lower.contains('reddit.com')) {
+    } else if (_hostMatches(host, lower, const ['reddit.com'])) {
       return _platforms['reddit']!;
-    } else if (lower.contains('pinterest.com')) {
+    } else if (_hostMatches(host, lower, const ['pinterest.com', 'pin.it'])) {
       return _platforms['pinterest']!;
-    } else if (lower.contains('linkedin.com')) {
+    } else if (_hostMatches(host, lower, const ['linkedin.com'])) {
       return _platforms['linkedin']!;
     }
     return _platforms['other']!;
+  }
+
+  /// Nom d'hôte d'une URL (ex. "www.x.com" à partir de
+  /// "https://www.x.com/foo"), ou chaîne vide si l'URL n'a pas pu être
+  /// analysée (ex. lien sans schéma http(s)://).
+  static String _hostOf(String lowerUrl) {
+    try {
+      return Uri.parse(lowerUrl.trim()).host;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Vrai si [host] est exactement l'un des [domains], ou un sous-domaine de
+  /// l'un d'eux (ex. "www.x.com"/"mobile.x.com" matchent "x.com", mais —
+  /// contrairement à l'ancien `.contains('x.com')` — "netflix.com" ou
+  /// "xbox.com" ne matchent plus jamais "x.com").
+  ///
+  /// Si [host] est vide (URL non analysable), on retombe sur l'ancienne
+  /// recherche de sous-chaîne dans l'URL complète, pour ne jamais régresser
+  /// sur ces cas rares.
+  static bool _hostMatches(String host, String fullUrlLower, List<String> domains) {
+    for (final domain in domains) {
+      if (host == domain || host.endsWith('.$domain')) return true;
+    }
+    if (host.isEmpty) {
+      for (final domain in domains) {
+        if (fullUrlLower.contains(domain)) return true;
+      }
+    }
+    return false;
   }
 
   static final Map<String, SocialPlatform> _platforms = {
