@@ -56,10 +56,24 @@ class AppTheme {
     end: Alignment.bottomRight,
   );
 
-  /// Accent de la tuile "Tout" / "All" en mode clair — bleu foncé repris du
-  /// dégradé du logo Reelr (au lieu du violet, moins harmonieux avec le
-  /// fond bleu glacier du mode clair). Le mode sombre garde `violet`.
-  static const Color allTileAccentLight = logoBlue;
+  /// Accent de la tuile "Tout" / "All" en mode clair — bleu vif premium,
+  /// cohérent avec le bleu de marque (au lieu du violet, moins harmonieux
+  /// avec le fond bleu pastel du mode clair). Le mode sombre garde `violet`.
+  static const Color allTileAccentLight = Color(0xFF2C75E8);
+
+  /// Dégradé de fond de la tuile "Tout" / "All" en mode clair — bleu pastel
+  /// dense, distinct du dégradé logo (réservé au mode sombre).
+  static const LinearGradient allTileGradientLight = LinearGradient(
+    colors: [Color(0xFFDDEAFE), Color(0xFFCFE0FA)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  /// Couleur du titre de la tuile "Tout" en mode clair.
+  static const Color allTileTitleLight = Color(0xFF25476B);
+
+  /// Couleur du sous-titre / compteur de la tuile "Tout" en mode clair.
+  static const Color allTileSubtitleLight = Color(0xFF56708D);
 
   // Gradient accent réutilisable
   static const LinearGradient accentGradient = LinearGradient(
@@ -68,33 +82,92 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
-  // ── Palette mode clair — direction "bleu-blanc premium" : fond opaque
-  // uniforme, sans dégradé ni halo, cohérent avec l'identité bleu/violet/
-  // cyan du mode sombre. Jamais gris chaud, jamais blanc cassé jaune,
-  // jamais désaturé/boueux.
-  // Fond principal — opaque, uniforme sur toute la hauteur, sans dégradé.
-  static const Color lightBackground   = Color(0xFFEEF4FA);
-  static const Color lightTextPrimary  = Color(0xFF18243A);
-  static const Color lightTextSecondary= Color(0xFF66758B);
-  // Placeholder de la barre de recherche — distinct du texte secondaire.
-  static const Color lightPlaceholder  = Color(0xFF6C788C);
-  // Texte principal et icône spécifiques à la barre de recherche.
-  static const Color lightSearchText   = Color(0xFF283449);
-  static const Color lightSearchIcon   = Color(0xFF63738A);
-  static const Color lightBlue         = Color(0xFF2582F0);
-  // Surface claire principale — opaque, distincte du fond principal.
-  static const Color lightSurfaceBase = Color(0xFFF9FBFD);
-  static Color lightSurface({double alpha = 0.82}) =>
-      lightSurfaceBase.withValues(alpha: alpha.clamp(0.78, 0.85));
-  static const Color lightBorder = Color(0xFFC8D6E5);
+  // ── Palette mode clair — direction "bleu pastel premium" : fond bleu
+  // dense (jamais blanc, jamais gris), cohérent avec l'identité bleu/violet/
+  // cyan du mode sombre et le bleu du logo Reelr. Jamais gris chaud, jamais
+  // blanc cassé jaune, jamais désaturé/boueux.
+  // Fond principal — bleu pastel dense, opaque, uniforme sur toute la
+  // hauteur, sans dégradé.
+  static const Color lightBackground   = Color(0xFFCFE2FA);
+
+  // Fond principal en dégradé (haut → centre → bas) — variante plus riche
+  // du fond opaque ci-dessus, utilisée par `GradientBackground`.
+  static const Color lightBackgroundTop    = Color(0xFFBDD7F8);
+  static const Color lightBackgroundCenter = Color(0xFFCFE2FA);
+  static const Color lightBackgroundBottom = Color(0xFFB1D0F9);
+  static const LinearGradient lightBackgroundGradient = LinearGradient(
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [lightBackgroundTop, lightBackgroundCenter, lightBackgroundBottom],
+    stops: [0.0, 0.5, 1.0],
+  );
+  // Texte — hiérarchie complète, gris-bleu jamais neutre.
+  static const Color lightTextPrimary   = Color(0xFF203654);
+  static const Color lightTextSecondary = Color(0xFF4E6788);
+  static const Color lightTextTertiary  = Color(0xFF647C9A);
+  // Métadonnées (dates, compteurs discrets, plateformes).
+  static const Color lightTextMeta      = Color(0xFF6E85A3);
+  // Placeholder de la barre de recherche.
+  static const Color lightPlaceholder   = Color(0xFF657D9B);
+  // Texte désactivé — jamais une opacité réduite, toujours cette teinte dédiée.
+  static const Color lightTextDisabled  = Color(0xFF7A8EA7);
+  // Texte principal spécifique à la barre de recherche.
+  static const Color lightSearchText    = Color(0xFF203654);
+  // Icône de la barre de recherche (loupe) — icône secondaire.
+  static const Color lightSearchIcon    = Color(0xFF647F9F);
+
+  // Bleus de marque en mode clair.
+  static const Color lightBlue         = Color(0xFF2C75E8);
+  // Accent bleu plus soutenu (CTA, focus, éléments à forte emphase).
+  static const Color lightBlueStrong   = Color(0xFF2E5BFF);
+
+  // ── Surfaces gris-bleu opaques (jamais de gris neutre, jamais de blanc
+  // translucide) — hiérarchie : principale < secondaire < soutenue.
+  static const Color lightSurfaceBase      = Color(0xFFD7E2F0); // cartes principales
+  static const Color lightSurfaceSecondary = Color(0xFFD0DDEC); // surface secondaire / petits boutons
+  static const Color lightSurfaceStrong    = Color(0xFFC7D6E9); // surface plus soutenue
+  static const Color lightSearchSurfaceColor = Color(0xFFDCE7F4); // barre de recherche
+  static const Color lightSelectedSurface  = Color(0xFFB7D2F5); // état sélectionné / pastille active
+  static Color lightSurface({double alpha = 1.0}) =>
+      lightSurfaceBase.withValues(alpha: alpha.clamp(0.92, 1.0));
+  // Conteneurs élevés / cartes claires (alias de la surface principale,
+  // conservé pour compatibilité avec les usages existants).
+  static const Color lightElevatedSurface = lightSurfaceBase;
+
+  // Bordures : principale, secondaire (légèrement plus visible) et active
+  // (focus / sélection), fines et nettes, sans ombre grise sale.
+  static const Color lightBorder = Color(0xFFA8BEDA);
+  static const Color lightBorderStrong = Color(0xFFB7C9E0);
+  static const Color lightBorderActive = Color(0xFF2C75E8);
+
+  // Icônes en mode clair — jamais d'opacité réduite pour un état inactif :
+  // toujours une teinte dédiée.
+  static const Color lightIconActive    = Color(0xFF2C75E8);
+  static const Color lightIconInactive  = Color(0xFF587395);
+  static const Color lightIconSecondary = Color(0xFF647F9F);
+  static const Color lightIconDisabled  = Color(0xFF7C91AB);
+  // Icônes/texte de la barre de statut système en mode clair.
+  static const Color lightStatusBarContent = Color(0xFF162A44);
+
+  // Boutons d'action ("+", lien, etc.) — fond/contour neutres gris-bleu,
+  // icône bleu soutenu.
+  static const Color lightActionButtonFill = lightSurfaceBase;
+  static const Color lightActionButtonBorder = lightBorder;
+  static const Color lightActionButtonIcon = Color(0xFF2C5F96);
+
+  // Icônes d'action dédiées (édition / suppression), toujours pleines,
+  // jamais atténuées.
+  static const Color lightEditIcon = Color(0xFF3F6F9E);
+  static const Color lightDeleteIcon = Color(0xFFE34F5F);
 
   /// Surface de la barre de recherche — opaque, sans transparence.
-  static Color lightSearchSurface() => lightSurfaceBase;
+  static Color lightSearchSurface() => lightSearchSurfaceColor;
 
   /// Icône inactive de la barre de navigation en mode clair — distincte de
   /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock
   /// de navigation.
-  static const Color navInactiveLight = Color(0xFF63738A);
+  static const Color navInactiveLight = Color(0xFF587395);
+  static const Color navActiveLight = Color(0xFF2C75E8);
 
   // ── Dock de navigation "classique" : grande capsule sombre uniforme +
   // carré arrondi visible derrière l'icône active (style restauré). ──────
@@ -103,11 +176,12 @@ class AppTheme {
   static const Color darkDockActiveIcon   = Color(0xFF93C5FD);
   static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
 
-  /// Capsule claire — surface principale opaque, sans effet de verre.
-  static const Color lightDockSolid = Color(0xFFF9FBFD);
+  /// Capsule claire — surface de la barre de navigation, opaque.
+  static const Color lightDockSolid = Color(0xFFD7E2F0);
 
-  /// Carré actif, légèrement plus foncé que la capsule claire.
-  static const Color lightDockActiveSquare = Color(0xFFEEF4FA);
+  /// Carré actif — pastille bleu pastel bien visible derrière l'icône
+  /// sélectionnée.
+  static const Color lightDockActiveSquare = Color(0xFFB7D2F5);
 
   /// Marge horizontale d'écran — même valeur que celle utilisée par la
   /// grille de catégories (`home_screen.dart`), pour un alignement exact
@@ -122,7 +196,7 @@ class AppTheme {
 
   static Color categoryCardBorder(bool isDark) => isDark
       ? darkBorder
-      : lightTextPrimary.withValues(alpha: 0.10);
+      : lightBorder;
 
   /// Lueur très discrète, réservée à la carte sélectionnée. `accent` permet
   /// de faire varier la couleur (violet en sombre, bleu foncé du logo en
@@ -184,9 +258,9 @@ class AppTheme {
       colorScheme: ColorScheme.fromSeed(
         seedColor: violet,
         brightness: brightness,
-        primary: violet,
-        secondary: isDark ? blue : lightBlue,
-        surface: isDark ? surface : lightSurface(),
+        primary: isDark ? violet : lightBlue,
+        secondary: isDark ? blue : lightBlueStrong,
+        surface: isDark ? surface : lightElevatedSurface,
         onSurface: textPrimary,
         onPrimary: Colors.white,
         onSecondary: Colors.white,
@@ -264,6 +338,51 @@ class AppTheme {
           }),
           side: WidgetStatePropertyAll(
             BorderSide(color: blue.withValues(alpha: 0.35), width: 1),
+          ),
+        ),
+      ),
+      // ── Défauts génériques (icônes/dividers/AppBar/inputs non stylés
+      // explicitement par un widget custom) — reprennent la même
+      // hiérarchie que les composants sur-mesure, pour rester cohérents
+      // si un composant Material par défaut est utilisé quelque part.
+      // Mode sombre : reproduit le comportement implicite précédent
+      // (dérivé de `colorScheme.onSurface`), donc inchangé visuellement.
+      iconTheme: IconThemeData(
+        color: isDark ? darkTextPrimary : lightIconInactive,
+      ),
+      primaryIconTheme: IconThemeData(
+        color: isDark ? darkTextPrimary : lightIconActive,
+      ),
+      dividerColor: isDark ? darkBorder : lightBorder,
+      appBarTheme: AppBarTheme(
+        backgroundColor: Colors.transparent,
+        surfaceTintColor: Colors.transparent,
+        foregroundColor: textPrimary,
+        elevation: 0,
+        iconTheme: IconThemeData(color: textPrimary),
+        titleTextStyle: TextStyle(
+          color: textPrimary,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: isDark ? surface : lightElevatedSurface,
+        hintStyle: TextStyle(color: isDark ? darkTextSecondary : lightPlaceholder),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: isDark ? darkBorder : lightBorderStrong),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: isDark ? darkBorder : lightBorder),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(
+            color: isDark ? violet.withValues(alpha: 0.45) : lightBorderActive,
+            width: 1.3,
           ),
         ),
       ),

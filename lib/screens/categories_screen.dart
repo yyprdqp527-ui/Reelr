@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:uuid/uuid.dart';
 
+import '../core/category_visuals.dart';
 import '../core/l10n.dart';
+import '../core/theme.dart';
 import '../models/category.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
@@ -392,14 +394,14 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.black.withValues(alpha: 0.72)
-                  : Colors.white.withValues(alpha: 0.88),
+                  : AppTheme.lightElevatedSurface.withValues(alpha: 0.92),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border(
                 top: BorderSide(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.06),
+                      : AppTheme.lightBorder.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -429,7 +431,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                     Row(
                       children: [
                         Icon(Icons.label_rounded, size: 20,
-                            color: isDark ? Colors.white54 : Colors.black45),
+                            color: isDark ? Colors.white54 : AppTheme.lightTextSecondary),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -498,13 +500,17 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                                     border: Border.all(
                                       color: _icon == ic
                                           ? _color
-                                          : Colors.grey.withValues(alpha: 0.3),
+                                          : (isDark
+                                              ? Colors.grey.withValues(alpha: 0.3)
+                                              : AppTheme.lightBorder),
                                     ),
                                   ),
                                   child: Icon(
                                     ic,
                                     size: 20,
-                                    color: _icon == ic ? _color : Colors.grey,
+                                    color: _icon == ic
+                                        ? _color
+                                        : (isDark ? Colors.grey : AppTheme.lightIconInactive),
                                   ),
                                 ),
                               ))
@@ -545,7 +551,9 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                             ? 'Aucune sous-catégorie'
                             : 'No subcategory',
                         style: TextStyle(
-                            color: Colors.grey.withValues(alpha: 0.6),
+                            color: isDark
+                                ? Colors.grey.withValues(alpha: 0.6)
+                                : AppTheme.lightTextTertiary,
                             fontSize: 13),
                       ),
                     const SizedBox(height: 10),
@@ -625,6 +633,7 @@ class CategoriesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListenableBuilder(
       listenable: state,
@@ -679,7 +688,10 @@ class CategoriesScreen extends StatelessWidget {
                 child: Text(
                   l.t('no_category'),
                   style: TextStyle(
-                      color: Colors.grey.withValues(alpha: 0.5), fontSize: 16),
+                      color: isDark
+                          ? Colors.grey.withValues(alpha: 0.5)
+                          : AppTheme.lightTextTertiary,
+                      fontSize: 16),
                 ),
               ),
             )
@@ -710,11 +722,28 @@ class CategoriesScreen extends StatelessWidget {
                               width: 46,
                               height: 46,
                               decoration: BoxDecoration(
-                                color: cat.color,
+                                // Mode clair : certaines couleurs de
+                                // catégorie (jaune pâle, gris, vert clair…)
+                                // manquent de contraste avec un pictogramme
+                                // blanc — on utilise un fond/picto dédiés
+                                // pour ces catégories précises. Mode sombre
+                                // et catégories non répertoriées : inchangé.
+                                color: !isDark
+                                    ? (CategoryVisuals.lightBadgeBackground(
+                                            localizedName) ??
+                                        cat.color)
+                                    : cat.color,
                                 borderRadius: BorderRadius.circular(13),
                               ),
-                              child: Icon(cat.icon,
-                                  color: Colors.white, size: 22),
+                              child: Icon(
+                                cat.icon,
+                                color: !isDark
+                                    ? (CategoryVisuals.lightBadgeForeground(
+                                            localizedName) ??
+                                        Colors.white)
+                                    : Colors.white,
+                                size: 22,
+                              ),
                             ),
                             const SizedBox(width: 14),
                             Expanded(
@@ -724,9 +753,12 @@ class CategoriesScreen extends StatelessWidget {
                                 children: [
                                   Text(
                                     localizedName,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.w700,
-                                        fontSize: 16),
+                                        fontSize: 16,
+                                        color: isDark
+                                            ? AppTheme.darkTextPrimary
+                                            : AppTheme.lightTextPrimary),
                                   ),
                                   Builder(builder: (bctx) {
                                     final subs =
@@ -740,8 +772,9 @@ class CategoriesScreen extends StatelessWidget {
                                         l.subcategoriesCount(subs.length),
                                         style: TextStyle(
                                           fontSize: 11,
-                                          color: cat.color
-                                              .withValues(alpha: 0.75),
+                                          color: isDark
+                                              ? cat.color.withValues(alpha: 0.75)
+                                              : AppTheme.lightTextTertiary,
                                           fontWeight: FontWeight.w500,
                                         ),
                                       ),
@@ -752,13 +785,16 @@ class CategoriesScreen extends StatelessWidget {
                             ),
                             IconButton(
                               icon: const Icon(Icons.edit_outlined),
+                              color: isDark ? null : AppTheme.lightEditIcon,
                               onPressed: () =>
                                   _showEditSheet(context, cat),
                             ),
                             IconButton(
                               icon:
                                   const Icon(Icons.delete_outline_rounded),
-                              color: Colors.red.withValues(alpha: 0.75),
+                              color: isDark
+                                  ? Colors.red.withValues(alpha: 0.75)
+                                  : AppTheme.lightDeleteIcon,
                               onPressed: () =>
                                   _confirmDelete(context, cat.id, l),
                             ),
@@ -907,6 +943,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       title: Text(l.t('new_category')),
@@ -982,13 +1019,17 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
                               border: Border.all(
                                 color: _icon == ic
                                     ? _color
-                                    : Colors.grey.withValues(alpha: 0.3),
+                                    : (isDark
+                                        ? Colors.grey.withValues(alpha: 0.3)
+                                        : AppTheme.lightBorder),
                               ),
                             ),
                             child: Icon(
                               ic,
                               size: 20,
-                              color: _icon == ic ? _color : Colors.grey,
+                              color: _icon == ic
+                                  ? _color
+                                  : (isDark ? Colors.grey : AppTheme.lightIconInactive),
                             ),
                           ),
                         ))

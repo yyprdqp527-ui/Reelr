@@ -135,18 +135,18 @@ class _MainShellState extends State<MainShell> {
     final sel = _index == idx;
     // Mode sombre revenu à la référence d'origine : bleu clair
     // AppTheme.darkDockActiveIcon (#93C5FD), visible sur la capture de
-    // référence. Mode clair inchangé : couleur de la lettre "r" du logo.
+    // référence. Mode clair : bleu de marque (AppTheme.navActiveLight).
     // Comportement inchangé : seule l'icône active est colorée, les icônes
     // inactives restent grises (inactiveIconColor).
     final activeIconColor =
-        isDark ? AppTheme.darkDockActiveIcon : AppTheme.logoLetterR;
+        isDark ? AppTheme.darkDockActiveIcon : AppTheme.navActiveLight;
     final inactiveIconColor =
         isDark ? AppTheme.darkDockInactiveIcon : AppTheme.navInactiveLight;
     final activeSquareColor =
         isDark ? AppTheme.darkDockActiveSquare : AppTheme.lightDockActiveSquare;
     final activeSquareBorder = isDark
         ? Colors.white.withValues(alpha: 0.20)
-        : Colors.white.withValues(alpha: 0.55);
+        : AppTheme.lightBorderStrong.withValues(alpha: 0.7);
 
     return Expanded(
       child: InkWell(

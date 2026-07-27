@@ -377,10 +377,10 @@ class HeaderActionButton extends StatelessWidget {
         child: Material(
           color: isDark
               ? AppTheme.surfaceElevated.withValues(alpha: 0.55)
-              : AppTheme.lightSurface(alpha: 0.80),
+              : AppTheme.lightActionButtonFill,
           shape: CircleBorder(
             side: BorderSide(
-              color: isDark ? AppTheme.darkBorder : AppTheme.lightBorder,
+              color: isDark ? AppTheme.darkBorder : AppTheme.lightActionButtonBorder,
               width: 1,
             ),
           ),
@@ -393,7 +393,7 @@ class HeaderActionButton extends StatelessWidget {
                 size: 20,
                 color: isDark
                     ? AppTheme.darkTextPrimary
-                    : AppTheme.lightTextPrimary,
+                    : AppTheme.lightActionButtonIcon,
               ),
             ),
           ),
@@ -612,13 +612,23 @@ class _CategoryTileState extends State<_CategoryTile> {
     // ni les données persistées ni la classification IA).
     final badgeIcon = CategoryVisuals.iconFor(
         widget.name, widget.icon ?? Icons.folder_outlined);
-    final badgeColor = widget.isAllTile
-        ? allTileAccent
-        : CategoryVisuals.desaturate(tintColor);
+    // Badge de catégorie : même DA dans les deux thèmes — carré opaque
+    // coloré + pictogramme contrasté (au lieu de l'ancienne pastille noire
+    // translucide, réservée jusqu'ici au mode sombre). En clair, certaines
+    // catégories (jaune pâle, gris, vert clair…) utilisent une paire
+    // fond/pictogramme dédiée pour rester lisibles ; les autres retombent
+    // sur la couleur de catégorie elle-même avec un pictogramme blanc — même
+    // logique en sombre, où la couleur de catégorie est déjà assez soutenue.
+    final badgeSquareBg = isDark
+        ? tintColor
+        : (CategoryVisuals.lightBadgeBackground(widget.name) ?? tintColor);
+    final badgeSquareFg = isDark
+        ? Colors.white
+        : (CategoryVisuals.lightBadgeForeground(widget.name) ?? Colors.white);
     // Icône de la tuile "Tout" : violet en sombre (identité d'origine,
-    // cohérente avec la teinte plate violette), blanc en clair (lisible
-    // sur le dégradé du logo).
-    final allTileIconColor = isDark ? AppTheme.violet : Colors.white;
+    // cohérente avec la teinte plate violette), bleu de marque en clair
+    // (lisible sur le fond bleu pastel dense de la tuile).
+    final allTileIconColor = isDark ? AppTheme.violet : AppTheme.allTileAccentLight;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -697,7 +707,8 @@ class _CategoryTileState extends State<_CategoryTile> {
                               ? Icon(badgeIcon, size: 28, color: allTileIconColor)
                               : CategoryIconBadge(
                                   icon: badgeIcon,
-                                  color: badgeColor,
+                                  background: badgeSquareBg,
+                                  foreground: badgeSquareFg,
                                 ),
                         ),
                         Positioned(
@@ -748,16 +759,25 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // (évite la double bordure colorée).
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
-                            // Tuile "Tout" : dégradé du logo en clair
-                            // uniquement. Mode sombre revenu à l'identité
+                            // Tuile "Tout" : dégradé bleu pastel dense en
+                            // clair. Mode sombre revenu à l'identité
                             // d'origine — simple teinte violette plate.
                             gradient: (widget.isAllTile && !isDark)
-                                ? AppTheme.logoGradient
+                                ? AppTheme.allTileGradientLight
                                 : null,
                             color: (widget.isAllTile && !isDark)
                                 ? null
-                                : (widget.isAllTile ? allTileAccent : tintColor)
-                                    .withValues(alpha: 0.12),
+                                : isDark
+                                    ? (widget.isAllTile ? allTileAccent : tintColor)
+                                        .withValues(alpha: 0.12)
+                                    // Mode clair : carte opaque gris-bleu,
+                                    // légèrement teintée par la couleur de
+                                    // catégorie — jamais transparente sur le
+                                    // fond bleu pastel.
+                                    : Color.alphaBlend(
+                                        tintColor.withValues(alpha: 0.16),
+                                        AppTheme.lightSurfaceBase,
+                                      ),
                             // Ombre allégée en sombre (faible élévation) —
                             // inchangée en clair.
                             boxShadow: [
@@ -808,7 +828,8 @@ class _CategoryTileState extends State<_CategoryTile> {
                               ? Icon(badgeIcon, size: 28, color: allTileIconColor)
                               : CategoryIconBadge(
                                   icon: badgeIcon,
-                                  color: badgeColor,
+                                  background: badgeSquareBg,
+                                  foreground: badgeSquareFg,
                                 ),
                         ),
                         Padding(
@@ -826,11 +847,13 @@ class _CategoryTileState extends State<_CategoryTile> {
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.left,
                                 style: AppTheme.categoryTitleStyle.copyWith(
-                                  // Tuile "Tout" en clair : texte blanc,
-                                  // lisible sur le dégradé du logo.
-                                  color: (isDark || widget.isAllTile)
+                                  // Tuile "Tout" en clair : bleu foncé
+                                  // dédié, lisible sur le dégradé pastel.
+                                  color: isDark
                                       ? Colors.white
-                                      : AppTheme.lightTextPrimary,
+                                      : widget.isAllTile
+                                          ? AppTheme.allTileTitleLight
+                                          : AppTheme.lightTextPrimary,
                                 ),
                               ),
                               if (!widget.isAdd) ...[
@@ -841,7 +864,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                                     color: isDark
                                         ? Colors.white.withValues(alpha: 0.55)
                                         : widget.isAllTile
-                                            ? Colors.white.withValues(alpha: 0.85)
+                                            ? AppTheme.allTileSubtitleLight
                                             : AppTheme.lightTextSecondary,
                                   ),
                                 ),
@@ -1662,7 +1685,7 @@ class _SearchBarState extends State<_SearchBar> {
     final borderColor = _focused
         ? (isDark
             ? AppTheme.violet.withValues(alpha: 0.45)
-            : AppTheme.lightBlue.withValues(alpha: 0.35))
+            : AppTheme.lightBorderActive)
         : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
 
     return AnimatedContainer(
@@ -1702,7 +1725,17 @@ class _SearchBarState extends State<_SearchBar> {
               decoration: InputDecoration(
                 isDense: true,
                 isCollapsed: true,
+                // Neutralise explicitement tous les états de bordure (pas
+                // seulement `border`) : sinon `enabledBorder`/`focusedBorder`
+                // du thème global (AppTheme.inputDecorationTheme) prennent
+                // le dessus et dessinent un second cadre à l'intérieur de
+                // celui du conteneur de la barre de recherche.
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                focusedErrorBorder: InputBorder.none,
                 hintText: widget.hint,
                 hintStyle: AppTheme.searchTextStyle.copyWith(color: hintColor),
               ),
@@ -1734,6 +1767,7 @@ class _SuggestionsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GlassCard(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Column(
@@ -1750,7 +1784,7 @@ class _SuggestionsList extends StatelessWidget {
                               ? Icons.tag_rounded
                               : Icons.history_rounded,
                           size: 16,
-                          color: Colors.grey,
+                          color: isDark ? Colors.grey : AppTheme.lightIconSecondary,
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -1778,9 +1812,9 @@ class _EmptyStateState extends State<_EmptyState> {
   Widget build(BuildContext context) {
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.4);
-    final borderColor = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06);
+    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : AppTheme.lightTextSecondary;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : AppTheme.lightBorder.withValues(alpha: 0.6);
 
     return Center(
       child: Padding(
@@ -1866,9 +1900,9 @@ class _SubcategoryEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A2E);
-    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : Colors.black.withValues(alpha: 0.4);
-    final borderColor = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.06);
+    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : AppTheme.lightTextSecondary;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : AppTheme.lightBorder.withValues(alpha: 0.6);
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -2137,6 +2171,7 @@ class ClipCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final platform = SocialPlatform.detect(clip.url);
     final category = state.categoryById(clip.categoryId);
     final lang = Localizations.localeOf(context).languageCode;
@@ -2191,10 +2226,7 @@ class ClipCard extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                           fontSize: 14,
                           height: 1.35,
-                          color: Theme.of(context).brightness ==
-                                  Brightness.dark
-                              ? Colors.white
-                              : AppTheme.lightTextPrimary,
+                          color: isDark ? Colors.white : AppTheme.lightTextPrimary,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -2221,7 +2253,9 @@ class ClipCard extends StatelessWidget {
                           Text(
                             DateFormat.yMMMd(lang).format(clip.addedAt),
                             style: TextStyle(
-                              color: Colors.grey.withValues(alpha: 0.65),
+                              color: isDark
+                                  ? Colors.grey.withValues(alpha: 0.65)
+                                  : AppTheme.lightTextTertiary,
                               fontSize: 11,
                             ),
                           ),
@@ -2234,7 +2268,9 @@ class ClipCard extends StatelessWidget {
                   key: menuKey,
                   icon: Icon(
                     Icons.more_vert_rounded,
-                    color: Colors.grey.withValues(alpha: 0.7),
+                    color: isDark
+                        ? Colors.grey.withValues(alpha: 0.7)
+                        : AppTheme.lightIconInactive,
                     size: 20,
                   ),
                   shape: RoundedRectangleBorder(
@@ -2282,7 +2318,7 @@ class ClipCard extends StatelessWidget {
                   if (isPendingClassification)
                     _Badge(
                       label: lang == 'fr' ? 'Classification en cours…' : 'Classifying…',
-                      color: Colors.grey,
+                      color: isDark ? Colors.grey : AppTheme.lightTextTertiary,
                       icon: Icons.hourglass_top_rounded,
                     ),
                   ...clip.tags.map((t) => _Badge(
@@ -2499,7 +2535,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1A2E) : Colors.white,
+          color: isDark ? const Color(0xFF1A1A2E) : AppTheme.lightElevatedSurface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 32),
@@ -2524,7 +2560,9 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                 child: Text(
                   Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun dossier — crée-en un depuis la vue catégorie' : 'No folder — create one from the category view',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.withValues(alpha: 0.6), fontSize: 13),
+                  style: TextStyle(
+                      color: isDark ? Colors.grey.withValues(alpha: 0.6) : AppTheme.lightTextTertiary,
+                      fontSize: 13),
                 ),
               )
             else
@@ -2539,11 +2577,23 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: currentSubId == null ? Colors.grey : Colors.grey.withValues(alpha: 0.1),
+                        color: currentSubId == null
+                            ? (isDark ? Colors.grey : AppTheme.lightIconInactive)
+                            : (isDark ? Colors.grey.withValues(alpha: 0.1) : AppTheme.lightSurfaceSecondary),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.grey.withValues(alpha: 0.4)),
+                        border: Border.all(
+                            color: isDark ? Colors.grey.withValues(alpha: 0.4) : AppTheme.lightBorder),
                       ),
-                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun' : 'None', style: TextStyle(color: currentSubId == null ? Colors.white : Colors.grey, fontWeight: FontWeight.w600, fontSize: 13)),
+                      child: Text(
+                        Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun' : 'None',
+                        style: TextStyle(
+                          color: currentSubId == null
+                              ? Colors.white
+                              : (isDark ? Colors.grey : AppTheme.lightTextSecondary),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ),
                   ...subcategories.map((s) => GestureDetector(
@@ -2608,6 +2658,14 @@ class _Badge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // En mode clair, certaines couleurs de catégorie/tag (jaune pâle, gris,
+    // vert clair…) sont trop peu contrastées utilisées telles quelles comme
+    // couleur de texte/icône sur le fond bleu pastel — on les assombrit
+    // légèrement via `_legibleAccent` (même logique que `_CatChip`), tout
+    // en gardant le fond/la bordure teintés dans la couleur d'origine.
+    // Mode sombre : inchangé.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final displayColor = isDark ? color : _legibleAccent(color);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
@@ -2619,13 +2677,13 @@ class _Badge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
+            Icon(icon, size: 12, color: displayColor),
             const SizedBox(width: 4),
           ],
           Text(
             label,
             style: TextStyle(
-              color: color,
+              color: displayColor,
               fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
@@ -2939,14 +2997,14 @@ class _AddClipSheetState extends State<AddClipSheet> {
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.black.withValues(alpha: 0.72)
-                  : Colors.white.withValues(alpha: 0.88),
+                  : AppTheme.lightElevatedSurface.withValues(alpha: 0.92),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border(
                 top: BorderSide(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.06),
+                      : AppTheme.lightBorder.withValues(alpha: 0.7),
                 ),
               ),
             ),
@@ -3143,6 +3201,7 @@ class _CategorySuggestionDialogState
   @override
   Widget build(BuildContext context) {
     final s = widget.suggestion;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       child: Padding(
@@ -3162,7 +3221,9 @@ class _CategorySuggestionDialogState
               Text(
                 Localizations.localeOf(context).languageCode == 'fr' ? 'Cette vidéo ressemble à du \${s.name}' : 'This video looks like \${s.name}',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                style: TextStyle(
+                    fontSize: 13,
+                    color: isDark ? Colors.grey.shade600 : AppTheme.lightTextTertiary),
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -3197,7 +3258,8 @@ class _CategorySuggestionDialogState
                 child: Text(
                   Localizations.localeOf(context).languageCode == 'fr' ? 'Ajouter sans catégorie' : 'Add without category',
                   style: TextStyle(
-                      color: Colors.grey.shade500, fontSize: 13),
+                      color: isDark ? Colors.grey.shade500 : AppTheme.lightTextTertiary,
+                      fontSize: 13),
                 ),
               ),
             ] else ...[  
@@ -3274,24 +3336,31 @@ class _CategoryPicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         _CatChip(
           label: l.t('none'),
-          color: Colors.grey,
+          color: isDark ? Colors.grey : AppTheme.lightIconInactive,
           icon: Icons.block_rounded,
           selected: selected == null,
           onTap: () => onChanged(null),
         ),
-        ...categories.map((cat) => _CatChip(
-              label: l.localizeCategoryDisplay(cat.id, cat.name),
-              color: cat.color,
-              icon: cat.icon,
-              selected: selected == cat.id,
-              onTap: () => onChanged(cat.id),
-            )),
+        ...categories.map((cat) {
+          final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
+          final chipColor = !isDark
+              ? (CategoryVisuals.lightBadgeBackground(localizedName) ?? cat.color)
+              : cat.color;
+          return _CatChip(
+            label: localizedName,
+            color: chipColor,
+            icon: cat.icon,
+            selected: selected == cat.id,
+            onTap: () => onChanged(cat.id),
+          );
+        }),
         _CatChip(
           label: Localizations.localeOf(context).languageCode == 'fr' ? 'Créer' : 'Create',
           color: const Color(0xFF7C3AED),
@@ -3443,14 +3512,14 @@ class _EditClipSheetState extends State<EditClipSheet> {
             decoration: BoxDecoration(
               color: isDark
                   ? Colors.black.withValues(alpha: 0.72)
-                  : Colors.white.withValues(alpha: 0.88),
+                  : AppTheme.lightElevatedSurface.withValues(alpha: 0.92),
               borderRadius:
                   const BorderRadius.vertical(top: Radius.circular(28)),
               border: Border(
                 top: BorderSide(
                   color: isDark
                       ? Colors.white.withValues(alpha: 0.1)
-                      : Colors.black.withValues(alpha: 0.06),
+                      : AppTheme.lightBorder.withValues(alpha: 0.7),
                 ),
               ),
             ),

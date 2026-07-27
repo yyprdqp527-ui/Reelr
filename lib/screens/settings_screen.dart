@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app.dart';
 import '../core/l10n.dart';
+import '../core/theme.dart';
 import '../services/purchase_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
@@ -385,7 +386,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                 color: Theme.of(context).brightness ==
                                         Brightness.dark
                                     ? Colors.white54
-                                    : Colors.black45,
+                                    : AppTheme.lightTextTertiary,
                                 fontSize: 13),
                           ),
                         );
