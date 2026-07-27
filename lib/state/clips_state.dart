@@ -6,6 +6,7 @@ import '../services/classifier.dart';
 import '../models/classification_result.dart';
 import '../services/database.dart';
 import 'dart:async';
+import '../services/oembed.dart';
 import '../services/profile_service.dart';
 
 /// Table de correspondance accent → lettre de base, utilisée par
@@ -215,6 +216,34 @@ class ClipsState extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
     _clips = await DatabaseHelper.instance.getAllClips();
+    // Recorrige rétroactivement la plateforme des clips déjà enregistrés
+    // (ex. anciens liens Pinterest/Instagram tombés dans "Autre" avant que
+    // la détection ne soit corrigée) : purement recalculé à partir de
+    // l'URL déjà stockée, sans appel réseau, et ne touche à rien d'autre
+    // (titre, catégorie, vignette, position...). Contrairement à
+    // l'ancienne migration icône/couleur retirée ci-dessus, `platform`
+    // n'est jamais modifiable par l'utilisateur : recalculer cette valeur
+    // ne peut donc jamais écraser un choix qu'il aurait fait.
+    for (var i = 0; i < _clips.length; i++) {
+      final c = _clips[i];
+      final detected = SocialPlatform.detect(c.url).id;
+      if (detected != c.platform) {
+        final fixed = Clip(
+          id: c.id,
+          url: c.url,
+          title: c.title,
+          platform: detected,
+          categoryId: c.categoryId,
+          tags: c.tags,
+          addedAt: c.addedAt,
+          thumbnailUrl: c.thumbnailUrl,
+          position: c.position,
+          channel: c.channel,
+        );
+        _clips[i] = fixed;
+        unawaited(DatabaseHelper.instance.insertClip(fixed));
+      }
+    }
     // Les couleurs/icônes des catégories standard (cat_xxx) sont déjà
     // correctement définies à la création (voir plus bas dans ce fichier).
     // On ne les réécrase plus ici à chaque chargement : une ancienne
