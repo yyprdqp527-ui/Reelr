@@ -8,6 +8,44 @@ import '../services/database.dart';
 import 'dart:async';
 import '../services/profile_service.dart';
 
+/// Table de correspondance accent → lettre de base, utilisée par
+/// [normalizeForSearch] pour que la recherche ignore les accents (ex.
+/// "eleve" retrouve "élève"). Couvre les caractères latins accentués
+/// courants en français et dans les autres langues européennes usuelles.
+const Map<String, String> _searchAccentMap = {
+  'à': 'a', 'á': 'a', 'â': 'a', 'ã': 'a', 'ä': 'a', 'å': 'a',
+  'ç': 'c',
+  'è': 'e', 'é': 'e', 'ê': 'e', 'ë': 'e',
+  'ì': 'i', 'í': 'i', 'î': 'i', 'ï': 'i',
+  'ñ': 'n',
+  'ò': 'o', 'ó': 'o', 'ô': 'o', 'õ': 'o', 'ö': 'o',
+  'ù': 'u', 'ú': 'u', 'û': 'u', 'ü': 'u',
+  'ý': 'y', 'ÿ': 'y',
+  'œ': 'oe', 'æ': 'ae',
+};
+
+/// Normalise un texte pour la recherche : minuscules + accents retirés.
+/// Utilisé à la fois côté requête tapée par l'utilisateur et côté texte
+/// des clips (titre, tags, catégorie...), pour que la comparaison soit
+/// insensible à la casse ET aux accents.
+String normalizeForSearch(String input) {
+  final buffer = StringBuffer();
+  for (final rune in input.toLowerCase().runes) {
+    final ch = String.fromCharCode(rune);
+    buffer.write(_searchAccentMap[ch] ?? ch);
+  }
+  return buffer.toString();
+}
+
+/// Découpe une requête de recherche en mots (tokens) normalisés, pour une
+/// correspondance "tous ces mots quelque part" plutôt qu'une phrase exacte
+/// dans l'ordre tapé (ex. "chat noir" retrouve aussi "noir chat" ou "chat
+/// très noir").
+List<String> searchTokensFor(String query) => normalizeForSearch(query)
+    .split(RegExp(r'\s+'))
+    .where((t) => t.isNotEmpty)
+    .toList();
+
 /// Limite le nombre de classifications Claude simultanées (utile lors de
 /// l'import de playlists avec plusieurs clips d'un coup) pour éviter les
 /// timeouts en cascade quand trop d'appels réseau partent en parallèle
@@ -176,28 +214,59 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Sous-catégorie correspondant à [id], ou `null` si introuvable/absente.
+  SubCategory? _subCategoryById(String? id) {
+    if (id == null) return null;
+    for (final s in _subcategories) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  /// Texte de recherche complet d'un clip : titre, URL, tags, nom de
+  /// catégorie et nom de sous-catégorie, tout normalisé (minuscules, sans
+  /// accents) et concaténé en un seul bloc pour la comparaison.
+  String _searchHaystackFor(Clip c) {
+    final category = categoryById(c.categoryId);
+    final sub = _subCategoryById(_clipSubcategoryMap[c.id]);
+    return normalizeForSearch([
+      c.title,
+      c.url,
+      c.tags.join(' '),
+      category?.name ?? '',
+      sub?.name ?? '',
+    ].join(' '));
+  }
+
   List<Clip> get clips {
     var result = _clips;
     if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      result = result
-          .where((c) =>
-              c.title.toLowerCase().contains(q) ||
-              c.url.toLowerCase().contains(q) ||
-              c.tags.any((t) => t.toLowerCase().contains(q)))
-          .toList();
+      final tokens = searchTokensFor(_searchQuery);
+      if (tokens.isNotEmpty) {
+        result = result.where((c) {
+          final haystack = _searchHaystackFor(c);
+          return tokens.every((t) => haystack.contains(t));
+        }).toList();
+      }
     }
     return result;
   }
 
   List<String> get searchSuggestions {
     if (_searchQuery.isEmpty) return [];
-    final q = _searchQuery.toLowerCase();
+    final tokens = searchTokensFor(_searchQuery);
+    if (tokens.isEmpty) return [];
     final set = <String>{};
     for (final c in _clips) {
-      if (c.title.toLowerCase().contains(q)) set.add(c.title);
+      final normalizedTitle = normalizeForSearch(c.title);
+      if (tokens.every((t) => normalizedTitle.contains(t))) {
+        set.add(c.title);
+      }
       for (final t in c.tags) {
-        if (t.toLowerCase().contains(q)) set.add('#$t');
+        final normalizedTag = normalizeForSearch(t);
+        if (tokens.every((tok) => normalizedTag.contains(tok))) {
+          set.add('#$t');
+        }
       }
     }
     return set.take(5).toList();

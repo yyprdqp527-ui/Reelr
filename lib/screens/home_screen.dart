@@ -1658,6 +1658,11 @@ class _SearchBar extends StatefulWidget {
 class _SearchBarState extends State<_SearchBar> {
   final FocusNode _focusNode = FocusNode();
   bool _focused = false;
+  // Léger délai avant de relancer la recherche : évite de rescanner toute
+  // la bibliothèque à chaque touche tapée (surtout utile pour les grandes
+  // bibliothèques). Le bouton "effacer" reste instantané (pas de délai).
+  Timer? _debounce;
+  static const _debounceDuration = Duration(milliseconds: 250);
 
   @override
   void initState() {
@@ -1669,6 +1674,7 @@ class _SearchBarState extends State<_SearchBar> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
     _focusNode.dispose();
     super.dispose();
   }
@@ -1718,8 +1724,14 @@ class _SearchBarState extends State<_SearchBar> {
               controller: widget.controller,
               focusNode: _focusNode,
               onChanged: (v) {
-                widget.onChanged(v);
+                // Le bouton "effacer" (visibilité) réagit tout de suite ;
+                // la recherche elle-même est différée de ~250ms pour éviter
+                // de rescanner toute la bibliothèque à chaque lettre tapée.
                 setState(() {});
+                _debounce?.cancel();
+                _debounce = Timer(_debounceDuration, () {
+                  widget.onChanged(v);
+                });
               },
               style: AppTheme.searchTextStyle.copyWith(color: textColor),
               decoration: InputDecoration(
@@ -1745,6 +1757,8 @@ class _SearchBarState extends State<_SearchBar> {
             IconButton(
               icon: Icon(Icons.clear_rounded, size: 20, color: hintColor),
               onPressed: () {
+                // Effacement instantané : on court-circuite le délai.
+                _debounce?.cancel();
                 widget.controller.clear();
                 widget.onChanged('');
                 setState(() {});
