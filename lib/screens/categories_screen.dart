@@ -359,11 +359,17 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
   }
 
   Future<void> _submit() async {
-    // Le nom n'est plus modifiable : on reutilise toujours le nom d'origine
-    // stocke, jamais la version localisee affichee (FR ou EN) a l'ecran.
+    // Renommage activé : l'utilisateur peut modifier le nom affiché.
+    // L'`id` (ex. `cat_food`) ne change jamais, donc le rattachement des
+    // vidéos déjà classées dans cette catégorie n'est pas affecté. Seul un
+    // cas rare (double échec de l'appel à l'IA de classification, qui
+    // retombe alors sur une détection locale par nom) pourrait créer une
+    // catégorie doublon si le nom d'origine a été changé — accepté comme
+    // risque mineur.
+    final newName = _nameCtrl.text.trim();
     final updated = ClipCategory(
       id: widget.category.id,
-      name: widget.category.name,
+      name: newName.isEmpty ? widget.category.name : newName,
       color: _color,
       icon: _icon,
     );
@@ -428,19 +434,12 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                           fontSize: 22, fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Icon(Icons.label_rounded, size: 20,
-                            color: isDark ? Colors.white54 : AppTheme.lightTextSecondary),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _nameCtrl.text,
-                            style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ],
+                    SheetField(
+                      controller: _nameCtrl,
+                      hint: l.t('category_name'),
+                      icon: Icons.label_rounded,
+                      isDark: isDark,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
                     const SizedBox(height: 18),
                     Text(l.t('color'),
@@ -576,6 +575,14 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                         IconButton.filled(
                           onPressed: _addSubCategory,
                           icon: const Icon(Icons.add_rounded),
+                          // Style explicite (fond bleu de marque + icône
+                          // blanche) au lieu de laisser Material choisir —
+                          // le style par défaut manquait de contraste en
+                          // mode clair.
+                          style: IconButton.styleFrom(
+                            backgroundColor: isDark ? AppTheme.violet : AppTheme.lightBlue,
+                            foregroundColor: Colors.white,
+                          ),
                         ),
                       ],
                     ),
