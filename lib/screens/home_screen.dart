@@ -608,10 +608,12 @@ class _CategoryTileState extends State<_CategoryTile> {
     // sombre (inchangé). N'affecte que cette tuile.
     final allTileAccent =
         isDark ? AppTheme.violet : AppTheme.allTileAccentLight;
-    // Icône et couleur de badge uniformisées (visuel uniquement — n'affecte
-    // ni les données persistées ni la classification IA).
-    final badgeIcon = CategoryVisuals.iconFor(
-        widget.name, widget.icon ?? Icons.folder_outlined);
+    // Icône réellement enregistrée pour la catégorie (reflète un éventuel
+    // changement fait par l'utilisateur dans l'onglet Catégories). Le
+    // lookup par nom ne sert plus que de filet de secours si aucune icône
+    // n'est définie.
+    final badgeIcon =
+        widget.icon ?? CategoryVisuals.iconFor(widget.name, Icons.folder_outlined);
     // Badge de catégorie : même DA dans les deux thèmes — carré opaque
     // coloré + pictogramme contrasté (au lieu de l'ancienne pastille noire
     // translucide, réservée jusqu'ici au mode sombre). En clair, certaines
