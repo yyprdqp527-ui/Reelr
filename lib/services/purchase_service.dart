@@ -8,6 +8,11 @@ class PurchaseService {
   static const String premiumYearlyId = 'com.reelr.app.premium.yearly';
 
   final VoidCallback onPremiumUnlocked;
+  /// Appelé quand [silentlyReverifyEntitlement] ne retrouve plus
+  /// l'abonnement côté store alors que l'appareil le croyait actif
+  /// localement (résiliation, remboursement, expiration...). Optionnel :
+  /// si non fourni, aucune revérification n'est effectuée.
+  final VoidCallback? onPremiumExpired;
   final void Function(String message)? onError;
   final bool Function() isFr;
 
@@ -22,6 +27,7 @@ class PurchaseService {
     required this.onPremiumUnlocked,
     required this.isFr,
     this.onError,
+    this.onPremiumExpired,
   });
 
   Future<void> init() async {
@@ -106,6 +112,54 @@ class PurchaseService {
       onError?.call(isFr()
           ? 'Restauration impossible. Réessaie plus tard.'
           : 'Restore failed. Please try again later.');
+    }
+  }
+
+  /// Resynchronise silencieusement le statut Premium local avec le store,
+  /// à appeler une fois au démarrage de l'app (jamais suite à une action de
+  /// l'utilisateur, donc aucune erreur affichée ici).
+  ///
+  /// Avant cet ajout, une fois `is_premium` passé à `true`, rien ne le
+  /// repassait jamais à `false` : un abonnement résilié, expiré ou
+  /// remboursé laissait l'accès Premium actif indéfiniment sur l'appareil.
+  /// Ici, on relance une restauration ; si l'abonnement est toujours actif
+  /// côté store, [onPremiumUnlocked] sera rappelé normalement via
+  /// [_handlePurchaseUpdates]. S'il ne l'est plus (et que l'appareil le
+  /// croyait actif), [onPremiumExpired] est appelé pour retirer l'accès
+  /// local. En cas d'erreur réseau/store, on ne change rien par prudence
+  /// (mieux vaut un faux positif "encore Premium" temporaire qu'un vrai
+  /// utilisateur payant perdant l'accès à cause d'un simple problème
+  /// réseau).
+  Future<void> silentlyReverifyEntitlement({
+    required bool currentlyPremium,
+  }) async {
+    if (!isAvailable) return;
+    var found = false;
+    final sub = _iap.purchaseStream.listen((purchases) {
+      for (final p in purchases) {
+        if (p.productID == premiumYearlyId &&
+            (p.status == PurchaseStatus.purchased ||
+                p.status == PurchaseStatus.restored)) {
+          found = true;
+        }
+      }
+    });
+    try {
+      await _iap.restorePurchases();
+      // Les événements de la queue d'achat arrivent de façon asynchrone,
+      // pas nécessairement avant la fin de restorePurchases() : on laisse
+      // un délai raisonnable pour qu'ils remontent.
+      await Future.delayed(const Duration(seconds: 6));
+    } catch (e) {
+      debugPrint('[purchase] silentlyReverifyEntitlement error: $e');
+      await sub.cancel();
+      return;
+    }
+    await sub.cancel();
+    if (currentlyPremium && !found) {
+      debugPrint(
+          '[purchase] Abonnement non retrouvé au démarrage — retrait du statut Premium local.');
+      onPremiumExpired?.call();
     }
   }
 

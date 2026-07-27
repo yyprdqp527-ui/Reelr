@@ -118,7 +118,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final deviceLang =
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     _locale = Locale(['fr', 'en'].contains(deviceLang) ? deviceLang : 'en');
-    _loadPrefs();
+    final prefsFuture = _loadPrefs();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _drainSilentShareInbox();
     });
@@ -126,6 +126,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     _initDeepLinks();
     _purchaseService = PurchaseService(
       onPremiumUnlocked: () => setPremium(true),
+      // Retire l'accès Premium local si l'abonnement n'est plus retrouvé
+      // côté store au démarrage (résilié, expiré, remboursé...) — avant cet
+      // ajout, rien ne repassait jamais is_premium à false une fois activé.
+      onPremiumExpired: () => setPremium(false),
       isFr: () => _locale.languageCode == 'fr',
       onError: (message) {
         final ctx = _navigatorKey.currentContext;
@@ -136,8 +140,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         }
       },
     );
-    _purchaseService.init().then((_) {
+    final purchaseInitFuture = _purchaseService.init();
+    purchaseInitFuture.then((_) {
       if (mounted) setState(() => _purchaseServiceReady = true);
+    });
+    // Une fois les prefs (dont le statut Premium local persisté) ET le
+    // service d'achat prêts, on lance une resynchronisation silencieuse en
+    // arrière-plan — aucune erreur affichée à l'utilisateur, ce n'est pas
+    // une action qu'il a demandée.
+    Future.wait([prefsFuture, purchaseInitFuture]).then((_) {
+      if (!mounted) return;
+      _purchaseService.silentlyReverifyEntitlement(
+        currentlyPremium: _isPremium,
+      );
     });
   }
 
