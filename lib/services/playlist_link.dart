@@ -95,7 +95,15 @@ class PlaylistLink {
       );
 
   static PlaylistLink? tryDecode(Uri uri) {
-    if (uri.scheme != 'reelr' || uri.host != 'playlist') return null;
+    // Accepte à la fois le lien à schéma personnalisé (reelr://playlist...)
+    // et le lien https (yyprdqp527-ui.github.io/reelr-support/playlist...)
+    // : ce dernier est délivré directement à l'app quand les Universal
+    // Links / App Links sont actifs, sans jamais passer par le navigateur.
+    final isAppScheme = uri.scheme == 'reelr' && uri.host == 'playlist';
+    final isWebLink = (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host == 'yyprdqp527-ui.github.io' &&
+        uri.path.startsWith('/reelr-support/playlist');
+    if (!isAppScheme && !isWebLink) return null;
     final name = uri.queryParameters['name'];
     final encoded = uri.queryParameters['items'];
     if (name == null || encoded == null) return null;

@@ -208,14 +208,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   void _handleDeepLink(Uri uri) {
     debugPrint('[deeplink] _handleDeepLink scheme=${uri.scheme} host=${uri.host}');
-    if (uri.scheme != 'reelr') return;
-    if (uri.host == 'playlist') {
-      final playlist = PlaylistLink.tryDecode(uri);
-      debugPrint('[deeplink] playlist decode -> ${playlist == null ? "NULL (échec)" : "${playlist.items.length} vidéos"}');
-      if (playlist == null) return;
+    // Le lien de partage de playlist existe sous deux formes : le schéma
+    // personnalisé reelr://playlist... et le lien https universel
+    // (yyprdqp527-ui.github.io/reelr-support/playlist...) délivré
+    // directement à l'app quand les Universal/App Links sont actifs — donc
+    // testé avant le filtre "scheme == reelr" ci-dessous, qui ne concerne
+    // que le reste des liens (ex. reelr://add).
+    final playlist = PlaylistLink.tryDecode(uri);
+    if (playlist != null) {
+      debugPrint('[deeplink] playlist decode -> ${playlist.items.length} vidéos');
       _openPlaylistImportWhenReady(playlist);
       return;
     }
+    if (uri.scheme != 'reelr') return;
     if (uri.host != 'add') return;
     final encoded = uri.queryParameters['url'];
     if (encoded == null || encoded.isEmpty) return;
