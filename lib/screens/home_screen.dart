@@ -739,17 +739,13 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // (évite la double bordure colorée).
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
-                            // Tuile "Tout" : dégradé bleu pastel dense en
-                            // clair. Mode sombre revenu à l'identité
-                            // d'origine — simple teinte violette plate.
-                            gradient: (widget.isAllTile && !isDark)
-                                ? AppTheme.allTileGradientLight
-                                : null,
-                            color: (widget.isAllTile && !isDark)
-                                ? null
+                            // Tuile "Tout" : même teinte plate à 12%
+                            // dans les deux thèmes (unifié — plus de
+                            // dégradé spécifique au clair).
+                            color: widget.isAllTile
+                                ? allTileAccent.withValues(alpha: 0.12)
                                 : isDark
-                                    ? (widget.isAllTile ? allTileAccent : tintColor)
-                                        .withValues(alpha: 0.12)
+                                    ? tintColor.withValues(alpha: 0.12)
                                     // Mode clair : carte opaque gris-bleu,
                                     // légèrement teintée par la couleur de
                                     // catégorie — jamais transparente sur le
@@ -803,10 +799,22 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // pour des cartes uniformes dans les deux modes.
                           padding: const EdgeInsets.all(8),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.end,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Spacer(),
+                              if (!widget.isAdd) ...[
+                                Text(
+                                  l.videosCount(widget.count),
+                                  style: AppTheme.categoryCounterStyle.copyWith(
+                                    color: isDark
+                                        ? Colors.white.withValues(alpha: 0.55)
+                                        : widget.isAllTile
+                                            ? AppTheme.allTileSubtitleLight
+                                            : AppTheme.lightTextSecondary,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                              ],
                               Text(
                                 widget.name.toUpperCase(),
                                 maxLines: 2,
@@ -822,20 +830,6 @@ class _CategoryTileState extends State<_CategoryTile> {
                                           : AppTheme.lightTextPrimary,
                                 ),
                               ),
-                              if (!widget.isAdd) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  l.videosCount(widget.count),
-                                  style: AppTheme.categoryCounterStyle.copyWith(
-                                    color: isDark
-                                        ? Colors.white.withValues(alpha: 0.55)
-                                        : widget.isAllTile
-                                            ? AppTheme.allTileSubtitleLight
-                                            : AppTheme.lightTextSecondary,
-                                  ),
-                                ),
-                              ],
-                              const Spacer(),
                             ],
                           ),
                         ),
