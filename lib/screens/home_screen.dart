@@ -24,7 +24,6 @@ import '../services/playlist_link_shortener.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
-import '../widgets/category_icon_badge.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/resilient_thumbnail.dart';
@@ -614,8 +613,6 @@ class _CategoryTileState extends State<_CategoryTile> {
     // changement fait par l'utilisateur dans l'onglet Catégories). Le
     // lookup par nom ne sert plus que de filet de secours si aucune icône
     // n'est définie.
-    final badgeIcon =
-        widget.icon ?? CategoryVisuals.iconFor(widget.name, Icons.folder_outlined);
     // Badge de catégorie : même DA dans les deux thèmes — carré opaque
     // coloré + pictogramme contrasté (au lieu de l'ancienne pastille noire
     // translucide, réservée jusqu'ici au mode sombre). En clair, certaines
@@ -623,16 +620,9 @@ class _CategoryTileState extends State<_CategoryTile> {
     // fond/pictogramme dédiée pour rester lisibles ; les autres retombent
     // sur la couleur de catégorie elle-même avec un pictogramme blanc — même
     // logique en sombre, où la couleur de catégorie est déjà assez soutenue.
-    final badgeSquareBg = isDark
-        ? tintColor
-        : (CategoryVisuals.lightBadgeBackground(widget.name) ?? tintColor);
-    final badgeSquareFg = isDark
-        ? Colors.white
-        : (CategoryVisuals.lightBadgeForeground(widget.name) ?? Colors.white);
     // Icône de la tuile "Tout" : violet en sombre (identité d'origine,
     // cohérente avec la teinte plate violette), bleu de marque en clair
     // (lisible sur le fond bleu pastel dense de la tuile).
-    final allTileIconColor = isDark ? AppTheme.violet : AppTheme.allTileAccentLight;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hover = true),
@@ -702,36 +692,22 @@ class _CategoryTileState extends State<_CategoryTile> {
                       ),
                       if (!widget.isPending) ...[
                         Positioned(
-                          top: 8,
-                          left: 8,
-                          // Tuile "Tout" : icône seule, sans pastille de
-                          // fond — évite une tache sombre sur le dégradé
-                          // violet de la carte.
-                          child: widget.isAllTile
-                              ? Icon(badgeIcon, size: 28, color: allTileIconColor)
-                              : CategoryIconBadge(
-                                  icon: badgeIcon,
-                                  background: badgeSquareBg,
-                                  foreground: badgeSquareFg,
-                                ),
-                        ),
-                        Positioned(
-                          left: 14, right: 8, bottom: 14,
+                          left: 14, right: 8, bottom: 8,
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              if (!widget.isAdd) ...[
+                                Text(l.videosCount(widget.count),
+                                    style: AppTheme.categoryCounterStyle.copyWith(
+                                        color: Colors.white.withValues(alpha: 0.75))),
+                                const SizedBox(height: 4),
+                              ],
                               Text(widget.name.toUpperCase(),
                                 textAlign: TextAlign.left,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTheme.categoryTitleStyle.copyWith(color: Colors.white)),
-                              if (!widget.isAdd) ...[
-                                const SizedBox(height: 4),
-                                Text(l.videosCount(widget.count),
-                                    style: AppTheme.categoryCounterStyle.copyWith(
-                                        color: Colors.white.withValues(alpha: 0.75))),
-                              ],
                             ],
                           ),
                         ),
@@ -822,20 +798,6 @@ class _CategoryTileState extends State<_CategoryTile> {
                             child: Center(child: CupertinoActivityIndicator(radius: 16, color: Colors.white)),
                           )
                         else ...[
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          // Tuile "Tout" : icône seule, sans pastille de
-                          // fond — évite une tache sombre sur le dégradé
-                          // violet de la carte.
-                          child: widget.isAllTile
-                              ? Icon(badgeIcon, size: 28, color: allTileIconColor)
-                              : CategoryIconBadge(
-                                  icon: badgeIcon,
-                                  background: badgeSquareBg,
-                                  foreground: badgeSquareFg,
-                                ),
-                        ),
                         Padding(
                           // Même marge interne que le mode miniature (8pt)
                           // pour des cartes uniformes dans les deux modes.
