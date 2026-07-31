@@ -639,12 +639,8 @@ class _CategoryTileState extends State<_CategoryTile> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
-              color: widget.isAllTile
-                  ? allTileAccent
-                  : AppTheme.categoryCardBorder(isDark),
-              width: widget.isAllTile
-                  ? AppTheme.categoryCardBorderWidthSelected
-                  : AppTheme.categoryCardBorderWidth,
+              color: AppTheme.categoryCardBorder(isDark),
+              width: AppTheme.categoryCardBorderWidth,
             ),
             boxShadow: widget.isAllTile
                 ? AppTheme.categoryCardSelectedGlow(allTileAccent)
