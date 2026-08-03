@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 11, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 12, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 11, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 12, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -136,6 +136,20 @@ class DatabaseHelper {
     if (oldVersion < 11) {
       await db.execute('ALTER TABLE clips ADD COLUMN channel TEXT');
     }
+    if (oldVersion < 12) {
+      await db.execute(
+          'ALTER TABLE clips ADD COLUMN subsubcategoryId TEXT');
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS subsubcategories (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          subCategoryId TEXT NOT NULL,
+          color INTEGER NOT NULL,
+          icon INTEGER NOT NULL,
+          position INTEGER DEFAULT 0
+        )
+      ''');
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -229,6 +243,7 @@ class DatabaseHelper {
         thumbnailUrl TEXT,
         position INTEGER DEFAULT 0,
         subcategoryId TEXT,
+        subsubcategoryId TEXT,
         classification_category TEXT,
         classification_confidence INTEGER,
         classification_reason TEXT,
@@ -250,6 +265,16 @@ class DatabaseHelper {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         categoryId TEXT NOT NULL,
+        color INTEGER NOT NULL,
+        icon INTEGER NOT NULL,
+        position INTEGER DEFAULT 0
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE subsubcategories (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        subCategoryId TEXT NOT NULL,
         color INTEGER NOT NULL,
         icon INTEGER NOT NULL,
         position INTEGER DEFAULT 0
@@ -370,6 +395,40 @@ class DatabaseHelper {
         where: 'id = ?', whereArgs: [clipId]);
   }
 
+  Future<List<Map<String, dynamic>>> getAllSubSubCategories() async {
+    final db = await database;
+    return db.query('subsubcategories', orderBy: 'position ASC');
+  }
+
+  Future<List<Map<String, dynamic>>> getSubSubCategories(
+      String subCategoryId) async {
+    final db = await database;
+    return db.query('subsubcategories',
+        where: 'subCategoryId = ?',
+        whereArgs: [subCategoryId],
+        orderBy: 'position ASC');
+  }
+
+  Future<void> insertSubSubCategory(Map<String, dynamic> subSub) async {
+    final db = await database;
+    await db.insert('subsubcategories', subSub,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<void> deleteSubSubCategory(String id) async {
+    final db = await database;
+    await db.delete('subsubcategories', where: 'id = ?', whereArgs: [id]);
+    await db.update('clips', {'subsubcategoryId': null},
+        where: 'subsubcategoryId = ?', whereArgs: [id]);
+  }
+
+  Future<void> setClipSubSubcategory(
+      String clipId, String? subSubcategoryId) async {
+    final db = await database;
+    await db.update('clips', {'subsubcategoryId': subSubcategoryId},
+        where: 'id = ?', whereArgs: [clipId]);
+  }
+
   Future<void> moveClipsToCategoryBatch({
     required List<String> clipIds,
     required String toCategoryId,
@@ -400,5 +459,16 @@ class DatabaseHelper {
         columns: ['id', 'subcategoryId'],
         where: 'subcategoryId IS NOT NULL');
     return {for (final m in maps) m['id'] as String: m['subcategoryId'] as String};
+  }
+
+  Future<Map<String, String>> getClipSubSubcategoryMapAll() async {
+    final db = await database;
+    final maps = await db.query('clips',
+        columns: ['id', 'subsubcategoryId'],
+        where: 'subsubcategoryId IS NOT NULL');
+    return {
+      for (final m in maps)
+        m['id'] as String: m['subsubcategoryId'] as String
+    };
   }
 }
