@@ -1519,7 +1519,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         builder: (ctx, setDlgState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouvelle sous-sous-catégorie' : 'New sub-subfolder'),
+          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouveau sous-dossier' : 'New subfolder'),
           content: SizedBox(
             width: 300,
             child: SingleChildScrollView(
@@ -1724,7 +1724,7 @@ class _SubcategoryBar extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer la sous-sous-catégorie ?' : 'Delete sub-subfolder?'),
+        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer ce sous-dossier ?' : 'Delete this subfolder?'),
         content: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? '"${sub.name}" sera supprimée.' : '"${sub.name}" will be deleted.'),
         actions: [
           TextButton(
@@ -2646,6 +2646,7 @@ class ClipCard extends StatelessWidget {
         if (currentCategoryId != null) {
         final subs = state.getSubCategoriesFor(currentCategoryId);
         final currentSubId = state.subcategoryIdForClip(clip.id);
+        final currentSubSubId = state.subsubcategoryIdForClip(clip.id);
         showModalBottomSheet(
           context: context,
           backgroundColor: Colors.transparent,
@@ -2656,6 +2657,7 @@ class ClipCard extends StatelessWidget {
             state: state,
             subcategories: subs,
             currentSubId: currentSubId,
+            currentSubSubId: currentSubSubId,
           ),
         );
         return;
@@ -2807,6 +2809,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
   final ClipsState state;
   final List<SubCategory> subcategories;
   final String? currentSubId;
+  final String? currentSubSubId;
 
   const _SubcategoryAssignSheet({
     required this.categoryId,
@@ -2814,6 +2817,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
     required this.state,
     required this.subcategories,
     required this.currentSubId,
+    required this.currentSubSubId,
   });
 
   @override
@@ -2854,58 +2858,135 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                 ),
               )
             else
-              Wrap(
-                spacing: 8, runSpacing: 8,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  GestureDetector(
-                    onTap: () {
-                      state.setClipSubcategory(clipId, null);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: currentSubId == null
-                            ? (isDark ? Colors.grey : AppTheme.lightIconInactive)
-                            : (isDark ? Colors.grey.withValues(alpha: 0.1) : AppTheme.lightSurfaceSecondary),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                            color: isDark ? Colors.grey.withValues(alpha: 0.4) : AppTheme.lightBorder),
-                      ),
-                      child: Text(
-                        Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun' : 'None',
-                        style: TextStyle(
-                          color: currentSubId == null
-                              ? Colors.white
-                              : (isDark ? Colors.grey : AppTheme.lightTextSecondary),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13,
+                  Wrap(
+                    spacing: 8, runSpacing: 8,
+                    children: [
+                      GestureDetector(
+                        onTap: () {
+                          state.setClipSubcategory(clipId, null);
+                          state.setClipSubSubcategory(clipId, null);
+                          Navigator.pop(context);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: currentSubId == null
+                                ? (isDark ? Colors.grey : AppTheme.lightIconInactive)
+                                : (isDark ? Colors.grey.withValues(alpha: 0.1) : AppTheme.lightSurfaceSecondary),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color: isDark ? Colors.grey.withValues(alpha: 0.4) : AppTheme.lightBorder),
+                          ),
+                          child: Text(
+                            Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun' : 'None',
+                            style: TextStyle(
+                              color: currentSubId == null
+                                  ? Colors.white
+                                  : (isDark ? Colors.grey : AppTheme.lightTextSecondary),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  ...subcategories.map((s) => GestureDetector(
-                    onTap: () {
-                      state.setClipSubcategory(clipId, s.id);
-                      Navigator.pop(context);
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: currentSubId == s.id ? s.color : s.color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: s.color.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
+                  const SizedBox(height: 12),
+                  ...subcategories.map((s) {
+                    final subsubs = state.getSubSubCategoriesFor(s.id);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(s.icon, size: 14, color: currentSubId == s.id ? Colors.white : s.color),
-                          const SizedBox(width: 6),
-                          Text(s.name, style: TextStyle(color: currentSubId == s.id ? Colors.white : s.color, fontWeight: FontWeight.w600, fontSize: 13)),
+                          GestureDetector(
+                            onTap: () {
+                              state.setClipSubcategory(clipId, s.id);
+                              state.setClipSubSubcategory(clipId, null);
+                              Navigator.pop(context);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: currentSubId == s.id && currentSubSubId == null
+                                    ? s.color
+                                    : s.color.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: s.color.withValues(alpha: 0.4)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(s.icon,
+                                      size: 14,
+                                      color: currentSubId == s.id && currentSubSubId == null
+                                          ? Colors.white
+                                          : s.color),
+                                  const SizedBox(width: 6),
+                                  Text(s.name,
+                                      style: TextStyle(
+                                          color: currentSubId == s.id && currentSubSubId == null
+                                              ? Colors.white
+                                              : s.color,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13)),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (subsubs.isNotEmpty) ...[
+                            const SizedBox(height: 6),
+                            Padding(
+                              padding: const EdgeInsets.only(left: 20),
+                              child: Wrap(
+                                spacing: 6, runSpacing: 6,
+                                children: subsubs.map((ss) => GestureDetector(
+                                      onTap: () {
+                                        state.setClipSubcategory(clipId, s.id);
+                                        state.setClipSubSubcategory(clipId, ss.id);
+                                        Navigator.pop(context);
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 12, vertical: 6),
+                                        decoration: BoxDecoration(
+                                          color: currentSubSubId == ss.id
+                                              ? ss.color
+                                              : ss.color.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(
+                                              color: ss.color.withValues(alpha: 0.4)),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(ss.icon,
+                                                size: 12,
+                                                color: currentSubSubId == ss.id
+                                                    ? Colors.white
+                                                    : ss.color),
+                                            const SizedBox(width: 5),
+                                            Text(ss.name,
+                                                style: TextStyle(
+                                                    color: currentSubSubId == ss.id
+                                                        ? Colors.white
+                                                        : ss.color,
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 12)),
+                                          ],
+                                        ),
+                                      ),
+                                    )).toList(),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
-                    ),
-                  )),
+                    );
+                  }),
                 ],
               ),
             const SizedBox(height: 16),
