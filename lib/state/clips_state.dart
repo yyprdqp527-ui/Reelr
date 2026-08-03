@@ -114,6 +114,44 @@ class SubCategory {
       );
 }
 
+// ─────────────────────────────────────────────
+// SUBSUBCATEGORY MODEL
+// ─────────────────────────────────────────────
+
+class SubSubCategory {
+  final String id;
+  final String name;
+  final String subCategoryId;
+  final Color color;
+  final IconData icon;
+
+  const SubSubCategory({
+    required this.id,
+    required this.name,
+    required this.subCategoryId,
+    required this.color,
+    required this.icon,
+  });
+
+  Map<String, dynamic> toMap() => {
+        'id': id,
+        'name': name,
+        'subCategoryId': subCategoryId,
+        'color': color.toARGB32(),
+        'icon': icon.codePoint,
+        'position': 0,
+      };
+
+  factory SubSubCategory.fromMap(Map<String, dynamic> map) => SubSubCategory(
+        id: map['id'] as String,
+        name: map['name'] as String,
+        subCategoryId: map['subCategoryId'] as String,
+        color: Color(map['color'] as int),
+        // ignore: non_const_argument_for_const_parameter
+        icon: IconData(map['icon'] as int, fontFamily: 'MaterialIcons'),
+      );
+}
+
 enum SortOrder { chronological, alphabetical, manual }
 
 List<Clip> sortClipsByOrder(List<Clip> src, SortOrder order) {
@@ -138,6 +176,8 @@ class ClipsState extends ChangeNotifier {
   List<ClipCategory> _categories = [];
   List<SubCategory> _subcategories = [];
   Map<String, String> _clipSubcategoryMap = {};
+  List<SubSubCategory> _subsubcategories = [];
+  Map<String, String> _clipSubSubcategoryMap = {};
   String _searchQuery = '';
   bool _isLoading = false;
   final Map<String, SortOrder> _categorySortOrders = {};
@@ -254,6 +294,9 @@ class ClipsState extends ChangeNotifier {
     final subMaps = await DatabaseHelper.instance.getAllSubCategories();
     _subcategories = subMaps.map(SubCategory.fromMap).toList();
     _clipSubcategoryMap = await DatabaseHelper.instance.getClipSubcategoryMapAll();
+    final subSubMaps = await DatabaseHelper.instance.getAllSubSubCategories();
+    _subsubcategories = subSubMaps.map(SubSubCategory.fromMap).toList();
+    _clipSubSubcategoryMap = await DatabaseHelper.instance.getClipSubSubcategoryMapAll();
     _isLoading = false;
     notifyListeners();
   }
@@ -597,6 +640,12 @@ class ClipsState extends ChangeNotifier {
         .toList();
     _subcategories.removeWhere((s) => s.categoryId == id);
     _clipSubcategoryMap.removeWhere((_, v) => subIds.contains(v));
+    final subSubIds = _subsubcategories
+        .where((ss) => subIds.contains(ss.subCategoryId))
+        .map((ss) => ss.id)
+        .toList();
+    _subsubcategories.removeWhere((ss) => subIds.contains(ss.subCategoryId));
+    _clipSubSubcategoryMap.removeWhere((_, v) => subSubIds.contains(v));
     notifyListeners();
   }
 
@@ -625,6 +674,46 @@ class ClipsState extends ChangeNotifier {
 
   String? subcategoryIdForClip(String clipId) => _clipSubcategoryMap[clipId];
 
+  List<SubSubCategory> getSubSubCategoriesFor(String? subCategoryId) {
+    if (subCategoryId == null) return [];
+    return _subsubcategories
+        .where((ss) => ss.subCategoryId == subCategoryId)
+        .toList();
+  }
+
+  String? subsubcategoryIdForClip(String clipId) =>
+      _clipSubSubcategoryMap[clipId];
+
+  Future<void> addSubSubCategory(SubSubCategory subSub) async {
+    await DatabaseHelper.instance.insertSubSubCategory(subSub.toMap());
+    _subsubcategories.add(subSub);
+    notifyListeners();
+  }
+
+  Future<void> updateSubSubCategory(SubSubCategory subSub) async {
+    await DatabaseHelper.instance.insertSubSubCategory(subSub.toMap());
+    final idx = _subsubcategories.indexWhere((ss) => ss.id == subSub.id);
+    if (idx != -1) _subsubcategories[idx] = subSub;
+    notifyListeners();
+  }
+
+  Future<void> deleteSubSubCategory(String id) async {
+    await DatabaseHelper.instance.deleteSubSubCategory(id);
+    _subsubcategories.removeWhere((ss) => ss.id == id);
+    _clipSubSubcategoryMap.removeWhere((_, v) => v == id);
+    notifyListeners();
+  }
+
+  Future<void> setClipSubSubcategory(String clipId, String? subSubcategoryId) async {
+    await DatabaseHelper.instance.setClipSubSubcategory(clipId, subSubcategoryId);
+    if (subSubcategoryId == null) {
+      _clipSubSubcategoryMap.remove(clipId);
+    } else {
+      _clipSubSubcategoryMap[clipId] = subSubcategoryId;
+    }
+    notifyListeners();
+  }
+
   Future<void> addSubCategory(SubCategory sub) async {
     await DatabaseHelper.instance.insertSubCategory(sub.toMap());
     _subcategories.add(sub);
@@ -642,6 +731,12 @@ class ClipsState extends ChangeNotifier {
     await DatabaseHelper.instance.deleteSubCategory(id);
     _subcategories.removeWhere((s) => s.id == id);
     _clipSubcategoryMap.removeWhere((_, v) => v == id);
+    final subSubIds = _subsubcategories
+        .where((ss) => ss.subCategoryId == id)
+        .map((ss) => ss.id)
+        .toList();
+    _subsubcategories.removeWhere((ss) => ss.subCategoryId == id);
+    _clipSubSubcategoryMap.removeWhere((_, v) => subSubIds.contains(v));
     notifyListeners();
   }
 
