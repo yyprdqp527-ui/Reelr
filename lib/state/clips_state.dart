@@ -203,18 +203,29 @@ class ClipsState extends ChangeNotifier {
     return null;
   }
 
+  /// Sous-dossier correspondant à [id], ou `null` si introuvable/absent.
+  SubSubCategory? _subSubCategoryById(String? id) {
+    if (id == null) return null;
+    for (final ss in _subsubcategories) {
+      if (ss.id == id) return ss;
+    }
+    return null;
+  }
+
   /// Texte de recherche complet d'un clip : titre, URL, tags, nom de
   /// catégorie et nom de sous-catégorie, tout normalisé (minuscules, sans
   /// accents) et concaténé en un seul bloc pour la comparaison.
   String _searchHaystackFor(Clip c) {
     final category = categoryById(c.categoryId);
     final sub = _subCategoryById(_clipSubcategoryMap[c.id]);
+    final subSub = _subSubCategoryById(_clipSubSubcategoryMap[c.id]);
     return normalizeForSearch([
       c.title,
       c.url,
       c.tags.join(' '),
       category?.name ?? '',
       sub?.name ?? '',
+      subSub?.name ?? '',
     ].join(' '));
   }
 
