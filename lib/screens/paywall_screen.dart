@@ -22,15 +22,13 @@ class PaywallScreen extends StatelessWidget {
   }
 
   String _title(BuildContext context) {
-    return _isFr(context)
-        ? 'Vidéos illimitées,\ncatégories illimitées'
-        : 'Unlimited videos,\nunlimited categories';
+    return _isFr(context) ? 'Vidéos illimitées' : 'Unlimited videos';
   }
 
   String _subtitle(BuildContext context) {
     return _isFr(context)
-        ? 'Tu as sauvegardé 50 vidéos. Passe à Premium pour continuer sans limite.'
-        : "You've saved 50 videos. Upgrade to keep bookmarking without limits.";
+        ? 'Tu as sauvegardé 50 vidéos au total — même celles que tu as supprimées comptent. Passe à Premium pour continuer sans limite.'
+        : "You've saved 50 videos in total — deleted ones still count. Upgrade to keep bookmarking without limits.";
   }
 
   String _pricePeriod(BuildContext context) {
@@ -175,16 +173,6 @@ class PaywallScreen extends StatelessWidget {
                           ? 'Des catégories intelligentes'
                           : 'Smart categories, always',
                     ),
-                    const SizedBox(height: 10),
-                    _FeatureRow(
-                      icon: Icons.folder_copy_rounded,
-                      title: isFr
-                          ? 'Catégories illimitées'
-                          : 'Unlimited categories',
-                      subtitle: isFr
-                          ? 'Organise tes vidéos comme tu veux'
-                          : 'Organize your way',
-                    ),
                     const SizedBox(height: 32),
 
                     if (priceText == null)
@@ -211,12 +199,13 @@ class PaywallScreen extends StatelessWidget {
                           fontSize: 15,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
                         _coffeeLine(context),
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.3),
-                          fontSize: 12,
+                        style: const TextStyle(
+                          color: Color(0xFFA855F7),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ],
