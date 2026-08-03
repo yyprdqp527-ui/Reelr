@@ -227,12 +227,15 @@ class CategoryClassifier {
       'colocation', 'studio', 'loft', 'achat immobilier', 'vente immobilier',
     ],
     'auto': [
-      'voiture', 'car', 'auto', 'moto', 'motorcycle', 'conduite', 'permis',
-      'route', 'vitesse', 'garage', 'mecanique', 'mécanique', 'motorbike',
-      'biker', 'harley', 'ducati', 'yamaha', 'kawasaki', 'honda moto',
-      'bmw moto', 'ferrari', 'lamborghini', 'porsche', 'tesla', 'rally',
+      'voiture', 'car', 'auto', 'conduite', 'permis',
+      'route', 'vitesse', 'garage', 'mecanique', 'mécanique',
+      'ferrari', 'lamborghini', 'porsche', 'tesla', 'rally',
       'drift', 'tuning', 'essai voiture', 'test drive', 'electrique voiture',
       'f1 voiture', 'supercar', 'hypercar',
+    ],
+    'moto': [
+      'moto', 'motorcycle', 'motorbike', 'biker', 'harley', 'ducati',
+      'yamaha', 'kawasaki', 'honda moto', 'bmw moto',
     ],
     'culture': [
       'culture', 'litterature', 'littérature', 'lecture', 'livre', 'book',
@@ -342,10 +345,14 @@ class CategoryClassifier {
       'wakeboard', 'snowkite', 'dirt bike', 'quad', 'adrenaline',
     ],
     'tricot': [
-      'tricot', 'couture', 'crochet', 'broderie', 'knitting', 'sewing',
-      'laine', 'wool', 'aiguille', 'machine coudre', 'patron', 'pattern',
-      'point tricot', 'amigurumi', 'macrame', 'tissage', 'weaving',
-      'fil', 'yarn', 'couture debutant', 'apprendre coudre',
+      'couture', 'machine coudre', 'patron', 'pattern', 'couture debutant',
+      'apprendre coudre', 'sewing', 'tissage', 'weaving', 'fil', 'broderie',
+    ],
+    'tricotage': [
+      'tricot', 'laine', 'wool', 'aiguille', 'point tricot', 'yarn', 'knitting',
+    ],
+    'crochet': [
+      'crochet', 'amigurumi', 'macrame',
     ],
     'diy_jardin': [
       'jardinage', 'jardin', 'garden', 'gardening', 'potager', 'plantes interieur',
@@ -451,8 +458,13 @@ class CategoryClassifier {
       color: Color.fromRGBO(166, 211, 220, 1),
       icon: Icons.self_improvement_outlined,
     ),
+    'auto': CategorySuggestion(
+      key: 'auto', name: 'Auto',
+      color: Color.fromRGBO(155, 184, 232, 1),
+      icon: Icons.directions_car_rounded,
+    ),
     'moto': CategorySuggestion(
-      key: 'moto', name: 'Auto & Moto',
+      key: 'moto', name: 'Moto',
       color: Color.fromRGBO(253, 174, 84, 1),
       icon: Icons.two_wheeler_rounded,
     ),
@@ -467,9 +479,19 @@ class CategoryClassifier {
       icon: Icons.music_note_outlined,
     ),
     'tricot': CategorySuggestion(
-      key: 'tricot', name: 'Couture & Tricot',
+      key: 'tricot', name: 'Couture',
       color: Color.fromRGBO(190, 140, 200, 1),
+      icon: Icons.content_cut_rounded,
+    ),
+    'tricotage': CategorySuggestion(
+      key: 'tricotage', name: 'Tricot',
+      color: Color.fromRGBO(212, 165, 217, 1),
       icon: Icons.checkroom_outlined,
+    ),
+    'crochet': CategorySuggestion(
+      key: 'crochet', name: 'Crochet',
+      color: Color.fromRGBO(192, 143, 208, 1),
+      icon: Icons.gesture_rounded,
     ),
     'diy_crea': CategorySuggestion(
       key: 'diy_crea', name: 'DIY',
@@ -1263,7 +1285,9 @@ cat_politique       → analyse/débat politique, partis, personnalités. Diff. 
 cat_societe         → débats de société, féminisme, inégalités, conditions de vie
 cat_truecrime       → affaires criminelles, enquêtes, tueurs en série. Diff. cat_actu : fait divers criminel en profondeur/storytelling, pas actualité du jour.
 cat_diy             → création manuelle, artisanat, procreate, bricolage créatif
-cat_tricot          → couture, tricot, crochet. Diff. cat_diy : tricot = sous-univers textile/aiguilles.
+cat_tricot          → couture (machine, patron). Diff. cat_diy : couture = sous-univers textile/aiguilles.
+cat_tricotage       → tricot aux aiguilles, laine.
+cat_crochet         → crochet, amigurumi, macramé.
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
 cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
 cat_cosplay         → cosplay, costumes de personnages, geek culture
