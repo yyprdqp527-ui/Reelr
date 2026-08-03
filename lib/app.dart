@@ -53,6 +53,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// utilisateur gratuit pourrait supprimer des clips pour repasser
   /// sous la limite de 50 et ne jamais être bloqué.
   int _lifetimeClipsAdded = 0;
+  /// Dernière valeur de _lifetimeClipsAdded pour laquelle la bulle de
+  /// countdown (3, 2, 1 vidéos restantes) a été affichée, pour ne jamais
+  /// réafficher le même palier deux fois.
+  int _lastCountdownWarningShownAt = 0;
   late final PurchaseService _purchaseService;
   bool _purchaseServiceReady = false;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
@@ -180,10 +184,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (storedLifetime == null) {
       unawaited(p.setInt('lifetime_clips_added', lifetime));
     }
+    final lastCountdownWarningShownAt =
+        p.getInt('last_countdown_warning_shown_at') ?? 0;
     setState(() {
       _onboardingDone = onboarding;
       _isPremium = premium;
       _lifetimeClipsAdded = lifetime;
+      _lastCountdownWarningShownAt = lastCountdownWarningShownAt;
       _prefsLoaded = true;
       if (theme != null) {
         _themeMode = ThemeMode.values.firstWhere(
@@ -383,20 +390,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<void> _ingestSharedUrl(String url) async {
     if (widget.state.isDuplicate(url)) return;
     if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
-      final ctx = _navigatorKey.currentContext;
-      if (ctx != null) {
-        ScaffoldMessenger.of(ctx).showSnackBar(
-          SnackBar(
-            content: Text(
-              _locale.languageCode == 'fr'
-                  ? 'Tu as déjà sauvegardé $freeClipsLimit vidéos au total (certaines ont pu être supprimées depuis).'
-                  : "You've already saved $freeClipsLimit videos in total (some may have been deleted since).",
-            ),
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
       showPaywall();
       return;
     }
@@ -421,6 +414,44 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         SharedPreferences.getInstance()
             .then((p) => p.setInt('lifetime_clips_added', _lifetimeClipsAdded)),
       );
+      // Countdown préventif : à 3, 2 puis 1 vidéo(s) restante(s) avant la
+      // limite gratuite (47, 48, 49 sur 50), une fois par palier. Les
+      // vidéos supprimées comptent quand même (_lifetimeClipsAdded ne
+      // redescend jamais) — le message le précise pour éviter toute
+      // confusion avec le compteur visible.
+      if (!_isPremium &&
+          _lifetimeClipsAdded >= freeClipsLimit - 3 &&
+          _lifetimeClipsAdded < freeClipsLimit &&
+          _lifetimeClipsAdded > _lastCountdownWarningShownAt) {
+        _lastCountdownWarningShownAt = _lifetimeClipsAdded;
+        unawaited(
+          SharedPreferences.getInstance().then(
+            (p) => p.setInt(
+              'last_countdown_warning_shown_at',
+              _lastCountdownWarningShownAt,
+            ),
+          ),
+        );
+        final remaining = freeClipsLimit - _lifetimeClipsAdded;
+        final ctx = _navigatorKey.currentContext;
+        if (ctx != null && ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              content: Text(
+                _locale.languageCode == 'fr'
+                    ? (remaining == 1
+                        ? "Plus qu'une vidéo avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite."
+                        : 'Plus que $remaining vidéos avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.')
+                    : (remaining == 1
+                        ? 'Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'
+                        : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
+              ),
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      }
       unawaited(_hydrateAndClassify(clip));
     } finally {
       _ingestingUrls.remove(normalized);
