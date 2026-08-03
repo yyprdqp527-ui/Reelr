@@ -293,7 +293,7 @@ class _CoachMarkBubble extends StatelessWidget {
             child: TextButton(
               onPressed: () => onDismiss(),
               style: TextButton.styleFrom(
-                foregroundColor: AppTheme.violet,
+                foregroundColor: AppTheme.lightBlue,
                 minimumSize: const Size(44, 44),
               ),
               child: Text(

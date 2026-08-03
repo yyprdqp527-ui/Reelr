@@ -580,7 +580,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                           // le style par défaut manquait de contraste en
                           // mode clair.
                           style: IconButton.styleFrom(
-                            backgroundColor: isDark ? AppTheme.violet : AppTheme.lightBlue,
+                            backgroundColor: AppTheme.lightBlue,
                             foregroundColor: Colors.white,
                           ),
                         ),

@@ -88,13 +88,13 @@ class AppTheme {
   // blanc cassé jaune, jamais désaturé/boueux.
   // Fond principal — bleu pastel dense, opaque, uniforme sur toute la
   // hauteur, sans dégradé.
-  static const Color lightBackground   = Color(0xFFCFE2FA);
+  static const Color lightBackground   = Color(0xFFF5F6F8);
 
   // Fond principal en dégradé (haut → centre → bas) — variante plus riche
   // du fond opaque ci-dessus, utilisée par `GradientBackground`.
-  static const Color lightBackgroundTop    = Color(0xFFBDD7F8);
-  static const Color lightBackgroundCenter = Color(0xFFCFE2FA);
-  static const Color lightBackgroundBottom = Color(0xFFB1D0F9);
+  static const Color lightBackgroundTop    = Color(0xFFF5F6F8);
+  static const Color lightBackgroundCenter = Color(0xFFF5F6F8);
+  static const Color lightBackgroundBottom = Color(0xFFF5F6F8);
   static const LinearGradient lightBackgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -102,8 +102,8 @@ class AppTheme {
     stops: [0.0, 0.5, 1.0],
   );
   // Texte — hiérarchie complète, gris-bleu jamais neutre.
-  static const Color lightTextPrimary   = Color(0xFF203654);
-  static const Color lightTextSecondary = Color(0xFF4E6788);
+  static const Color lightTextPrimary   = Color(0xFF0A0E1F);
+  static const Color lightTextSecondary = Color(0xFF84868F);
   static const Color lightTextTertiary  = Color(0xFF647C9A);
   // Métadonnées (dates, compteurs discrets, plateformes).
   static const Color lightTextMeta      = Color(0xFF6E85A3);
@@ -123,10 +123,10 @@ class AppTheme {
 
   // ── Surfaces gris-bleu opaques (jamais de gris neutre, jamais de blanc
   // translucide) — hiérarchie : principale < secondaire < soutenue.
-  static const Color lightSurfaceBase      = Color(0xFFD7E2F0); // cartes principales
+  static const Color lightSurfaceBase      = Color(0xFFFFFFFF); // cartes principales
   static const Color lightSurfaceSecondary = Color(0xFFD0DDEC); // surface secondaire / petits boutons
   static const Color lightSurfaceStrong    = Color(0xFFC7D6E9); // surface plus soutenue
-  static const Color lightSearchSurfaceColor = Color(0xFFDCE7F4); // barre de recherche
+  static const Color lightSearchSurfaceColor = Color(0xFFFFFFFF); // barre de recherche
   static const Color lightSelectedSurface  = Color(0xFFB7D2F5); // état sélectionné / pastille active
   static Color lightSurface({double alpha = 1.0}) =>
       lightSurfaceBase.withValues(alpha: alpha.clamp(0.92, 1.0));
@@ -136,7 +136,7 @@ class AppTheme {
 
   // Bordures : principale, secondaire (légèrement plus visible) et active
   // (focus / sélection), fines et nettes, sans ombre grise sale.
-  static const Color lightBorder = Color(0xFFA8BEDA);
+  static const Color lightBorder = Color(0x470A0E1F); // ~28%, contraste ~1,9:1 avec carte blanche
   static const Color lightBorderStrong = Color(0xFFB7C9E0);
   static const Color lightBorderActive = Color(0xFF2C75E8);
 
@@ -177,11 +177,11 @@ class AppTheme {
   static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
 
   /// Capsule claire — surface de la barre de navigation, opaque.
-  static const Color lightDockSolid = Color(0xFFD7E2F0);
+  static const Color lightDockSolid = Color(0xFFFFFFFF);
 
   /// Carré actif — pastille bleu pastel bien visible derrière l'icône
   /// sélectionnée.
-  static const Color lightDockActiveSquare = Color(0xFFB7D2F5);
+  static const Color lightDockActiveSquare = Color(0xFFE3EDFB);
 
   /// Marge horizontale d'écran — même valeur que celle utilisée par la
   /// grille de catégories (`home_screen.dart`), pour un alignement exact

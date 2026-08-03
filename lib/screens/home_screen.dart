@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'dart:async';
-import 'package:flutter/cupertino.dart';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
@@ -26,6 +25,7 @@ import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/reelr_loader.dart';
 import '../widgets/resilient_thumbnail.dart';
 import '../widgets/sheet_field.dart';
 import 'categories_screen.dart';
@@ -608,7 +608,7 @@ class _CategoryTileState extends State<_CategoryTile> {
     // Accent de la tuile "Tout" : bleu foncé du logo en clair, violet en
     // sombre (inchangé). N'affecte que cette tuile.
     final allTileAccent =
-        isDark ? AppTheme.violet : AppTheme.allTileAccentLight;
+        isDark ? AppTheme.lightBlue : AppTheme.allTileAccentLight;
     // Icône réellement enregistrée pour la catégorie (reflète un éventuel
     // changement fait par l'utilisateur dans l'onglet Catégories). Le
     // lookup par nom ne sert plus que de filet de secours si aucune icône
@@ -787,7 +787,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                         ),
                         if (widget.isPending)
                           const Positioned.fill(
-                            child: Center(child: CupertinoActivityIndicator(radius: 16, color: Colors.white)),
+                            child: Center(child: ReelrLoader(size: 32)),
                           )
                         else ...[
                         Padding(
@@ -1648,7 +1648,7 @@ class _SearchBarState extends State<_SearchBar> {
     // En clair : reste dans la famille bleu glacier (pas de violet ici).
     final borderColor = _focused
         ? (isDark
-            ? AppTheme.violet.withValues(alpha: 0.45)
+            ? AppTheme.lightBlue.withValues(alpha: 0.45)
             : AppTheme.lightBorderActive)
         : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
 

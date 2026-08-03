@@ -70,9 +70,9 @@ class GlassCard extends StatelessWidget {
                 BoxShadow(
                   color: isDark
                       ? Colors.black.withValues(alpha: 0.22)
-                      : const Color.fromRGBO(0, 0, 20, 0.4),
-                  blurRadius: isDark ? 16 : 40,
-                  offset: Offset(0, isDark ? 4 : 8),
+                      : const Color.fromRGBO(0, 0, 20, 0.55),
+                  blurRadius: isDark ? 16 : 48,
+                  offset: Offset(0, isDark ? 4 : 10),
                 ),
                 // Lumière interne (reflet bas)
                 BoxShadow(
