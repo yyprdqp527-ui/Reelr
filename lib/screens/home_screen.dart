@@ -298,8 +298,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 alignment: Alignment.center,
                 children: [
                   // Logo net, sans glow ni flou derrière le texte — aucune
-                  // décoration lumineuse localisée. Même dégradé, même
-                  // taille (28pt) qu'avant.
+                  // décoration lumineuse localisée. Même dégradé qu'avant,
+                  // taille agrandie (28 → 34pt) pour plus de présence.
                   ShaderMask(
                     shaderCallback: (bounds) => const LinearGradient(
                       colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
@@ -311,7 +311,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       l.t('app_name'),
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 28,
+                        fontSize: 34,
                         letterSpacing: -1.0,
                         color: Colors.white,
                       ),
