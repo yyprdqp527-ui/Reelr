@@ -59,21 +59,20 @@ class AppTheme {
   /// Accent de la tuile "Tout" / "All" en mode clair — bleu vif premium,
   /// cohérent avec le bleu de marque (au lieu du violet, moins harmonieux
   /// avec le fond bleu pastel du mode clair). Le mode sombre garde `violet`.
-  static const Color allTileAccentLight = Color(0xFF2C75E8);
+  static const Color allTileAccentLight = lightActiveBlue;
 
-  /// Dégradé de fond de la tuile "Tout" / "All" en mode clair — bleu pastel
-  /// dense, distinct du dégradé logo (réservé au mode sombre).
+  /// Dégradé de fond de la tuile "Tout" / "All" en mode clair.
   static const LinearGradient allTileGradientLight = LinearGradient(
-    colors: [Color(0xFFDDEAFE), Color(0xFFCFE0FA)],
+    colors: [Color(0xFFD7DFF2), Color(0xFFB9C7E8)],
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
   );
 
   /// Couleur du titre de la tuile "Tout" en mode clair.
-  static const Color allTileTitleLight = Color(0xFF25476B);
+  static const Color allTileTitleLight = Color(0xFF203A63);
 
   /// Couleur du sous-titre / compteur de la tuile "Tout" en mode clair.
-  static const Color allTileSubtitleLight = Color(0xFF56708D);
+  static const Color allTileSubtitleLight = Color(0xFF526989);
 
   // Gradient accent réutilisable
   static const LinearGradient accentGradient = LinearGradient(
@@ -82,19 +81,17 @@ class AppTheme {
     end: Alignment.centerRight,
   );
 
-  // ── Palette mode clair — direction "bleu pastel premium" : fond bleu
-  // dense (jamais blanc, jamais gris), cohérent avec l'identité bleu/violet/
-  // cyan du mode sombre et le bleu du logo Reelr. Jamais gris chaud, jamais
-  // blanc cassé jaune, jamais désaturé/boueux.
-  // Fond principal — bleu pastel dense, opaque, uniforme sur toute la
-  // hauteur, sans dégradé.
-  static const Color lightBackground   = Color(0xFFF5F6F8);
+  // ── Palette mode clair — direction "bleu-gris premium", douce et
+  // légèrement bleutée, cohérente avec l'univers bleu-violet du mode sombre.
+  // Jamais blanc clinique, jamais gris neutre, jamais violet pastel délavé.
+  // Fond principal — bleu-gris doux, opaque.
+  static const Color lightBackground   = Color(0xFFE9ECF5);
 
-  // Fond principal en dégradé (haut → centre → bas) — variante plus riche
-  // du fond opaque ci-dessus, utilisée par `GradientBackground`.
-  static const Color lightBackgroundTop    = Color(0xFFF5F6F8);
-  static const Color lightBackgroundCenter = Color(0xFFF5F6F8);
-  static const Color lightBackgroundBottom = Color(0xFFF5F6F8);
+  // Fond principal en dégradé (haut → centre → bas) — utilisée par
+  // `GradientBackground`. Dégradé extrêmement subtil, sans halo.
+  static const Color lightBackgroundTop    = Color(0xFFF0F2F8);
+  static const Color lightBackgroundCenter = Color(0xFFE9ECF5);
+  static const Color lightBackgroundBottom = Color(0xFFE6E9F3);
   static const LinearGradient lightBackgroundGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
@@ -102,9 +99,9 @@ class AppTheme {
     stops: [0.0, 0.5, 1.0],
   );
   // Texte — hiérarchie complète, gris-bleu jamais neutre.
-  static const Color lightTextPrimary   = Color(0xFF0A0E1F);
-  static const Color lightTextSecondary = Color(0xFF84868F);
-  static const Color lightTextTertiary  = Color(0xFF647C9A);
+  static const Color lightTextPrimary   = Color(0xFF181B30);
+  static const Color lightTextSecondary = Color(0xFF6D7385);
+  static const Color lightTextTertiary  = Color(0xFF858A9A);
   // Métadonnées (dates, compteurs discrets, plateformes).
   static const Color lightTextMeta      = Color(0xFF6E85A3);
   // Placeholder de la barre de recherche.
@@ -123,9 +120,12 @@ class AppTheme {
 
   // ── Surfaces gris-bleu opaques (jamais de gris neutre, jamais de blanc
   // translucide) — hiérarchie : principale < secondaire < soutenue.
-  static const Color lightSurfaceBase      = Color(0xFFFFFFFF); // cartes principales
+  static const Color lightSurfaceBase      = Color(0xFFF5F6FB); // cartes principales
+  static const Color lightSurfaceBright    = Color(0xFFF8F9FD); // surface la plus claire
   static const Color lightSurfaceSecondary = Color(0xFFD0DDEC); // surface secondaire / petits boutons
   static const Color lightSurfaceStrong    = Color(0xFFC7D6E9); // surface plus soutenue
+  // NB : ne concerne QUE la barre de recherche du header — valeur figée,
+  // ne jamais réutiliser ailleurs ni faire dépendre d'une autre constante.
   static const Color lightSearchSurfaceColor = Color(0xFFFFFFFF); // barre de recherche
   static const Color lightSelectedSurface  = Color(0xFFB7D2F5); // état sélectionné / pastille active
   static Color lightSurface({double alpha = 1.0}) =>
@@ -134,26 +134,51 @@ class AppTheme {
   // conservé pour compatibilité avec les usages existants).
   static const Color lightElevatedSurface = lightSurfaceBase;
 
-  // Bordures : principale, secondaire (légèrement plus visible) et active
-  // (focus / sélection), fines et nettes, sans ombre grise sale.
-  static const Color lightBorder = Color(0x470A0E1F); // ~28%, contraste ~1,9:1 avec carte blanche
+  // Bordures : principale (opaque, premium bleu-gris), secondaire
+  // (légèrement plus visible) et active (focus / sélection).
+  // NB : `lightBorder` n'est PAS utilisée par la barre de recherche du
+  // header (valeur figée localement dans home_screen.dart) afin que son
+  // rendu reste strictement inchangé quelle que soit cette constante.
+  static const Color lightBorder = Color(0xFFC6CCDA);
   static const Color lightBorderStrong = Color(0xFFB7C9E0);
   static const Color lightBorderActive = Color(0xFF2C75E8);
 
+  /// Bordure discrète et translucide dédiée aux vignettes de catégories
+  /// (miniatures) — distincte de `lightBorder` (opaque, utilisée par la nav
+  /// bar et le bouton rond).
+  static const Color lightThumbnailBorder = Color.fromRGBO(91, 103, 132, 0.28);
+
+  /// Overlay bleu nuit appliqué en bas des vignettes de catégories (mode
+  /// clair uniquement), à la place de l'ancien overlay noir/gris neutre.
+  static const Color lightThumbnailOverlay = Color.fromRGBO(15, 17, 38, 0.82);
+
+  /// Ombre douce, bleu-gris, réservée aux cartes/vignettes du mode clair.
+  static const Color lightSoftShadow = Color.fromRGBO(30, 38, 68, 0.10);
+
   // Icônes en mode clair — jamais d'opacité réduite pour un état inactif :
   // toujours une teinte dédiée.
-  static const Color lightIconActive    = Color(0xFF2C75E8);
-  static const Color lightIconInactive  = Color(0xFF587395);
+  static const Color lightIconActive    = Color(0xFF2563EB);
+  static const Color lightIconInactive  = Color(0xFF5F718D);
   static const Color lightIconSecondary = Color(0xFF647F9F);
   static const Color lightIconDisabled  = Color(0xFF7C91AB);
   // Icônes/texte de la barre de statut système en mode clair.
   static const Color lightStatusBarContent = Color(0xFF162A44);
 
+  /// Bleu d'accent principal du mode clair (sélection, icônes actives,
+  /// bouton rond, nav bar). Distinct de `lightBlue`, qui est aussi
+  /// référencée par endroits en mode sombre et ne doit donc pas être
+  /// modifiée.
+  static const Color lightActiveBlue = Color(0xFF2563EB);
+  static const Color lightPrimaryBlue = Color(0xFF3478F6);
+
+  /// Fond doux d'un élément sélectionné (nav bar, tuiles) en mode clair.
+  static const Color lightSelectedBackground = Color(0xFFDCE7FC);
+
   // Boutons d'action ("+", lien, etc.) — fond/contour neutres gris-bleu,
   // icône bleu soutenu.
   static const Color lightActionButtonFill = lightSurfaceBase;
   static const Color lightActionButtonBorder = lightBorder;
-  static const Color lightActionButtonIcon = Color(0xFF2C5F96);
+  static const Color lightActionButtonIcon = lightActiveBlue;
 
   // Icônes d'action dédiées (édition / suppression), toujours pleines,
   // jamais atténuées.
@@ -166,8 +191,8 @@ class AppTheme {
   /// Icône inactive de la barre de navigation en mode clair — distincte de
   /// `lightTextSecondary` (utilisée pour le texte courant), propre au dock
   /// de navigation.
-  static const Color navInactiveLight = Color(0xFF587395);
-  static const Color navActiveLight = Color(0xFF2C75E8);
+  static const Color navInactiveLight = lightIconInactive;
+  static const Color navActiveLight = lightActiveBlue;
 
   // ── Dock de navigation "classique" : grande capsule sombre uniforme +
   // carré arrondi visible derrière l'icône active (style restauré). ──────
@@ -177,11 +202,11 @@ class AppTheme {
   static const Color darkDockInactiveIcon = Color(0xFFC5C3CE);
 
   /// Capsule claire — surface de la barre de navigation, opaque.
-  static const Color lightDockSolid = Color(0xFFFFFFFF);
+  static const Color lightDockSolid = lightSurfaceBase;
 
   /// Carré actif — pastille bleu pastel bien visible derrière l'icône
   /// sélectionnée.
-  static const Color lightDockActiveSquare = Color(0xFFE3EDFB);
+  static const Color lightDockActiveSquare = lightSelectedBackground;
 
   /// Marge horizontale d'écran — même valeur que celle utilisée par la
   /// grille de catégories (`home_screen.dart`), pour un alignement exact
@@ -196,7 +221,7 @@ class AppTheme {
 
   static Color categoryCardBorder(bool isDark) => isDark
       ? darkBorder
-      : lightBorder;
+      : lightThumbnailBorder;
 
   /// Lueur très discrète, réservée à la carte sélectionnée. `accent` permet
   /// de faire varier la couleur (violet en sombre, bleu foncé du logo en

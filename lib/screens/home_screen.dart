@@ -664,25 +664,34 @@ class _CategoryTileState extends State<_CategoryTile> {
                           color: tintColor.withValues(alpha: 0.12),
                         ),
                       ),
-                      // Overlay gradient sombre en bas : transparent jusqu'à
-                      // 40% de la hauteur, puis assombrissement progressif
-                      // (deux paliers pour une courbe douce, sans barre
-                      // noire nette) jusqu'à ~88% de noir au bord inférieur
-                      // — pour garder titre/compteur lisibles quelle que
-                      // soit la miniature (texte clair, texte foncé, visage).
-                      const IgnorePointer(
+                      // Overlay gradient en bas : transparent jusqu'à 40% de
+                      // la hauteur, puis assombrissement progressif (deux
+                      // paliers pour une courbe douce, sans barre nette)
+                      // jusqu'au bord inférieur — pour garder titre/compteur
+                      // lisibles quelle que soit la miniature. Sombre : noir
+                      // pur inchangé. Clair : dégradé bleu nuit (mêmes stops,
+                      // seules les couleurs changent) au lieu du noir/gris
+                      // neutre, pour rester cohérent avec la palette claire.
+                      IgnorePointer(
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
                               end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.transparent,
-                                Color(0x99000000),
-                                Color(0xE0000000),
-                              ],
-                              stops: [0.0, 0.40, 0.70, 1.0],
+                              colors: isDark
+                                  ? const [
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      Color(0x99000000),
+                                      Color(0xE0000000),
+                                    ]
+                                  : const [
+                                      Colors.transparent,
+                                      Colors.transparent,
+                                      Color.fromRGBO(15, 17, 38, 0.56),
+                                      AppTheme.lightThumbnailOverlay,
+                                    ],
+                              stops: const [0.0, 0.40, 0.70, 1.0],
                             ),
                           ),
                         ),
@@ -736,11 +745,14 @@ class _CategoryTileState extends State<_CategoryTile> {
                           // (évite la double bordure colorée).
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(22),
-                            // Tuile "Tout" : même teinte plate à 12%
-                            // dans les deux thèmes (unifié — plus de
-                            // dégradé spécifique au clair).
+                            // Tuile "Tout" en sombre : même teinte plate à
+                            // 12% qu'avant (inchangé). En clair : dégradé
+                            // bleu pastel dédié (AppTheme.allTileGradientLight)
+                            // au lieu d'un simple aplat.
                             color: widget.isAllTile
-                                ? allTileAccent.withValues(alpha: 0.12)
+                                ? (isDark
+                                    ? allTileAccent.withValues(alpha: 0.12)
+                                    : null)
                                 : isDark
                                     ? tintColor.withValues(alpha: 0.12)
                                     // Mode clair : carte opaque gris-bleu,
@@ -751,14 +763,17 @@ class _CategoryTileState extends State<_CategoryTile> {
                                         tintColor.withValues(alpha: 0.16),
                                         AppTheme.lightSurfaceBase,
                                       ),
+                            gradient: widget.isAllTile && !isDark
+                                ? AppTheme.allTileGradientLight
+                                : null,
                             // Ombre allégée en sombre (faible élévation) —
-                            // inchangée en clair.
+                            // recolorée en bleu-gris doux en clair.
                             boxShadow: [
                               BoxShadow(
                                 color: isDark
                                     ? Colors.black.withValues(
                                         alpha: _hover ? 0.18 : 0.12)
-                                    : AppTheme.shadowGrey.withValues(
+                                    : AppTheme.lightSoftShadow.withValues(
                                         alpha: _hover ? 0.22 : 0.14),
                                 blurRadius: isDark
                                     ? (_hover ? 20 : 14)
@@ -1654,11 +1669,17 @@ class _SearchBarState extends State<_SearchBar>
     final surfaceColor = isDark ? AppTheme.surface : AppTheme.lightSearchSurface();
     // Bordure légèrement plus visible au focus — sans lueur ajoutée.
     // En clair : reste dans la famille bleu glacier (pas de violet ici).
+    // NB : la valeur "clair non focus" ci-dessous est une couleur figée
+    // (identique à l'ancienne valeur de AppTheme.lightBorder), volontairement
+    // recopiée en dur plutôt que référencée depuis AppTheme.lightBorder —
+    // cette dernière a été repensée pour le reste de l'app (nav bar, bouton
+    // rond, etc.) et la barre de recherche doit rester strictement inchangée.
+    const searchBarUnfocusedBorderLight = Color(0x470A0E1F);
     final borderColor = _focused
         ? (isDark
             ? AppTheme.lightBlue.withValues(alpha: 0.45)
             : AppTheme.lightBorderActive)
-        : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
+        : (isDark ? AppTheme.darkBorder : searchBarUnfocusedBorderLight.withValues(alpha: 0.12));
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
@@ -1680,7 +1701,10 @@ class _SearchBarState extends State<_SearchBar>
                     ? null
                     : [
                         BoxShadow(
-                          color: AppTheme.lightTextPrimary.withValues(alpha: 0.05),
+                          // Valeur figée (ancienne AppTheme.lightTextPrimary) :
+                          // la barre de recherche doit rester strictement
+                          // inchangée, indépendamment de la nouvelle palette.
+                          color: const Color(0xFF0A0E1F).withValues(alpha: 0.05),
                           blurRadius: 12,
                           offset: const Offset(0, 4),
                         ),
