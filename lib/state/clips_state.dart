@@ -248,6 +248,24 @@ class ClipsState extends ChangeNotifier {
     final tokens = searchTokensFor(_searchQuery);
     if (tokens.isEmpty) return [];
     final set = <String>{};
+    for (final cat in _categories) {
+      final normalizedName = normalizeForSearch(cat.name);
+      if (tokens.every((t) => normalizedName.contains(t))) {
+        set.add(cat.name);
+      }
+    }
+    for (final sub in _subcategories) {
+      final normalizedName = normalizeForSearch(sub.name);
+      if (tokens.every((t) => normalizedName.contains(t))) {
+        set.add(sub.name);
+      }
+    }
+    for (final subSub in _subsubcategories) {
+      final normalizedName = normalizeForSearch(subSub.name);
+      if (tokens.every((t) => normalizedName.contains(t))) {
+        set.add(subSub.name);
+      }
+    }
     for (final c in _clips) {
       final normalizedTitle = normalizeForSearch(c.title);
       if (tokens.every((t) => normalizedTitle.contains(t))) {
