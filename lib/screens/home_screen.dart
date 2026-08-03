@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -309,10 +310,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     ).createShader(bounds),
                     child: Text(
                       l.t('app_name'),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w900,
+                      // Manrope ExtraBold — taille (28pt) inchangée, déjà
+                      // adaptée à la mise en page ; seuls la police, la
+                      // graisse, le letterSpacing et le height changent.
+                      style: GoogleFonts.manrope(
                         fontSize: 28,
-                        letterSpacing: -1.0,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                        height: 1.0,
                         color: Colors.white,
                       ),
                     ),
