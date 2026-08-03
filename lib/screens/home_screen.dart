@@ -893,6 +893,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     _gridView = widget.state.gridViewFor(widget.categoryId);
   }
   String? _selectedSubcategoryId;
+  String? _selectedSubSubcategoryId;
 
   /// Active/désactive le mode réorganisation. Affiche l'aide de première
   /// utilisation à l'entrée (une seule fois, mémorisée via SharedPreferences)
@@ -982,11 +983,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             : widget.state.clipsForCategory(widget.categoryId);
         final subcats = widget.state.getSubCategoriesFor(widget.categoryId);
         final subId = _selectedSubcategoryId;
+        final subsubcats = widget.state.getSubSubCategoriesFor(subId);
+        final subSubId = _selectedSubSubcategoryId;
         final filtered = subId == null
             ? raw
             : raw
                 .where((c) =>
                     widget.state.subcategoryIdForClip(c.id) == subId)
+                .where((c) =>
+                    subSubId == null ||
+                    widget.state.subsubcategoryIdForClip(c.id) == subSubId)
                 .toList();
         final clips = _sorted(filtered);
         final topPad =
@@ -1097,10 +1103,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     ),
                   ),
                 ),
-              if (widget.categoryId != null) ...[
+              if (widget.categoryId != null && _selectedSubcategoryId == null) ...[
                 // Même aspect que les autres actions de cette barre (grille,
                 // manuel) : icône simple sans fond ni bordure — fonction
-                // inchangée : créer une sous-catégorie.
+                // inchangée : créer une sous-catégorie. Masqué dès qu'une
+                // sous-catégorie est sélectionnée (le "+" de la barre de
+                // chips prend le relais pour créer une sous-sous-catégorie).
                 IconButton(
                   // Icône pleine (et non "_outline", plus fine) pour
                   // correspondre visuellement au poids des 3 autres icônes
@@ -1134,10 +1142,20 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                           ? (widget.state.categoryById(widget.categoryId)?.color ??
                               AppTheme.orange)
                           : AppTheme.orange,
-                      onSelect: (id) =>
-                          setState(() => _selectedSubcategoryId = id),
+                      onSelect: (id) => setState(() {
+                        _selectedSubcategoryId = id;
+                        _selectedSubSubcategoryId = null;
+                      }),
                       onDelete: (id) =>
                           widget.state.deleteSubCategory(id),
+                      subsubcategories: subsubcats,
+                      selectedSubSubId: _selectedSubSubcategoryId,
+                      onSelectSubSub: (id) =>
+                          setState(() => _selectedSubSubcategoryId = id),
+                      onDeleteSubSub: (id) =>
+                          widget.state.deleteSubSubCategory(id),
+                      onAddSubSub: () =>
+                          _showAddSubSubcategoryDialog(context),
                     ),
                   Expanded(
                     child: clips.isEmpty
@@ -1487,6 +1505,91 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       ),
     );
   }
+
+  void _showAddSubSubcategoryDialog(BuildContext context) {
+    final parentSubId = _selectedSubcategoryId;
+    if (parentSubId == null) return;
+    final nameCtrl = TextEditingController();
+    Color pickedColor = AppTheme.orange;
+    const colors = categoryColorChoices;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouvelle sous-sous-catégorie' : 'New sub-subfolder'),
+          content: SizedBox(
+            width: 300,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: InputDecoration(
+                      labelText: Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nom' : 'Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Couleur' : 'Color',
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: colors
+                        .map((c) => GestureDetector(
+                              onTap: () => setDlgState(() => pickedColor = c),
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: c,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: pickedColor == c
+                                        ? Colors.white
+                                        : Colors.transparent,
+                                    width: 3,
+                                  ),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel')),
+            FilledButton(
+              onPressed: () {
+                if (nameCtrl.text.trim().isEmpty) return;
+                widget.state.addSubSubCategory(SubSubCategory(
+                  id: const Uuid().v4(),
+                  name: nameCtrl.text.trim(),
+                  subCategoryId: parentSubId,
+                  color: pickedColor,
+                  icon: Icons.label_rounded,
+                ));
+                Navigator.pop(ctx);
+              },
+              child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Créer' : 'Create'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -1499,6 +1602,11 @@ class _SubcategoryBar extends StatelessWidget {
   final Color categoryColor;
   final ValueChanged<String?> onSelect;
   final ValueChanged<String> onDelete;
+  final List<SubSubCategory> subsubcategories;
+  final String? selectedSubSubId;
+  final ValueChanged<String?> onSelectSubSub;
+  final ValueChanged<String> onDeleteSubSub;
+  final VoidCallback onAddSubSub;
 
   const _SubcategoryBar({
     required this.subcategories,
@@ -1506,10 +1614,56 @@ class _SubcategoryBar extends StatelessWidget {
     required this.categoryColor,
     required this.onSelect,
     required this.onDelete,
+    required this.subsubcategories,
+    required this.selectedSubSubId,
+    required this.onSelectSubSub,
+    required this.onDeleteSubSub,
+    required this.onAddSubSub,
   });
 
   @override
   Widget build(BuildContext context) {
+    // Une sous-catégorie est sélectionnée : la barre bascule pour ne
+    // montrer que celle-ci (repliable en retapant dessus), suivie de ses
+    // propres sous-sous-catégories et d'un bouton "+" dédié.
+    if (selectedId != null) {
+      final match = subcategories.where((s) => s.id == selectedId);
+      final subName = match.isEmpty ? '' : match.first.name;
+      final subColor = match.isEmpty ? categoryColor : match.first.color;
+      return SizedBox(
+        height: 42,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          children: [
+            _SubChip(
+              label: subName,
+              color: subColor,
+              selected: true,
+              onTap: () => onSelect(null),
+            ),
+            ...subsubcategories.map((sub) => Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: GestureDetector(
+                    onLongPress: () => _confirmDeleteSubSub(context, sub),
+                    child: _SubChip(
+                      label: sub.name,
+                      color: sub.color,
+                      selected: selectedSubSubId == sub.id,
+                      onTap: () => onSelectSubSub(
+                          selectedSubSubId == sub.id ? null : sub.id),
+                    ),
+                  ),
+                )),
+            Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _AddSubSubChip(color: subColor, onTap: onAddSubSub),
+            ),
+          ],
+        ),
+      );
+    }
+
     return SizedBox(
       height: 42,
       child: ListView(
@@ -1560,6 +1714,58 @@ class _SubcategoryBar extends StatelessWidget {
             child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer' : 'Delete'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _confirmDeleteSubSub(BuildContext context, SubSubCategory sub) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer la sous-sous-catégorie ?' : 'Delete sub-subfolder?'),
+        content: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? '"${sub.name}" sera supprimée.' : '"${sub.name}" will be deleted.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel')),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () {
+              onDeleteSubSub(sub.id);
+              Navigator.pop(ctx);
+            },
+            child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer' : 'Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddSubSubChip extends StatelessWidget {
+  final Color color;
+  final VoidCallback onTap;
+
+  const _AddSubSubChip({required this.color, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: AppL10n.of(context).t('add_subsubcategory_tooltip'),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            shape: BoxShape.circle,
+            border: Border.all(color: color.withValues(alpha: 0.4)),
+          ),
+          child: Icon(Icons.add_rounded, color: _legibleAccent(color), size: 18),
+        ),
       ),
     );
   }
