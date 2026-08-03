@@ -711,7 +711,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                               ],
                               Text(widget.name.toUpperCase(),
                                 textAlign: TextAlign.left,
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTheme.categoryTitleStyle.copyWith(color: Colors.white)),
                             ],
@@ -829,7 +829,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                               ],
                               Text(
                                 widget.name.toUpperCase(),
-                                maxLines: 2,
+                                maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 textAlign: TextAlign.left,
                                 style: AppTheme.categoryTitleStyle.copyWith(
