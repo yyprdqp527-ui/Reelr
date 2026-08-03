@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -1613,20 +1614,26 @@ class _SearchBar extends StatefulWidget {
   State<_SearchBar> createState() => _SearchBarState();
 }
 
-class _SearchBarState extends State<_SearchBar> {
+class _SearchBarState extends State<_SearchBar>
+    with SingleTickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   bool _focused = false;
-  // Léger délai avant de relancer la recherche : évite de rescanner toute
-  // la bibliothèque à chaque touche tapée (surtout utile pour les grandes
-  // bibliothèques). Le bouton "effacer" reste instantané (pas de délai).
   Timer? _debounce;
   static const _debounceDuration = Duration(milliseconds: 250);
+  late final AnimationController _beamController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1600),
+  );
 
   @override
   void initState() {
     super.initState();
+    // Faisceau animé en continu (pas seulement au focus) — coût
+    // CPU/GPU jugé acceptable, accepté comme compromis batterie.
+    _beamController.repeat();
     _focusNode.addListener(() {
-      if (mounted) setState(() => _focused = _focusNode.hasFocus);
+      if (!mounted) return;
+      setState(() => _focused = _focusNode.hasFocus);
     });
   }
 
@@ -1634,6 +1641,7 @@ class _SearchBarState extends State<_SearchBar> {
   void dispose() {
     _debounce?.cancel();
     _focusNode.dispose();
+    _beamController.dispose();
     super.dispose();
   }
 
@@ -1652,28 +1660,33 @@ class _SearchBarState extends State<_SearchBar> {
             : AppTheme.lightBorderActive)
         : (isDark ? AppTheme.darkBorder : AppTheme.lightBorder);
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: _focused ? 1.3 : 1.0),
-        // Très légère profondeur en clair — jamais d'ombre lourde, jamais
-        // violette (reste dans la famille bleu glacier).
-        boxShadow: isDark
-            ? null
-            : [
-                BoxShadow(
-                  color: AppTheme.lightTextPrimary.withValues(alpha: 0.05),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-      ),
-      child: Row(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Stack(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              height: 54,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: surfaceColor.withValues(alpha: isDark ? 0.55 : 0.70),
+                borderRadius: BorderRadius.circular(20),
+                border:
+                    Border.all(color: borderColor, width: _focused ? 1.3 : 1.0),
+                boxShadow: isDark
+                    ? null
+                    : [
+                        BoxShadow(
+                          color: AppTheme.lightTextPrimary.withValues(alpha: 0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+              ),
+              child: Row(
         children: [
           Icon(Icons.search_rounded, size: 22, color: iconColor),
           const SizedBox(width: 8),
@@ -1725,10 +1738,61 @@ class _SearchBarState extends State<_SearchBar> {
               constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
               splashRadius: 20,
             ),
-        ],
+            ],
+              ),
+            ),
+            Positioned.fill(
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 220),
+                  opacity: 1.0,
+                  child: AnimatedBuilder(
+                    animation: _beamController,
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: _SearchBeamPainter(progress: _beamController.value),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+class _SearchBeamPainter extends CustomPainter {
+  final double progress;
+  _SearchBeamPainter({required this.progress});
+
+  static const _colors = [
+    Color(0xFF2563EB),
+    Color(0xFF22D3EE),
+    Color(0xFF2563EB),
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Offset.zero & size;
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(20));
+    final path = Path()..addRRect(rrect);
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..shader = SweepGradient(
+        colors: _colors,
+        stops: const [0.0, 0.5, 1.0],
+        transform: GradientRotation(2 * math.pi * progress),
+      ).createShader(rect);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SearchBeamPainter oldDelegate) =>
+      oldDelegate.progress != progress;
 }
 
 class _SuggestionsList extends StatelessWidget {
