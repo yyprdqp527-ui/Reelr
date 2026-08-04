@@ -423,129 +423,176 @@ class _ReorderableCategoryGrid extends StatefulWidget {
 }
 
 class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
-  // Identifiants (jamais d'index de position) : évite tout décalage entre
-  // la prévisualisation affichée pendant le glisser et l'ordre réellement
-  // persisté — cause du déplacement imprécis corrigé ici.
-  String? _hoverTargetId;
+  // Un seul DragTarget couvre toute la grille (voir build()) : la case
+  // visée est calculée géométriquement (ligne/colonne sous le doigt),
+  // jamais déduite de l'identité de la tuile qui s'y affiche à l'instant
+  // T — élimine l'ambiguïté qui survenait quand l'ordre changeait en
+  // cours de geste (la case sous le doigt gardait la bonne position même
+  // si son contenu changeait).
+  final GlobalKey _gridBoxKey = GlobalKey();
   List<ClipCategory>? _previewOrder;
+  int? _previewIndex;
+
+  static const int _crossAxisCount = 3;
+  static const double _spacing = 16;
 
   List<ClipCategory> _baseOrder() => widget.state.categories
       .where((c) => widget.state.countForCategory(c.id) > 0)
       .toList();
 
+  /// Convertit une position globale (celle du doigt) en index de la
+  /// catégorie visée (0-based, parmi les catégories visibles, la tuile
+  /// "Tout" étant hors de cet espace d'index). `null` si la position ne
+  /// correspond à aucune case mesurable.
+  int? _indexFromGlobalPosition(Offset globalPosition) {
+    final box = _gridBoxKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) {
+      // ignore: avoid_print
+      return null;
+    }
+    final local = box.globalToLocal(globalPosition);
+    if (local.dx < 0 || local.dy < 0) return null;
+    final tileWidth =
+        (box.size.width - _spacing * (_crossAxisCount - 1)) / _crossAxisCount;
+    if (tileWidth <= 0) return null;
+    const tileHeight = 0.0; // recalculé ci-dessous (childAspectRatio: 1)
+    final resolvedTileHeight = tileHeight == 0 ? tileWidth : tileHeight;
+    final col = (local.dx / (tileWidth + _spacing))
+        .floor()
+        .clamp(0, _crossAxisCount - 1);
+    final row = (local.dy / (resolvedTileHeight + _spacing)).floor();
+    if (row < 0) return null;
+    // Index "tous emplacements confondus" (0 = case de la tuile "Tout").
+    final flatIndex = row * _crossAxisCount + col;
+    // Espace d'index des catégories visibles uniquement (sans "Tout").
+    final visibleCount = _baseOrder().length;
+    return (flatIndex - 1).clamp(0, visibleCount);
+  }
+
+  void _updatePreview(Offset globalPosition, String draggedId) {
+    final targetIndex = _indexFromGlobalPosition(globalPosition);
+    // ignore: avoid_print
+    if (targetIndex == null || targetIndex == _previewIndex) return;
+    final base = List<ClipCategory>.of(_baseOrder());
+    final fromIdx = base.indexWhere((c) => c.id == draggedId);
+    if (fromIdx == -1) return;
+    final moved = base.removeAt(fromIdx);
+    base.insert(targetIndex.clamp(0, base.length), moved);
+    setState(() {
+      _previewIndex = targetIndex;
+      _previewOrder = base;
+    });
+  }
+
+  void _resetPreview() {
+    setState(() {
+      _previewOrder = null;
+      _previewIndex = null;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = widget.l;
     final visibleCats = _previewOrder ?? _baseOrder();
+    // ignore: avoid_print
     final total = visibleCats.length + 1; // +1 pour la tuile "Tout"
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        // Échelle d'espacement commune (4/8/12/16/20/24/32) : 14 → 16.
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 1,
-      ),
-      itemCount: total,
-      itemBuilder: (ctx, i) {
-        if (i == 0) {
-          // Tuile "Tout" : fixe, non déplaçable.
-          return _CategoryTile(
-            name: l.t('all'),
-            color: AppTheme.orange,
-            icon: Icons.grid_view_rounded,
-            count: widget.state.totalCount,
-            isPending: widget.state.hasPendingClassification,
-            isAllTile: true,
-            onTap: () => widget.onOpenCategory(context, null, l.t('all')),
-          );
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (_) => true,
+      onMove: (details) => _updatePreview(details.offset, details.data),
+      onLeave: (_) => _resetPreview(),
+      onAcceptWithDetails: (details) {
+        final targetIndex =
+            _indexFromGlobalPosition(details.offset) ?? _previewIndex;
+        // ignore: avoid_print
+        _resetPreview();
+        if (targetIndex != null) {
+          widget.state.reorderCategoryToIndex(details.data, targetIndex);
+        } else {
+          // ignore: avoid_print
         }
-        final catIndex = i - 1;
-        final cat = visibleCats[catIndex];
-        final catClips = widget.state.clipsForCategory(cat.id);
-        final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
-        final tile = _CategoryTile(
-          name: localizedName,
-          color: cat.color,
-          icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
-          count: widget.state.countForCategory(cat.id),
-          onTap: () {
-            widget.state.markCategoryViewed(cat.id);
-            widget.onOpenCategory(context, cat.id, localizedName);
+      },
+      builder: (ctx, candidate, rejected) {
+        return GridView.builder(
+          key: _gridBoxKey,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: _crossAxisCount,
+            // Échelle d'espacement commune (4/8/12/16/20/24/32) : 14 → 16.
+            mainAxisSpacing: _spacing,
+            crossAxisSpacing: _spacing,
+            childAspectRatio: 1,
+          ),
+          itemCount: total,
+          // Sans ce callback, GridView.builder ne retrouve ses enfants que
+          // par index de position, pas par clé stable. Or l'ordre change
+          // pendant le glisser (_previewOrder), donc la tuile en cours de
+          // déplacement peut se retrouver à un autre index que celui
+          // attendu : Flutter détruit/recrée alors le mauvais widget en
+          // plein geste, ce qui corrompt l'état interne du
+          // LongPressDraggable en cours.
+          findChildIndexCallback: (key) {
+            if (key is! ValueKey<String>) return null;
+            if (key.value == 'cat_tile_all') return 0;
+            final id = key.value.replaceFirst('cat_drag_source_', '');
+            final idx = visibleCats.indexWhere((c) => c.id == id);
+            return idx == -1 ? null : idx + 1;
           },
-          thumbnailUrl: catClips.isEmpty
-              ? null
-              : () {
-                  final order = widget.state.sortOrderFor(cat.id);
-                  final sorted = sortClipsByOrder(catClips, order);
-                  return sorted
-                      .where((c) =>
-                          c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
-                      .map((c) => c.thumbnailUrl!)
-                      .firstOrNull;
-                }(),
-          showBadge: widget.state.newlyClassifiedCategoryIds.contains(cat.id),
-        );
+          itemBuilder: (ctx, i) {
+            if (i == 0) {
+              // Tuile "Tout" : fixe, non déplaçable.
+              return _CategoryTile(
+                key: const ValueKey('cat_tile_all'),
+                name: l.t('all'),
+                color: AppTheme.orange,
+                icon: Icons.grid_view_rounded,
+                count: widget.state.totalCount,
+                isPending: widget.state.hasPendingClassification,
+                isAllTile: true,
+                onTap: () => widget.onOpenCategory(context, null, l.t('all')),
+              );
+            }
+            final catIndex = i - 1;
+            final cat = visibleCats[catIndex];
+            final catClips = widget.state.clipsForCategory(cat.id);
+            final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
+            final tile = _CategoryTile(
+              name: localizedName,
+              color: cat.color,
+              icon: DatabaseHelper.iconFor(cat.id) ?? cat.icon,
+              count: widget.state.countForCategory(cat.id),
+              onTap: () {
+                widget.state.markCategoryViewed(cat.id);
+                widget.onOpenCategory(context, cat.id, localizedName);
+              },
+              thumbnailUrl: catClips.isEmpty
+                  ? null
+                  : () {
+                      final order = widget.state.sortOrderFor(cat.id);
+                      final sorted = sortClipsByOrder(catClips, order);
+                      return sorted
+                          .where((c) =>
+                              c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                          .map((c) => c.thumbnailUrl!)
+                          .firstOrNull;
+                    }(),
+              showBadge:
+                  widget.state.newlyClassifiedCategoryIds.contains(cat.id),
+            );
 
-        return DragTarget<String>(
-          key: ValueKey('cat_drag_target_${cat.id}'),
-          onWillAcceptWithDetails: (details) {
-            final draggedId = details.data;
-            if (draggedId == cat.id) return false;
-            setState(() {
-              _hoverTargetId = cat.id;
-              // Toujours recalculée à partir de la liste stable persistée
-              // (jamais à partir de la prévisualisation précédente) : évite
-              // que les décalages ne s'accumulent au fil des cellules
-              // survolées pendant un même geste.
-              final base = List<ClipCategory>.of(_baseOrder());
-              final fromIdx = base.indexWhere((c) => c.id == draggedId);
-              if (fromIdx == -1) return;
-              final moved = base.removeAt(fromIdx);
-              final targetIdx = base.indexWhere((c) => c.id == cat.id);
-              base.insert(
-                  (targetIdx == -1 ? base.length : targetIdx)
-                      .clamp(0, base.length),
-                  moved);
-              _previewOrder = base;
-            });
-            return true;
-          },
-          onLeave: (_) => setState(() => _hoverTargetId = null),
-          onAcceptWithDetails: (details) {
-            final draggedId = details.data;
-            setState(() {
-              _hoverTargetId = null;
-              _previewOrder = null;
-            });
-            // Identifiants uniquement — la position finale est recalculée
-            // en une seule fois par ClipsState à partir de la liste
-            // persistée, sans dépendre d'aucun index de prévisualisation.
-            widget.state.reorderCategoryById(draggedId, cat.id);
-          },
-          builder: (ctx, candidate, rejected) {
-            final isHovering = _hoverTargetId == cat.id && candidate.isNotEmpty;
-            // Le grisé de la tuile source pendant le glisser est géré
-            // nativement par `childWhenDragging` ci-dessous (interne à
-            // LongPressDraggable) : il se réinitialise toujours correctement
-            // à la fin du geste. L'ancien effet dupliqué, piloté par un flag
-            // maison (_draggingId), pouvait rester bloqué à 0.4 d'opacité
-            // après un dépôt si la grille se réordonnait pendant le geste —
-            // supprimé pour ne garder qu'une seule source de vérité.
-            return AnimatedScale(
-              scale: isHovering ? 1.06 : 1.0,
-              duration: const Duration(milliseconds: 150),
-              child: LongPressDraggable<String>(
-                data: cat.id,
-                delay: const Duration(milliseconds: 350),
-                feedback: Opacity(opacity: 0.85, child: SizedBox(width: 100, height: 100, child: tile)),
-                childWhenDragging: Opacity(opacity: 0.3, child: tile),
-                onDragEnd: (_) => setState(() => _hoverTargetId = null),
-                child: tile,
-              ),
+            return LongPressDraggable<String>(
+              key: ValueKey('cat_drag_source_${cat.id}'),
+              data: cat.id,
+              delay: const Duration(milliseconds: 350),
+              feedback: Opacity(
+                  opacity: 0.85,
+                  child: SizedBox(width: 100, height: 100, child: tile)),
+              childWhenDragging: Opacity(opacity: 0.3, child: tile),
+              onDraggableCanceled: (_, _) => _resetPreview(),
+              onDragEnd: (_) => _resetPreview(),
+              child: tile,
             );
           },
         );
@@ -568,6 +615,7 @@ class _CategoryTile extends StatefulWidget {
   final bool isAllTile;
 
   const _CategoryTile({
+    super.key,
     required this.name,
     required this.color,
     required this.count,
