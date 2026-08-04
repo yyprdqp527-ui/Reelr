@@ -113,9 +113,7 @@ class _HomeScreenState extends State<HomeScreen> {
   /// de sens). Même filtre que celui utilisé par la grille elle-même pour
   /// déterminer les tuiles visibles (catégories non vides).
   Future<void> _maybeShowReorderTilesHint(AppL10n l) async {
-    final visibleCategoryTiles = widget.state.categories
-        .where((c) => widget.state.countForCategory(c.id) > 0)
-        .length;
+    final visibleCategoryTiles = widget.state.categories.length;
     if (visibleCategoryTiles < 2) return;
     if (!mounted) return;
     await CoachMark.showOnce(
@@ -436,9 +434,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   static const int _crossAxisCount = 3;
   static const double _spacing = 16;
 
-  List<ClipCategory> _baseOrder() => widget.state.categories
-      .where((c) => widget.state.countForCategory(c.id) > 0)
-      .toList();
+  List<ClipCategory> _baseOrder() => widget.state.categories;
 
   /// Convertit une position globale (celle du doigt) en index de la
   /// catégorie visée (0-based, parmi les catégories visibles, la tuile
@@ -1209,7 +1205,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     child: clips.isEmpty
                         ? (_selectedSubcategoryId != null
                             ? _SubcategoryEmptyState(l: l)
-                            : _EmptyState(l: l))
+                            : (widget.categoryId != null
+                                ? _CategoryEmptyState(l: l)
+                                : _EmptyState(l: l)))
                         : _reorderMode && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
@@ -2266,6 +2264,75 @@ class _SubcategoryEmptyState extends StatelessWidget {
                 isFr
                     ? 'Va dans l\'onglet Tout, appuie sur le menu ⋮ d\'un clip,\npuis choisis Classer pour l\'ajouter ici'
                     : 'Go to the All tab, tap the ⋮ menu on a clip,\nthen choose Sort to add it here',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+class _CategoryEmptyState extends StatelessWidget {
+  final AppL10n l;
+  const _CategoryEmptyState({required this.l});
+  @override
+  Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
+    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : AppTheme.lightTextSecondary;
+    final borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : AppTheme.lightBorder.withValues(alpha: 0.6);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: borderColor, width: 1),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(18),
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.30),
+                      blurRadius: 20,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.drive_file_move_rounded, size: 30, color: Color(0xFFA855F7)),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                isFr ? 'ORGANISE TES CLIPS' : 'ORGANIZE YOUR CLIPS',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.4,
+                  color: Color(0xFFA855F7),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr ? 'Cette catégorie est vide\npour l\'instant' : 'This category is empty\nfor now',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                isFr
+                    ? 'Ouvre le menu ⋮ d\'une vidéo, appuie sur\nDéplacer vers, puis choisis cette catégorie'
+                    : 'Open a video\'s ⋮ menu, tap\nMove to, then choose this category',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
               ),
