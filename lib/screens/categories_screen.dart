@@ -480,41 +480,45 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                         style: const TextStyle(fontWeight: FontWeight.w600)),
                     const SizedBox(height: 10),
                     SizedBox(
+                      width: double.infinity,
                       height: 160,
-                      child: SingleChildScrollView(
-                        child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: _icons
-                          .map((ic) => GestureDetector(
-                                onTap: () => setState(() => _icon = ic),
-                                child: Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: _icon == ic
-                                        ? _color.withValues(alpha: 0.2)
-                                        : Colors.transparent,
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: _icon == ic
-                                          ? _color
-                                          : (isDark
-                                              ? Colors.grey.withValues(alpha: 0.3)
-                                              : AppTheme.lightBorder),
-                                    ),
-                                  ),
-                                  child: Icon(
-                                    ic,
-                                    size: 20,
-                                    color: _icon == ic
-                                        ? _color
-                                        : (isDark ? Colors.grey : AppTheme.lightIconInactive),
-                                  ),
-                                ),
-                              ))
-                          .toList(),
+                      child: GridView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 46,
+                          mainAxisSpacing: 8,
+                          crossAxisSpacing: 8,
+                          childAspectRatio: 1,
                         ),
+                        itemCount: _icons.length,
+                        itemBuilder: (context, index) {
+                          final ic = _icons[index];
+                          return GestureDetector(
+                            onTap: () => setState(() => _icon = ic),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: _icon == ic
+                                    ? _color.withValues(alpha: 0.2)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: _icon == ic
+                                      ? _color
+                                      : (isDark
+                                          ? Colors.grey.withValues(alpha: 0.3)
+                                          : AppTheme.lightBorder),
+                                ),
+                              ),
+                              child: Icon(
+                                ic,
+                                size: 20,
+                                color: _icon == ic
+                                    ? _color
+                                    : (isDark ? Colors.grey : AppTheme.lightIconInactive),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -969,6 +973,7 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
             children: [
               TextField(
                 controller: _nameCtrl,
+                textCapitalization: TextCapitalization.sentences,
                 decoration: InputDecoration(
                   labelText: l.t('category_name'),
                   border: const OutlineInputBorder(),
@@ -1012,41 +1017,47 @@ class _AddCategoryDialogState extends State<AddCategoryDialog> {
               Text(l.t('icon'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _icons
-                    .map((ic) => GestureDetector(
-                          onTap: () => setState(() {
-                            _icon = ic;
-                            _userPickedIcon = true;
-                          }),
-                          child: Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: _icon == ic
-                                  ? _color.withValues(alpha: 0.2)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: _icon == ic
-                                    ? _color
-                                    : (isDark
-                                        ? Colors.grey.withValues(alpha: 0.3)
-                                        : AppTheme.lightBorder),
-                              ),
-                            ),
-                            child: Icon(
-                              ic,
-                              size: 20,
-                              color: _icon == ic
-                                  ? _color
-                                  : (isDark ? Colors.grey : AppTheme.lightIconInactive),
-                            ),
-                          ),
-                        ))
-                    .toList(),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 46,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1,
+                ),
+                itemCount: _icons.length,
+                itemBuilder: (context, index) {
+                  final ic = _icons[index];
+                  return GestureDetector(
+                    onTap: () => setState(() {
+                      _icon = ic;
+                      _userPickedIcon = true;
+                    }),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _icon == ic
+                            ? _color.withValues(alpha: 0.2)
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: _icon == ic
+                              ? _color
+                              : (isDark
+                                  ? Colors.grey.withValues(alpha: 0.3)
+                                  : AppTheme.lightBorder),
+                        ),
+                      ),
+                      child: Icon(
+                        ic,
+                        size: 20,
+                        color: _icon == ic
+                            ? _color
+                            : (isDark ? Colors.grey : AppTheme.lightIconInactive),
+                      ),
+                    ),
+                  );
+                },
               ),
             ],
           ),
