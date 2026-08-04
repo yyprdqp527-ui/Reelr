@@ -626,18 +626,18 @@ class ClipsState extends ChangeNotifier {
   /// prévisualisation local — ce qui élimine les décalages d'index
   /// observés précédemment (déplacement qui « ratait » sa cible selon la
   /// direction du glisser).
-  Future<void> reorderCategoryById(String draggedId, String targetId) async {
-    if (draggedId == targetId) return;
+  /// Déplace la catégorie [draggedId] pour qu'elle occupe l'index
+  /// [targetIndex] (0-based, parmi les catégories visibles) une fois
+  /// retirée de sa position actuelle. [targetIndex] est calculé
+  /// géométriquement côté UI (ligne/colonne sous le doigt), et non plus
+  /// déduit de l'identité d'une tuile survolée — élimine toute ambiguïté
+  /// quand l'ordre affiché change en cours de geste.
+  Future<void> reorderCategoryToIndex(String draggedId, int targetIndex) async {
     final visible = _categories.where((c) => countForCategory(c.id) > 0).toList();
     final oldIndex = visible.indexWhere((c) => c.id == draggedId);
     if (oldIndex == -1) return;
     final moved = visible.removeAt(oldIndex);
-    // Réinsère juste avant la cible, quelle que soit la direction du
-    // déplacement — la cible est retrouvée par id après le retrait, donc
-    // aucun ajustement manuel d'index n'est nécessaire.
-    final targetIndex = visible.indexWhere((c) => c.id == targetId);
-    final insertAt = (targetIndex == -1 ? visible.length : targetIndex)
-        .clamp(0, visible.length);
+    final insertAt = targetIndex.clamp(0, visible.length);
     visible.insert(insertAt, moved);
 
     // 1) Mise à jour immédiate en mémoire + notify pour un rendu instantané,
@@ -646,9 +646,8 @@ class ClipsState extends ChangeNotifier {
     for (var i = 0; i < visible.length; i++) {
       final updated = visible[i].copyWith(position: i);
       updatedList.add(updated);
-      final idx = _categories.indexWhere((c) => c.id == updated.id);
-      if (idx != -1) _categories[idx] = updated;
     }
+    _categories = [...updatedList, ..._categories.where((c) => countForCategory(c.id) <= 0)];
     notifyListeners();
 
     // 2) Persistance en base, en arrière-plan.
