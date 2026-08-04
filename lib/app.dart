@@ -228,18 +228,27 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     });
   }
 
-  void _handleDeepLink(Uri uri) {
+  Future<void> _handleDeepLink(Uri uri) async {
     debugPrint('[deeplink] _handleDeepLink scheme=${uri.scheme} host=${uri.host}');
     // Le lien de partage de playlist existe sous deux formes : le schéma
     // personnalisé reelr://playlist... et le lien https universel
     // (yyprdqp527-ui.github.io/reelr-support/playlist...) délivré
     // directement à l'app quand les Universal/App Links sont actifs — donc
     // testé avant le filtre "scheme == reelr" ci-dessous, qui ne concerne
-    // que le reste des liens (ex. reelr://add).
-    final playlist = PlaylistLink.tryDecode(uri);
-    if (playlist != null) {
-      debugPrint('[deeplink] playlist decode -> ${playlist.items.length} vidéos');
-      _openPlaylistImportWhenReady(playlist);
+    // que le reste des liens (ex. reelr://add). Le décodage peut nécessiter
+    // un appel réseau (nouveau format court "code=..."), d'où l'attente ici.
+    final isPlaylistLink = (uri.scheme == 'reelr' && uri.host == 'playlist') ||
+        ((uri.scheme == 'https' || uri.scheme == 'http') &&
+            uri.host == 'yyprdqp527-ui.github.io' &&
+            uri.path.startsWith('/reelr-support/playlist'));
+    if (isPlaylistLink) {
+      final playlist = await PlaylistLink.tryDecodeAsync(uri);
+      if (playlist != null) {
+        debugPrint('[deeplink] playlist decode -> ${playlist.items.length} vidéos');
+        _openPlaylistImportWhenReady(playlist);
+      } else {
+        debugPrint('[deeplink] playlist decode failed');
+      }
       return;
     }
     if (uri.scheme != 'reelr') return;

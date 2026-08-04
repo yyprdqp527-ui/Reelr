@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:http/http.dart' as http;
+
 import '../models/clip.dart';
 import 'oembed.dart';
 
@@ -94,19 +96,10 @@ class PlaylistLink {
         },
       );
 
-  static PlaylistLink? tryDecode(Uri uri) {
-    // Accepte à la fois le lien à schéma personnalisé (reelr://playlist...)
-    // et le lien https (yyprdqp527-ui.github.io/reelr-support/playlist...)
-    // : ce dernier est délivré directement à l'app quand les Universal
-    // Links / App Links sont actifs, sans jamais passer par le navigateur.
-    final isAppScheme = uri.scheme == 'reelr' && uri.host == 'playlist';
-    final isWebLink = (uri.scheme == 'https' || uri.scheme == 'http') &&
-        uri.host == 'yyprdqp527-ui.github.io' &&
-        uri.path.startsWith('/reelr-support/playlist');
-    if (!isAppScheme && !isWebLink) return null;
-    final name = uri.queryParameters['name'];
-    final encoded = uri.queryParameters['items'];
-    if (name == null || encoded == null) return null;
+  static const String _dataEndpoint =
+      'https://reelr-link-shortener.myreelr.workers.dev/data/';
+
+  static PlaylistLink? _decodeItemsPayload(String name, String encoded) {
     try {
       final decoded = utf8.decode(base64Url.decode(encoded));
       final list = json.decode(decoded) as List<dynamic>;
@@ -120,5 +113,46 @@ class PlaylistLink {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Décode un lien de playlist reçu. Le format récent (`code=...`)
+  /// nécessite un appel réseau vers le Worker pour récupérer les vraies
+  /// données ; l'ancien format (`name=...&items=...`, gardé pour les liens
+  /// déjà partagés avant ce changement, ou le mode de repli [toWebUri] en
+  /// cas de Worker injoignable au moment du partage) se décode entièrement
+  /// en local.
+  static Future<PlaylistLink?> tryDecodeAsync(Uri uri) async {
+    // Accepte à la fois le lien à schéma personnalisé (reelr://playlist...)
+    // et le lien https (yyprdqp527-ui.github.io/reelr-support/playlist...)
+    // : ce dernier est délivré directement à l'app quand les Universal
+    // Links / App Links sont actifs, sans jamais passer par le navigateur.
+    final isAppScheme = uri.scheme == 'reelr' && uri.host == 'playlist';
+    final isWebLink = (uri.scheme == 'https' || uri.scheme == 'http') &&
+        uri.host == 'yyprdqp527-ui.github.io' &&
+        uri.path.startsWith('/reelr-support/playlist');
+    if (!isAppScheme && !isWebLink) return null;
+
+    final code = uri.queryParameters['code'];
+    if (code != null && code.isNotEmpty) {
+      try {
+        final response = await http
+            .get(Uri.parse('$_dataEndpoint$code'))
+            .timeout(const Duration(seconds: 8));
+        if (response.statusCode != 200) return null;
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final name = data['name'] as String?;
+        final encoded = data['items'] as String?;
+        if (name == null || encoded == null) return null;
+        return _decodeItemsPayload(name, encoded);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    // Ancien format, tout dans l'URL — décodage local, sans réseau.
+    final name = uri.queryParameters['name'];
+    final encoded = uri.queryParameters['items'];
+    if (name == null || encoded == null) return null;
+    return _decodeItemsPayload(name, encoded);
   }
 }
