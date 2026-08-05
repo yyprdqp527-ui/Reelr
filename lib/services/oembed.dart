@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io' show HttpClient;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -388,9 +389,38 @@ class OEmbedService {
     }
   }
 
-  static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
+  /// Resout un lien court de partage Reddit (ex:
+  /// reddit.com/r/xxx/s/pZnn3jOTh8) vers son URL canonique
+  /// (reddit.com/r/xxx/comments/id/titre/) en suivant la redirection
+  /// HTTP. Reddit sert une page HTML interstitielle sur ces liens courts,
+  /// donc construire ".json" dessus directement echoue toujours. Si
+  /// l'URI n'est pas un lien court, ou si la resolution echoue, on
+  /// retombe sur l'URI d'origine (comportement inchange).
+  static Future<Uri> _resolveRedditShareLink(Uri uri) async {
+    if (!uri.pathSegments.contains('s')) return uri;
+    HttpClient? client;
     try {
-      var path = videoUri.path;
+      client = HttpClient();
+      client.userAgent = 'Mozilla/5.0 (compatible; Reelr/1.0)';
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 10));
+      final response = await request.close().timeout(const Duration(seconds: 10));
+      await response.drain<void>();
+      if (response.redirects.isNotEmpty) {
+        return response.redirects.last.location;
+      }
+      return uri;
+    } catch (e) {
+      debugPrint('[oembed] reddit share-link resolve error: $e');
+      return uri;
+    } finally {
+      client?.close(force: true);
+    }
+  }
+
+  static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
+    final resolvedUri = await _resolveRedditShareLink(videoUri);
+    try {
+      var path = resolvedUri.path;
       if (!path.endsWith('/')) path = '$path/';
       final jsonUri = Uri.https('www.reddit.com', '$path.json');
       final response = await http.get(
@@ -402,26 +432,26 @@ class OEmbedService {
       ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+        return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
       }
 
       final decoded = json.decode(response.body);
       if (decoded is! List || decoded.isEmpty) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+        return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
       }
       final listing = decoded[0] as Map<String, dynamic>;
       final children = listing['data']?['children'] as List<dynamic>?;
       if (children == null || children.isEmpty) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+        return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
       }
       final postData = (children.first as Map<String, dynamic>)['data'] as Map<String, dynamic>?;
       if (postData == null) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+        return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
       }
 
       final title = (postData['title'] as String?)?.trim();
       if (title == null || title.isEmpty) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+        return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
       }
       final subreddit = (postData['subreddit'] as String?)?.trim();
 
@@ -450,7 +480,7 @@ class OEmbedService {
       );
     } catch (e) {
       debugPrint('[oembed] reddit error: $e');
-      return _fetchOpenGraphMetadata(videoUri, platformId: 'reddit');
+      return _fetchOpenGraphMetadata(resolvedUri, platformId: 'reddit');
     }
   }
 
