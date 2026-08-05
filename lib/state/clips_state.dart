@@ -53,7 +53,7 @@ List<String> searchTokensFor(String query) => normalizeForSearch(query)
 /// sans contrôle. Les appels au-delà de la limite patientent en file
 /// plutôt que d'échouer.
 class _ClassifyLimiter {
-  static const int _maxConcurrent = 2;
+  static const int _maxConcurrent = 4;
   static int _active = 0;
   static final List<Completer<void>> _waiting = [];
 
