@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import '../config/secrets.dart';
 
 /// Widget de miniature "résilient" utilisé pour Instagram, TikTok, Facebook
 /// (et toute autre plateforme utilisant des URLs de miniature à durée de vie
@@ -153,9 +154,17 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
     // Priorité 2 : aucune miniature en cache -> nouvelle tentative réseau.
     // Le fallback générique n'est utilisé que si cette tentative échoue
     // réellement (403/404/HTML/expiration/timeout).
+    // Le Worker proxy (route /thumb) exige un header secret partage --
+    // sans lui, il repond 401 et la vignette ne s'afficherait jamais.
+    // Les URLs qui ne passent pas par le proxy ne recoivent aucun
+    // header supplementaire.
+    final isProxied = url.contains('workers.dev/thumb');
     return CachedNetworkImage(
       imageUrl: url,
       fit: widget.fit,
+      httpHeaders: isProxied
+          ? {'x-reelr-secret': Secrets.appSharedSecret}
+          : null,
       placeholder: widget.loadingBuilder != null
           ? (ctx, _) => widget.loadingBuilder!(ctx)
           : null,
