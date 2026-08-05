@@ -389,6 +389,11 @@ class OEmbedService {
     }
   }
 
+  static const String _redditBrowserUserAgent =
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
+      'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
+      'Mobile/15E148 Safari/604.1';
+
   /// Resout un lien court de partage Reddit (ex:
   /// reddit.com/r/xxx/s/pZnn3jOTh8) vers son URL canonique
   /// (reddit.com/r/xxx/comments/id/titre/) en suivant la redirection
@@ -401,7 +406,7 @@ class OEmbedService {
     HttpClient? client;
     try {
       client = HttpClient();
-      client.userAgent = 'Mozilla/5.0 (compatible; Reelr/1.0)';
+      client.userAgent = _redditBrowserUserAgent;
       final request = await client.getUrl(uri).timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(const Duration(seconds: 10));
       await response.drain<void>();
@@ -426,7 +431,7 @@ class OEmbedService {
       final response = await http.get(
         jsonUri,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
+          'User-Agent': _redditBrowserUserAgent,
           'Accept': 'application/json',
         },
       ).timeout(const Duration(seconds: 10));
@@ -489,15 +494,16 @@ class OEmbedService {
     required String platformId,
   }) async {
     try {
-      // Pinterest renvoie une erreur 500 avec l'en-tete User-Agent
-      // generique utilise pour les autres plateformes (probablement un
-      // plantage de leur rendu cote serveur quand la requete ne ressemble
-      // pas assez a un vrai navigateur). En-tetes plus complets rien que
-      // pour Pinterest, sans toucher aux autres plateformes.
-      final isPinterest = platformId == 'pinterest';
+      // Pinterest et Reddit renvoient des erreurs / pages anti-bot avec
+      // l'en-tete User-Agent generique utilise pour les autres
+      // plateformes (probablement un blocage anti-bot ou un plantage de
+      // rendu cote serveur quand la requete ne ressemble pas assez a un
+      // vrai navigateur). En-tetes plus complets pour ces deux
+      // plateformes, sans toucher aux autres.
+      final needsRealisticHeaders = platformId == 'pinterest' || platformId == 'reddit';
       final response = await http.get(
         uri,
-        headers: isPinterest
+        headers: needsRealisticHeaders
             ? {
                 'User-Agent':
                     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
@@ -529,7 +535,10 @@ class OEmbedService {
       var cleanedTitle = (title ?? '').trim();
       final cleanedThumb = _sanitizeMediaUrl(thumb);
       final lowerTitle = cleanedTitle.toLowerCase();
-      if (lowerTitle.contains('please wait') || lowerTitle.contains('verification')) {
+      if (lowerTitle.contains('please wait') ||
+          lowerTitle.contains('verification') ||
+          lowerTitle.contains('prove your humanity') ||
+          lowerTitle.contains('just a moment')) {
         cleanedTitle = '';
       }
 
