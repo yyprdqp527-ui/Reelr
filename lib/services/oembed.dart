@@ -422,6 +422,39 @@ class OEmbedService {
     }
   }
 
+  /// Resout les liens courts connus (pin.it pour Pinterest, /s/xxxx
+  /// pour Reddit) vers leur URL canonique, en suivant la redirection
+  /// HTTP. Utilise pour la deduplication (isDuplicate) avant l'ajout
+  /// d'un clip, afin que deux liens courts differents pointant vers le
+  /// meme contenu soient reconnus comme le meme clip. Retombe sur l'URI
+  /// d'origine si ce n'est pas un lien court connu, ou si la resolution
+  /// echoue.
+  static Future<Uri> resolveShortLinkForDedup(Uri uri) async {
+    final host = uri.host.toLowerCase();
+    final isPinterestShortLink = host == 'pin.it';
+    final isRedditShareLink =
+        host.endsWith('reddit.com') && uri.pathSegments.contains('s');
+    if (!isPinterestShortLink && !isRedditShareLink) return uri;
+
+    HttpClient? client;
+    try {
+      client = HttpClient();
+      client.userAgent = _redditBrowserUserAgent;
+      final request = await client.getUrl(uri).timeout(const Duration(seconds: 10));
+      final response = await request.close().timeout(const Duration(seconds: 10));
+      await response.drain<void>();
+      if (response.redirects.isNotEmpty) {
+        return response.redirects.last.location;
+      }
+      return uri;
+    } catch (e) {
+      debugPrint('[oembed] short-link dedup resolve error: $e');
+      return uri;
+    } finally {
+      client?.close(force: true);
+    }
+  }
+
   static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
     final resolvedUri = await _resolveRedditShareLink(videoUri);
     try {
