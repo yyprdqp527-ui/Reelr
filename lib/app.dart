@@ -416,16 +416,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
     try {
-      final platform = SocialPlatform.detect(url);
+      final platform = SocialPlatform.detect(dedupUrl);
       final clip = Clip(
         id: const Uuid().v4(),
-        url: url,
+        url: dedupUrl,
         title: platform.name,
         platform: platform.id,
         categoryId: null,
         tags: const [],
         addedAt: DateTime.now(),
-        thumbnailUrl: OEmbedService.bestThumbnailUrl(url, null),
+        thumbnailUrl: OEmbedService.bestThumbnailUrl(dedupUrl, null),
       );
       await widget.state.addClip(clip);
       _lifetimeClipsAdded++;
