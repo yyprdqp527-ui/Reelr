@@ -873,6 +873,13 @@ class ClipsState extends ChangeNotifier {
       }
     }
 
+    if (host.endsWith('pinterest.com')) {
+      final pinId = _pinterestPinId(segments);
+      if (pinId != null && pinId.isNotEmpty) {
+        return 'pinterest:$pinId';
+      }
+    }
+
     return null;
   }
 
@@ -907,6 +914,14 @@ class ClipsState extends ChangeNotifier {
       if (index != -1 && index + 1 < segments.length) {
         return segments[index + 1];
       }
+    }
+    return null;
+  }
+
+  static String? _pinterestPinId(List<String> segments) {
+    final index = segments.indexOf('pin');
+    if (index != -1 && index + 1 < segments.length) {
+      return segments[index + 1];
     }
     return null;
   }
