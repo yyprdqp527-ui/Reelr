@@ -163,7 +163,26 @@ class OEmbedService {
         return 'https://img.youtube.com/vi/$id/mqdefault.jpg';
       }
     }
+    // Facebook: les URLs de vignette (fbcdn.net) contiennent des tokens
+    // signes a courte duree de vie (oh=/oe=) qui expirent souvent avant
+    // que l'image ne soit chargee. On fait passer l'URL par le Worker
+    // proxy, qui retelecharge l'image cote serveur a la demande -- le
+    // token n'a alors jamais le temps d'expirer.
+    if (lower.contains('facebook.com') &&
+        storedThumbUrl != null &&
+        storedThumbUrl.isNotEmpty) {
+      return _proxiedThumbnailUrl(storedThumbUrl);
+    }
     return storedThumbUrl;
+  }
+
+  /// Fait passer une URL de vignette par la route /thumb du Worker
+  /// Cloudflare, qui la retelecharge cote serveur avec des en-tetes
+  /// realistes et la retransmet -- utile pour contourner les tokens CDN
+  /// expires et les protections anti-hotlink de certaines plateformes.
+  static String _proxiedThumbnailUrl(String rawUrl) {
+    final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
+    return '$proxyBase/thumb?url=${Uri.encodeComponent(rawUrl)}';
   }
 
   static Future<VideoData?> fetchMetadata(String url) async {
