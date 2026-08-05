@@ -465,7 +465,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
                         ? 'Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'
                         : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
               ),
-              duration: const Duration(seconds: 3),
+              duration: const Duration(seconds: 6),
               behavior: SnackBarBehavior.floating,
             ),
           );
