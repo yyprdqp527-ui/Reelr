@@ -523,9 +523,19 @@ class OEmbedService {
       }
 
       final body = utf8.decode(response.bodyBytes, allowMalformed: true);
-      final title = _extractMetaContent(body, property: 'og:title') ??
+      final ogTitle = _extractMetaContent(body, property: 'og:title') ??
           _extractMetaContent(body, name: 'twitter:title') ??
           _extractHtmlTitle(body);
+      // Pinterest sert un og:title generique et localise ("Decouvrez
+      // cette Epingle de <auteur>") qui ne decrit jamais le contenu
+      // reel du pin. Le vrai texte (legende de l'auteur) est dans
+      // og:description, quand elle existe.
+      final ogDescription = platformId == 'pinterest'
+          ? _extractMetaContent(body, property: 'og:description')
+          : null;
+      final title = (ogDescription != null && ogDescription.trim().isNotEmpty)
+          ? ogDescription
+          : ogTitle;
       final thumb = _extractMetaContent(body, property: 'og:image') ??
           _extractMetaContent(body, property: 'og:image:url') ??
           _extractMetaContent(body, name: 'twitter:image') ??
