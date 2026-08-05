@@ -397,12 +397,22 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   static const int freeClipsLimit = 50;
 
   Future<void> _ingestSharedUrl(String url) async {
-    if (widget.state.isDuplicate(url)) return;
+    // Resout les liens courts connus (pin.it, Reddit /s/xxxx) vers leur
+    // URL canonique avant la verification de doublon, pour que deux
+    // liens courts differents pointant vers le meme contenu soient
+    // reconnus comme le meme clip. L'URL d'origine `url` reste utilisee
+    // partout ailleurs (stockage, plateforme, vignette) : seule la
+    // verification de doublon utilise l'URL resolue.
+    final parsedUrl = Uri.tryParse(url.trim());
+    final dedupUrl = parsedUrl != null
+        ? (await OEmbedService.resolveShortLinkForDedup(parsedUrl)).toString()
+        : url;
+    if (widget.state.isDuplicate(dedupUrl)) return;
     if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
       showPaywall();
       return;
     }
-    final normalized = ClipsState.normalizeUrlForDedup(url);
+    final normalized = ClipsState.normalizeUrlForDedup(dedupUrl);
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
     try {
