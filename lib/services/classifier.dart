@@ -1396,6 +1396,50 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
     ).timeout(const Duration(seconds: 8));
 
     if (response.statusCode != 200) {
+      // Certains CDN (Instagram, Twitch, LinkedIn...) bloquent parfois
+      // l'acces a l'image de miniature via leur robots.txt, de facon
+      // intermittente (pas systematique). Dans ce cas precis, on relance
+      // une fois immediatement en texte seul (sans image) plutot que de
+      // propager l'echec : sans ce repli cible, le retry generique plus
+      // haut dans la pile renverrait la meme image, avec la meme
+      // probabilite d'echec, pour un cout de 8s supplementaires perdues.
+      final isRobotsBlocked = response.body.contains('robots.txt');
+      if (isRobotsBlocked && messageContent is List) {
+        final textOnlyBody = jsonEncode({
+          'model': _model,
+          'max_tokens': 500,
+          'system': [
+            {
+              'type': 'text',
+              'text': _systemPrompt,
+              'cache_control': {'type': 'ephemeral'},
+            }
+          ],
+          'messages': [
+            {'role': 'user', 'content': userText},
+          ],
+        });
+        final retryResponse = await http.post(
+          Uri.parse(_apiUrl),
+          headers: {
+            'x-reelr-secret': Secrets.appSharedSecret,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31',
+            'content-type': 'application/json',
+          },
+          body: textOnlyBody,
+        ).timeout(const Duration(seconds: 8));
+        if (retryResponse.statusCode != 200) {
+          throw Exception(
+              'Claude API error ${retryResponse.statusCode}: ${retryResponse.body}');
+        }
+        final retryData = jsonDecode(retryResponse.body) as Map<String, dynamic>;
+        final retryText = ((retryData['content'] as List<dynamic>).first
+            as Map<String, dynamic>)['text'] as String;
+        final retryJsonStr = _extractJson(retryText);
+        return ClassificationResult.fromJson(
+            jsonDecode(retryJsonStr) as Map<String, dynamic>);
+      }
       throw Exception(
           'Claude API error ${response.statusCode}: ${response.body}');
     }
