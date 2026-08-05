@@ -459,15 +459,32 @@ class OEmbedService {
     required String platformId,
   }) async {
     try {
+      // Pinterest renvoie une erreur 500 avec l'en-tete User-Agent
+      // generique utilise pour les autres plateformes (probablement un
+      // plantage de leur rendu cote serveur quand la requete ne ressemble
+      // pas assez a un vrai navigateur). En-tetes plus complets rien que
+      // pour Pinterest, sans toucher aux autres plateformes.
+      final isPinterest = platformId == 'pinterest';
       final response = await http.get(
         uri,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
-          'Accept': 'text/html,application/xhtml+xml',
-        },
+        headers: isPinterest
+            ? {
+                'User-Agent':
+                    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
+                    'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 '
+                    'Mobile/15E148 Safari/604.1',
+                'Accept':
+                    'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+              }
+            : {
+                'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
+                'Accept': 'text/html,application/xhtml+xml',
+              },
       ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200) {
+        return null;
+      }
 
       final body = utf8.decode(response.bodyBytes, allowMalformed: true);
       final title = _extractMetaContent(body, property: 'og:title') ??
