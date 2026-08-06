@@ -69,6 +69,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Future<void> _complete() async {
     if (!mounted) return;
     await ClipsApp.of(context)?.markOnboardingDoneAwaited();
+    if (!mounted) return;
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   void _skip() => _complete();
