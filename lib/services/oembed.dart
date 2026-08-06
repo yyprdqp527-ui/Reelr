@@ -173,6 +173,15 @@ class OEmbedService {
         storedThumbUrl.isNotEmpty) {
       return _proxiedThumbnailUrl(storedThumbUrl);
     }
+    // Reddit et Pinterest: protections anti-hotlink cote CDN qui peuvent
+    // bloquer un chargement direct depuis l'app. Le Worker proxy
+    // retelecharge l'image avec des en-tetes (User-Agent, Referer)
+    // adaptes, ce qui peut contourner une partie de ces blocages.
+    if ((lower.contains('reddit.com') || lower.contains('pinterest.')) &&
+        storedThumbUrl != null &&
+        storedThumbUrl.isNotEmpty) {
+      return _proxiedThumbnailUrl(storedThumbUrl);
+    }
     return storedThumbUrl;
   }
 
