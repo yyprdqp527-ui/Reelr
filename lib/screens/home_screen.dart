@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'onboarding_screen.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -206,10 +207,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (widget.state.totalCount == 0)
-              SliverFillRemaining(child: _EmptyState(l: l))
+              SliverFillRemaining(child: _EmptyState(l: l, state: widget.state))
             else if (searching)
               filtered.isEmpty
-                  ? SliverFillRemaining(child: _EmptyState(l: l))
+                  ? SliverFillRemaining(child: _EmptyState(l: l, state: widget.state))
                   : SliverPadding(
                       padding: EdgeInsets.fromLTRB(16, 0, 16, scrollBottomPad),
                       sliver: SliverList(
@@ -1214,7 +1215,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ? _SubcategoryEmptyState(l: l)
                             : (widget.categoryId != null
                                 ? _CategoryEmptyState(l: l)
-                                : _EmptyState(l: l)))
+                                : _EmptyState(l: l, state: widget.state)))
                         : _reorderMode && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
@@ -2122,7 +2123,8 @@ class _SuggestionsList extends StatelessWidget {
 
 class _EmptyState extends StatefulWidget {
   final AppL10n l;
-  const _EmptyState({required this.l});
+  final ClipsState state;
+  const _EmptyState({required this.l, required this.state});
   @override
   State<_EmptyState> createState() => _EmptyStateState();
 }
@@ -2201,6 +2203,23 @@ class _EmptyStateState extends State<_EmptyState> {
                   _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com'),
                   _AppShortcut(label: 'LinkedIn', assetImage: 'assets/icons/linkedin.png', url: 'https://www.linkedin.com'),
                 ],
+              ),
+              const SizedBox(height: 18),
+              TextButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => OnboardingScreen(state: widget.state),
+                  ),
+                ),
+                icon: const Icon(Icons.replay_rounded, size: 16, color: Color(0xFFA855F7)),
+                label: Text(
+                  isFr ? 'Revoir le tutoriel' : 'Replay tutorial',
+                  style: const TextStyle(
+                    color: Color(0xFFA855F7),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ),
             ],
           ),
@@ -2354,6 +2373,81 @@ class _AppShortcut extends StatelessWidget {
   final String assetImage;
   final String url;
   const _AppShortcut({required this.label, required this.assetImage, required this.url});
+
+  Future<void> _showShareReminder(BuildContext context) async {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: isDark ? const Color(0xFF14182B) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  isFr ? 'Direction $label' : 'Heading to $label',
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  isFr
+                      ? 'Choisis une vidéo, appuie sur ↑ Partager, puis cherche Reelr.\nTu ne le vois pas ? Appuie sur ··· Plus et active-le.'
+                      : "Pick a video, tap ↑ Share, then look for Reelr.\nDon't see it? Tap ··· More and turn it on.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.65),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7C3AED),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: Text(
+                      isFr ? "Compris, j'y vais" : "Got it, let's go",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+    if (context.mounted) {
+      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -2377,7 +2471,7 @@ class _AppShortcut extends StatelessWidget {
               borderRadius: BorderRadius.circular(16),
               splashColor: const Color(0xFF7C3AED).withValues(alpha: 0.25),
               highlightColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
-              onTap: () => launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication),
+              onTap: () => _showShareReminder(context),
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: Image.asset(assetImage, fit: BoxFit.contain),
