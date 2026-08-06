@@ -688,7 +688,14 @@ class _CategoryTileState extends State<_CategoryTile> {
               width: AppTheme.categoryCardBorderWidth,
             ),
             boxShadow: widget.isAllTile
-                ? AppTheme.categoryCardSelectedGlow(allTileAccent)
+                ? (isDark
+                    ? AppTheme.categoryCardSelectedGlow(allTileAccent)
+                    : [
+                        BoxShadow(
+                          color: allTileAccent.withValues(alpha: 0.10),
+                          blurRadius: 8,
+                        ),
+                      ])
                 : null,
           ),
           child: ClipRRect(
@@ -1930,7 +1937,7 @@ class _SearchBarState extends State<_SearchBar>
     final borderColor = _focused
         ? (isDark
             ? AppTheme.lightBlue.withValues(alpha: 0.45)
-            : AppTheme.lightBorderActive)
+            : AppTheme.lightBorderActive.withValues(alpha: 0.55))
         : (isDark ? AppTheme.darkBorder : searchBarUnfocusedBorderLight.withValues(alpha: 0.12));
 
     return ClipRRect(
