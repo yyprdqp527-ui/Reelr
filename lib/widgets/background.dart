@@ -21,7 +21,11 @@ class GradientBackground extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [AppTheme.background, Color(0xFF1A0A2E)],
                 )
-              : AppTheme.lightBackgroundGradient,
+              : const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFFF4F6FF), Color(0xFFE3F3F5)],
+                  ),
         ),
         // Sombre : orbes identité inchangés. Clair : aucun halo/cercle —
         // la présence violet/bleu vient uniquement du dégradé de fond
@@ -55,7 +59,34 @@ class GradientBackground extends StatelessWidget {
                   ),
                 ],
               )
-            : null,
+            : const Stack(
+                children: [
+                  Positioned(
+                    top: -120,
+                    right: -80,
+                    child: Orb(
+                      size: 360,
+                      color: Color.fromRGBO(124, 58, 237, 0.12),
+                    ),
+                  ),
+                  Positioned(
+                    top: 220,
+                    left: -120,
+                    child: Orb(
+                      size: 300,
+                      color: Color.fromRGBO(37, 99, 235, 0.12),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 40,
+                    right: -60,
+                    child: Orb(
+                      size: 280,
+                      color: Color.fromRGBO(34, 211, 238, 0.16),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
