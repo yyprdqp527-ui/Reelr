@@ -386,11 +386,15 @@ class ClipsState extends ChangeNotifier {
         }
       }
 
-      // 3) Vocabulaire personnel appris automatiquement
-      catName ??= profile.detectByPersonalVocabulary(effectiveTitle);
-      if (catName != null) {
-        debugPrint('[classify] vocabulaire personnel -> $catName (Claude saute)');
-      }
+      // 3) Vocabulaire personnel appris automatiquement -- DESACTIVE :
+      // ce mecanisme apprend mot par mot (y compris des mots generiques
+      // comme "vie", "affaire") et peut court-circuiter Claude a tort.
+      // Voir discussion du 2026-08-09. Ne pas reactiver sans garde-fou
+      // de discriminance (TF-IDF ou equivalent).
+      // catName ??= profile.detectByPersonalVocabulary(effectiveTitle);
+      // if (catName != null) {
+      //   debugPrint('[classify] vocabulaire personnel -> $catName (Claude saute)');
+      // }
 
       if (catName == null) {
         try {
