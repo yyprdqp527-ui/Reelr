@@ -727,6 +727,27 @@ class ClipsState extends ChangeNotifier {
         return;
       }
 
+      // GARDE-FOU. La taxonomie envoyee a Haiku est figee dans le prompt
+      // systeme : il ne connait que les identifiants `cat_*`. Une categorie
+      // creee a la main (identifiant UUID) lui est donc inatteignable.
+      //
+      // Enregistrer « Religion -> Messe du dimanche » reviendrait a lui dire
+      // « ne reponds pas Religion ici » sans lui laisser de reponse possible.
+      // Il choisirait une autre categorie fausse, ou perdrait confiance et
+      // s'abstiendrait : strictement pire que de ne rien apprendre.
+      //
+      // Ce geste-la n'est d'ailleurs pas une correction. Haiku n'avait pas
+      // tort : c'est la taxonomie de l'utilisateur qui s'affine sous lui. La
+      // leçon est reelle mais releve d'un routage local applique APRES sa
+      // reponse, pas d'un enseignement dans le prompt. Faute de conteneur
+      // adapte, on la laisse tomber pour l'instant, en le disant.
+      if (!chosen.id.startsWith('cat_')) {
+        debugPrint('[correction] ignore "${clip.title}" : '
+            '"${chosen.name}" est une categorie personnelle, hors de la '
+            'taxonomie connue de Haiku — affinage, pas correction');
+        return;
+      }
+
       debugPrint('[correction] "${clip.title}" : '
           '${predicted.name} -> ${chosen.name}');
       await ProfileService().correctClassification(
