@@ -4061,6 +4061,16 @@ class _EditClipSheetState extends State<EditClipSheet> {
       if (!mounted) return;
       categoryId = created.id;
     }
+    // `updateClip` remplace la ligne entiere (insert + ConflictAlgorithm
+    // .replace), il ne fusionne pas. Tout champ absent de ce constructeur est
+    // donc ecrit a NULL en base, definitivement. Les parametres de `Clip`
+    // etant nommes et optionnels, l'oubli ne provoque aucune erreur de
+    // compilation : `channel` etait ainsi efface a chaque simple correction de
+    // titre. Ajouter un champ a `Clip` impose de l'ajouter ici.
+    //
+    // Volontairement sans `copyWith` : sa semantique `valeur ?? ancienne`
+    // empecherait de remettre `categoryId` a null, c'est-a-dire de sortir un
+    // clip de sa categorie depuis _CategoryPicker.
     final updated = Clip(
       id: widget.clip.id,
       url: widget.clip.url,
@@ -4071,6 +4081,8 @@ class _EditClipSheetState extends State<EditClipSheet> {
       addedAt: widget.clip.addedAt,
       thumbnailUrl: widget.clip.thumbnailUrl,
       position: widget.clip.position,
+      channel: widget.clip.channel,
+      description: widget.clip.description,
     );
     await widget.state.updateClip(updated);
     if (mounted) Navigator.pop(context);
