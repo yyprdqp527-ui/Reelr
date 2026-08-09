@@ -2179,7 +2179,14 @@ class _EmptyStateState extends State<_EmptyState> {
                     ? 'Va sur ta plateforme préférée, sélectionne une vidéo,\npuis partage-la vers Reelr'
                     : 'Go to your favorite platform, pick a video,\nthen share it to Reelr',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.6,
+                  // Blanc pur en sombre (choix du 07/08), mais le mode clair
+                  // doit repasser sur la couleur secondaire du theme :
+                  // meme convention que `_SubcategoryEmptyState` juste apres.
+                  color: isDark ? Colors.white : AppTheme.lightTextSecondary,
+                ),
               ),
               const SizedBox(height: 26),
               Wrap(
