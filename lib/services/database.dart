@@ -326,6 +326,27 @@ class DatabaseHelper {
     );
   }
 
+  /// Lit le journal de classification d'un clip : quelle couche a tranche,
+  /// avec quelle confiance et pourquoi. Lecture seule, aucun effet de bord.
+  /// Sert au diagnostic depuis l'interface.
+  Future<Map<String, Object?>?> getClassificationDiagnostic(
+      String clipId) async {
+    final db = await database;
+    final rows = await db.query(
+      'clips',
+      columns: [
+        'classification_category',
+        'classification_confidence',
+        'classification_reason',
+        'classification_tags',
+      ],
+      where: 'id = ?',
+      whereArgs: [clipId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<void> updateClip({
     required String clipId,
     String? categoryId,
