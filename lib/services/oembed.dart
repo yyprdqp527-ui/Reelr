@@ -810,6 +810,51 @@ class OEmbedService {
   static bool _hasContentQuery(Uri uri) => uri.queryParameters.keys
       .any((k) => _contentQueryKeys.contains(k.toLowerCase()));
 
+  /// Parametres qui signent une URL de miniature et lui donnent une duree
+  /// de vie limitee. Passe ce delai, l'URL renvoie 403 et l'image est
+  /// definitivement perdue si elle n'a pas ete mise en cache localement.
+  ///
+  ///   - x-expires / x-signature : TikTok (~24 h)
+  ///   - oe= / _nc_ohc          : Instagram et Facebook (fbcdn, cdninstagram)
+  ///   - expires / token        : forme generique
+  static const Set<String> _expiringQueryKeys = {
+    'x-expires',
+    'x-signature',
+    '_nc_ohc',
+    'oe',
+    'oh',
+    'expires',
+    'token',
+  };
+
+  /// Vrai si [url] est une miniature signee, donc perissable.
+  ///
+  /// Sert a reperer les clips dont la vignette est morte : ils ont un
+  /// `thumbnailUrl` non vide — donc echappaient a la passe de reparation —
+  /// mais l'URL ne repond plus et aucun fichier local ne subsiste.
+  ///
+  /// On inspecte les CLES de requete plutot que des sous-chaines, pour
+  /// deux raisons :
+  ///   - une recherche de « oe= » dans l'URL brute produirait des faux
+  ///     positifs ;
+  ///   - surtout, `bestThumbnailUrl` proxifie Facebook, Reddit et
+  ///     Pinterest : l'URL d'origine y est encodee dans le parametre
+  ///     `url`, ou « oe= » devient « oe%3D ». Une recherche textuelle
+  ///     n'aurait jamais rien detecte sur ces trois plateformes.
+  static bool isExpiringThumbnailUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    if (_hasExpiringKey(uri)) return true;
+    // Cas proxifie : on regarde l'URL d'origine, que Uri decode seul.
+    final inner = uri.queryParameters['url'];
+    if (inner == null || inner.isEmpty) return false;
+    final innerUri = Uri.tryParse(inner);
+    return innerUri != null && _hasExpiringKey(innerUri);
+  }
+
+  static bool _hasExpiringKey(Uri uri) => uri.queryParameters.keys
+      .any((k) => _expiringQueryKeys.contains(k.toLowerCase()));
+
   /// Vrai si [url] ne peut designer aucun contenu precis : URL non
   /// analysable, page d'accueil d'une plateforme, ou page de navigation
   /// (« Pour toi », recherche, explorer, messagerie...).
@@ -869,12 +914,12 @@ class OEmbedService {
   ///
   /// `pin.it` ne redirige pas vers l'epingle mais vers une page
   /// d'invitation personnalisee :
-  ///   fr.pinterest.com/pin/<id>/sent/?invite_code=...&sender=<compte>
+  ///   `fr.pinterest.com/pin/<id>/sent/?invite_code=...&sender=<compte>`
   ///
   /// Deux consequences mesurees en production :
   ///   - cette page ne porte pas d'`og:description`, donc l'extraction
   ///     retombe sur l'`og:title` generique et localise (« Decouvrez cette
-  ///     Epingle de <prenom> »). Le classifieur repondait 25 a 35 de
+  ///     Epingle de `<prenom>` »). Le classifieur repondait 25 a 35 de
   ///     confiance et les epingles restaient a trier ;
   ///   - l'identifiant du compte Pinterest de l'utilisateur (`sender`)
   ///     etait stocke en base et repris dans les exports CSV.

@@ -419,10 +419,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       return;
     }
     if (widget.state.isDuplicate(dedupUrl)) return;
-    if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
-      showPaywall();
-      return;
-    }
+    if (!canAddClip()) return;
     final normalized = ClipsState.normalizeUrlForDedup(dedupUrl);
     if (_ingestingUrls.contains(normalized)) return;
     _ingestingUrls.add(normalized);
@@ -439,53 +436,72 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         thumbnailUrl: OEmbedService.bestThumbnailUrl(dedupUrl, null),
       );
       await widget.state.addClip(clip);
-      _lifetimeClipsAdded++;
-      unawaited(
-        SharedPreferences.getInstance()
-            .then((p) => p.setInt('lifetime_clips_added', _lifetimeClipsAdded)),
-      );
-      // Countdown préventif : à 3, 2 puis 1 vidéo(s) restante(s) avant la
-      // limite gratuite (47, 48, 49 sur 50), une fois par palier. Les
-      // vidéos supprimées comptent quand même (_lifetimeClipsAdded ne
-      // redescend jamais) — le message le précise pour éviter toute
-      // confusion avec le compteur visible.
-      if (!_isPremium &&
-          _lifetimeClipsAdded >= freeClipsLimit - 3 &&
-          _lifetimeClipsAdded < freeClipsLimit &&
-          _lifetimeClipsAdded > _lastCountdownWarningShownAt) {
-        _lastCountdownWarningShownAt = _lifetimeClipsAdded;
-        unawaited(
-          SharedPreferences.getInstance().then(
-            (p) => p.setInt(
-              'last_countdown_warning_shown_at',
-              _lastCountdownWarningShownAt,
-            ),
-          ),
-        );
-        final remaining = freeClipsLimit - _lifetimeClipsAdded;
-        final ctx = _navigatorKey.currentContext;
-        if (ctx != null && ctx.mounted) {
-          ScaffoldMessenger.of(ctx).showSnackBar(
-            SnackBar(
-              content: Text(
-                _locale.languageCode == 'fr'
-                    ? (remaining == 1
-                        ? "Plus qu'une vidéo avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite."
-                        : 'Plus que $remaining vidéos avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.')
-                    : (remaining == 1
-                        ? 'Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'
-                        : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
-              ),
-              duration: const Duration(seconds: 6),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        }
-      }
+      registerClipAdded();
       unawaited(_hydrateAndClassify(clip));
     } finally {
       _ingestingUrls.remove(normalized);
     }
+  }
+
+  /// Vrai si un clip supplémentaire peut être ajouté. Affiche le paywall
+  /// et renvoie `false` sinon.
+  ///
+  /// Public et centralisé pour que TOUTES les voies d'ajout passent par
+  /// là. Le formulaire manuel « + » ne le faisait pas : il appelait
+  /// `addClip` directement, permettant de dépasser la limite gratuite.
+  bool canAddClip() {
+    if (_isPremium || _lifetimeClipsAdded < freeClipsLimit) return true;
+    showPaywall();
+    return false;
+  }
+
+  /// Comptabilise un clip ajouté, quelle que soit la voie d'ajout, et
+  /// affiche le countdown préventif.
+  ///
+  /// Countdown : à 3, 2 puis 1 vidéo(s) restante(s) avant la limite
+  /// gratuite (47, 48, 49 sur 50), une fois par palier. Les vidéos
+  /// supprimées comptent quand même (`_lifetimeClipsAdded` ne redescend
+  /// jamais) — le message le précise pour éviter toute confusion avec le
+  /// compteur visible.
+  void registerClipAdded() {
+    _lifetimeClipsAdded++;
+    unawaited(
+      SharedPreferences.getInstance()
+          .then((p) => p.setInt('lifetime_clips_added', _lifetimeClipsAdded)),
+    );
+    if (_isPremium ||
+        _lifetimeClipsAdded < freeClipsLimit - 3 ||
+        _lifetimeClipsAdded >= freeClipsLimit ||
+        _lifetimeClipsAdded <= _lastCountdownWarningShownAt) {
+      return;
+    }
+    _lastCountdownWarningShownAt = _lifetimeClipsAdded;
+    unawaited(
+      SharedPreferences.getInstance().then(
+        (p) => p.setInt(
+          'last_countdown_warning_shown_at',
+          _lastCountdownWarningShownAt,
+        ),
+      ),
+    );
+    final remaining = freeClipsLimit - _lifetimeClipsAdded;
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) return;
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(
+          _locale.languageCode == 'fr'
+              ? (remaining == 1
+                  ? "Plus qu'une vidéo avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite."
+                  : 'Plus que $remaining vidéos avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.')
+              : (remaining == 1
+                  ? 'Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'
+                  : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
+        ),
+        duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   /// Explique pourquoi un partage n'a rien produit, plutôt que d'échouer
@@ -790,13 +806,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     final attempts = _readRepairAttempts(prefs);
 
-    final candidates = widget.state.allClips
-        .where((c) => c.thumbnailUrl == null || c.thumbnailUrl!.isEmpty)
-        // Les clips enregistres avant le garde-fou d'ingestion pointent
-        // parfois vers une page sans contenu (tiktok.com/foryou, /fr/).
-        // Aucune extraction ne les reparera : les inclure gaspillait des
-        // creneaux de la passe — observe en production, 3 sur 8.
-        .where((c) => !OEmbedService.isContentlessUrl(c.url))
+    final needing = await _clipsNeedingRepair();
+    if (!mounted) return;
+
+    final candidates = needing
         .where((c) =>
             (attempts[c.id] ?? 0) < _thumbnailRepairMaxAttempts)
         .toList()
@@ -813,7 +826,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
     final batch = candidates.take(_thumbnailRepairBatchSize).toList();
     debugPrint(
-      '[repair] ${candidates.length} clip(s) sans vignette, '
+      '[repair] ${candidates.length} clip(s) a reparer, '
       '${batch.length} traite(s) sur cette session',
     );
 
@@ -834,6 +847,72 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
     if (!mounted) return;
     await _pruneRepairAttempts(prefs, attempts);
+  }
+
+  /// Delai de grace avant de juger une vignette morte : en deca, le
+  /// pre-cache declenche au partage peut simplement ne pas avoir fini.
+  static const Duration _deadThumbnailGracePeriod = Duration(hours: 1);
+
+  /// Tous les clips qui meritent une re-extraction : ceux sans vignette,
+  /// et ceux dont la vignette est morte.
+  ///
+  /// Les URLs sans contenu precis (tiktok.com/foryou, /fr/... enregistres
+  /// avant le garde-fou d'ingestion) sont exclues : aucune extraction ne
+  /// les reparera et elles gaspillaient des creneaux — observe en
+  /// production, 3 sur 8 lors de la premiere passe.
+  Future<List<Clip>> _clipsNeedingRepair() async {
+    final seen = <String>{};
+    final result = <Clip>[];
+    void add(Clip c) {
+      if (OEmbedService.isContentlessUrl(c.url)) return;
+      if (seen.add(c.id)) result.add(c);
+    }
+
+    for (final c in widget.state.allClips) {
+      if (c.thumbnailUrl == null || c.thumbnailUrl!.isEmpty) add(c);
+    }
+    for (final c in await _clipsWithDeadThumbnail()) {
+      add(c);
+    }
+    return result;
+  }
+
+  /// Clips dont la vignette est morte : l'URL est signee (donc perissable)
+  /// et aucun fichier local ne subsiste dans le cache disque.
+  ///
+  /// Ces clips echappaient entierement a la passe de reparation, qui ne
+  /// regardait que `thumbnailUrl == null`. Or c'est exactement le symptome
+  /// d'origine : « le logo generique remplace une miniature qui
+  /// s'affichait la veille ». Une carte pouvait donc rester cassee a vie
+  /// tout en ayant l'air pourvue d'une vignette.
+  ///
+  /// Le test du cache disque est local et sans reseau : c'est le meme
+  /// signal que celui utilise par ResilientThumbnail a l'affichage, donc
+  /// « pas de fichier en cache » veut bien dire « la carte montre le
+  /// logo generique ».
+  Future<List<Clip>> _clipsWithDeadThumbnail() async {
+    final now = DateTime.now();
+    final dead = <Clip>[];
+    for (final clip in widget.state.allClips) {
+      final stored = clip.thumbnailUrl;
+      if (stored == null || stored.isEmpty) continue;
+      if (now.difference(clip.addedAt) < _deadThumbnailGracePeriod) continue;
+      final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
+      if (displayed == null || displayed.isEmpty) continue;
+      // Une URL non signee ne perime pas : si elle echoue, la reextraire
+      // donnerait le meme resultat. On ne retente que les perissables.
+      if (!OEmbedService.isExpiringThumbnailUrl(displayed)) continue;
+      try {
+        final file = await ThumbnailCache.instance.getFileFromCache(displayed);
+        if (file == null) dead.add(clip);
+      } catch (_) {
+        // Cache illisible : on s'abstient plutot que de tout retenter.
+      }
+    }
+    if (dead.isNotEmpty) {
+      debugPrint('[repair] ${dead.length} vignette(s) morte(s) detectee(s)');
+    }
+    return dead;
   }
 
   /// Repare un clip : re-resolution de l'URL puis re-extraction.
@@ -885,18 +964,22 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
   }
 
-  /// Oublie les compteurs des clips supprimes ou desormais pourvus d'une
-  /// vignette, pour que la preference ne grossisse pas indefiniment et
-  /// qu'un clip repare redevienne eligible s'il reperd sa vignette.
+  /// Oublie les compteurs des clips supprimes ou desormais reparés, pour
+  /// que la preference ne grossisse pas indefiniment et qu'un clip repare
+  /// redevienne eligible s'il reperd un jour sa vignette.
+  ///
+  /// L'eligibilite est recalculee et non deduite de `thumbnailUrl` :
+  /// une vignette morte a une URL non vide, et la deduire aurait efface
+  /// son compteur a chaque passage — donc retente sans fin, malgre le
+  /// plafond de 3 tentatives.
   Future<void> _pruneRepairAttempts(
     SharedPreferences prefs,
     Map<String, int> attempts,
   ) async {
-    final stillMissing = widget.state.allClips
-        .where((c) => c.thumbnailUrl == null || c.thumbnailUrl!.isEmpty)
-        .map((c) => c.id)
-        .toSet();
-    attempts.removeWhere((id, _) => !stillMissing.contains(id));
+    final stillNeeding =
+        (await _clipsNeedingRepair()).map((c) => c.id).toSet();
+    if (!mounted) return;
+    attempts.removeWhere((id, _) => !stillNeeding.contains(id));
     if (attempts.isEmpty) {
       await prefs.remove(_thumbnailRepairPrefsKey);
     } else {

@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:uuid/uuid.dart';
 
+import '../app.dart';
 import '../core/category_visuals.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
@@ -3507,19 +3508,44 @@ class _AddClipSheetState extends State<AddClipSheet> {
   }
 
   Future<void> _submit() async {
-    final url = _urlCtrl.text.trim();
+    final rawUrl = _urlCtrl.text.trim();
     final lang = Localizations.localeOf(context).languageCode;
-    if (!_isValidHttpUrl(url)) {
+    if (!_isValidHttpUrl(rawUrl)) {
       setState(() => _urlError = lang == 'fr'
           ? 'URL invalide. Vérifiez que le lien commence par http:// ou https://.'
           : 'Invalid URL. Make sure the link starts with http:// or https://.');
       return;
     }
     final l = AppL10n.of(context);
+    final app = ClipsApp.of(context);
+
+    // Ce formulaire appelait `addClip` directement : ni resolution des
+    // liens courts, ni garde-fou sur les URLs sans contenu, ni increment
+    // du compteur a vie. Un lien pin.it, share.google ou un wrapper
+    // TikTok colle a la main ne beneficiait d'aucune des resolutions
+    // existantes, et la limite gratuite etait contournable.
+    final parsed = Uri.tryParse(rawUrl);
+    final url = parsed != null
+        ? (await OEmbedService.resolveShortLinkForDedup(parsed)).toString()
+        : rawUrl;
+    if (!mounted) return;
+
+    if (OEmbedService.isContentlessUrl(url)) {
+      setState(() => _urlError = lang == 'fr'
+          ? "Ce lien ne pointe pas vers une vidéo précise. Ouvre la vidéo, puis copie son lien."
+          : "This link doesn't point to a specific video. Open the video, then copy its link.");
+      return;
+    }
     if (widget.state.isDuplicate(url)) {
       setState(() => _urlError = lang == 'fr'
           ? 'Ce lien est déjà dans votre liste.'
           : 'This link is already in your list.');
+      return;
+    }
+    // Le paywall s'affiche depuis ClipsAppState : on referme la feuille
+    // pour ne pas le laisser apparaitre derriere elle.
+    if (app != null && !app.canAddClip()) {
+      Navigator.pop(context);
       return;
     }
     setState(() => _urlError = null);
@@ -3550,13 +3576,20 @@ class _AddClipSheetState extends State<AddClipSheet> {
       title: _titleCtrl.text.trim().isEmpty
           ? l.t('no_title')
           : _titleCtrl.text.trim(),
-      platform: (_detectedPlatform ?? SocialPlatform.detect(url)).id,
+      // `_detectedPlatform` a ete calcule pendant la saisie, donc sur
+      // l'URL brute. Si la resolution l'a changee (pin.it -> pinterest,
+      // share.google -> tiktok), c'est l'URL resolue qui fait foi.
+      platform: (url == rawUrl
+              ? (_detectedPlatform ?? SocialPlatform.detect(url))
+              : SocialPlatform.detect(url))
+          .id,
       categoryId: categoryId,
       tags: tags,
       addedAt: DateTime.now(),
       thumbnailUrl: _thumbnailUrl,
     );
     await widget.state.addClip(clip);
+    app?.registerClipAdded();
     if (mounted) Navigator.pop(context);
   }
 
