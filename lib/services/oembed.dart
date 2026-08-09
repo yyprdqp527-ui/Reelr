@@ -450,29 +450,144 @@ class OEmbedService {
     }
   }
 
-  /// Resout les liens courts connus (pin.it pour Pinterest, /s/xxxx
-  /// pour Reddit) vers leur URL canonique, en suivant la redirection
-  /// HTTP. Utilise pour la deduplication (isDuplicate) avant l'ajout
-  /// d'un clip, afin que deux liens courts differents pointant vers le
-  /// meme contenu soient reconnus comme le meme clip. Retombe sur l'URI
-  /// d'origine si ce n'est pas un lien court connu, ou si la resolution
-  /// echoue.
+  /// Extrait l'identifiant de video d'un lien TikTok « download-link ».
+  ///
+  /// TikTok enveloppe une partie de ses partages dans un lien AppsFlyer :
+  ///
+  ///     https://www.tiktok.com/download-link/ol/bIdt?domain_source=tiktok
+  ///         &af_dp=snssdk1233%3A%2F%2Faweme%2Fdetail%2F7669434753547947272
+  ///         &deep_link_value=snssdk1233%3A%2F%2Faweme%2Fdetail%2F76694347
+  ///
+  /// L'oEmbed refuse cette URL (non-200) et `_fetchTikTokMetadata` renvoie
+  /// null : le clip reste sans titre, sans auteur et sans miniature, et le
+  /// classifieur ne recoit que le mot « TikTok ». Observe en production.
+  ///
+  /// L'identifiant se trouve dans `af_dp` et `deep_link_value`, sous la
+  /// forme `aweme/detail/{id}`. La query brute est balayee en dernier
+  /// recours, au cas ou les noms de parametres changeraient.
+  ///
+  /// Renvoie null si [uri] n'est pas un lien de ce type.
+  static String? _tiktokVideoIdFromDownloadLink(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host != 'tiktok.com' && !host.endsWith('.tiktok.com')) return null;
+    if (!uri.pathSegments.contains('download-link')) return null;
+
+    final pattern = RegExp(r'aweme/detail/(\d+)');
+    final candidates = <String?>[
+      uri.queryParameters['af_dp'],
+      uri.queryParameters['deep_link_value'],
+      uri.query,
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate == null || candidate.isEmpty) continue;
+      // `queryParameters` decode une fois, `query` pas du tout, et
+      // certains partages sont doublement encodes : on essaie les
+      // differentes formes.
+      for (final value in _decodeVariants(candidate)) {
+        final match = pattern.firstMatch(value);
+        if (match != null) return match.group(1);
+      }
+    }
+    return null;
+  }
+
+  /// [raw] accompagne de ses versions decodees, quand le decodage est
+  /// possible. Un pourcentage isole ou une sequence invalide fait lever
+  /// `Uri.decode*` : dans ce cas on se contente des formes obtenues.
+  static Set<String> _decodeVariants(String raw) {
+    final variants = <String>{raw};
+    try {
+      variants.add(Uri.decodeComponent(raw));
+    } catch (_) {}
+    try {
+      variants.add(Uri.decodeFull(raw));
+    } catch (_) {}
+    return variants;
+  }
+
+  /// Resout les liens courts connus vers leur URL canonique, en suivant
+  /// la redirection HTTP :
+  ///
+  ///   - pin.it                     (Pinterest)
+  ///   - reddit.com/r/x/s/          (liens de partage Reddit)
+  ///   - share.google               (raccourcisseur de partage Google)
+  ///   - tiktok.com/download-link/  (wrapper AppsFlyer TikTok)
+  ///
+  /// Le resultat sert a la deduplication (isDuplicate), mais aussi —
+  /// et c'est essentiel — d'URL stockee pour le clip : dans
+  /// `_ingestSharedUrl`, `dedupUrl` alimente `clip.url` ET
+  /// `SocialPlatform.detect`. Un lien non resolu se traduit donc par une
+  /// plateforme mal detectee et une extraction de metadonnees a cote.
+  ///
+  /// share.google : observe en production sur des partages TikTok. Non
+  /// resolu, le clip etait enregistre en plateforme `other`, le scraping
+  /// OpenGraph generique ne ramenait que le <title> de la coquille JS
+  /// (« TikTok - Make Your Day ») sans og:image, et le classifieur ne
+  /// disposait d'aucun signal exploitable.
+  ///
+  /// Retombe sur l'URI d'origine si ce n'est pas un lien court connu, ou
+  /// si la resolution echoue.
   static Future<Uri> resolveShortLinkForDedup(Uri uri) async {
     final host = uri.host.toLowerCase();
     final isPinterestShortLink = host == 'pin.it';
     final isRedditShareLink =
         host.endsWith('reddit.com') && uri.pathSegments.contains('s');
-    if (!isPinterestShortLink && !isRedditShareLink) return uri;
+    final isGoogleShareLink =
+        host == 'share.google' || host.endsWith('.share.google');
+    final tiktokDownloadLinkId = _tiktokVideoIdFromDownloadLink(uri);
+    if (!isPinterestShortLink &&
+        !isRedditShareLink &&
+        !isGoogleShareLink &&
+        tiktokDownloadLinkId == null) {
+      return uri;
+    }
+
+    // Cas particulier du wrapper TikTok : l'URL a suivre n'est PAS
+    // celle qui a ete partagee. Le lien download-link mene a une page
+    // de telechargement de l'application, jamais a la video. On
+    // reconstruit donc une URL resolvable a partir de l'identifiant
+    // extrait, et c'est elle dont on suit la redirection.
+    final Uri target;
+    if (tiktokDownloadLinkId != null) {
+      target = Uri.parse('https://m.tiktok.com/v/$tiktokDownloadLinkId.html');
+      debugPrint(
+        '[shortlink] wrapper TikTok deballe : id=$tiktokDownloadLinkId',
+      );
+    } else {
+      target = uri;
+    }
 
     HttpClient? client;
     try {
       client = HttpClient();
       client.userAgent = _redditBrowserUserAgent;
-      final request = await client.getUrl(uri).timeout(const Duration(seconds: 10));
+      final request =
+          await client.getUrl(target).timeout(const Duration(seconds: 10));
       final response = await request.close().timeout(const Duration(seconds: 10));
       await response.drain<void>();
       if (response.redirects.isNotEmpty) {
-        return response.redirects.last.location;
+        final resolved = response.redirects.last.location;
+        // Garde-fou : certaines redirections pointent vers un schema
+        // d'application (snssdk1233://aweme/detail/...) ou vers une
+        // cible sans hote. Remplacer l'URL d'origine par ce genre de
+        // valeur casserait la detection de plateforme et l'ouverture du
+        // lien : on prefere conserver l'URL d'origine.
+        final scheme = resolved.scheme.toLowerCase();
+        if ((scheme == 'http' || scheme == 'https') &&
+            resolved.host.isNotEmpty) {
+          debugPrint('[shortlink] ${uri.host} -> $resolved');
+          return resolved;
+        }
+        debugPrint(
+          '[shortlink] ${uri.host} -> cible inexploitable ($resolved)',
+        );
+      }
+      if (tiktokDownloadLinkId != null) {
+        debugPrint(
+          '[shortlink] wrapper TikTok non resolu '
+          '(id=$tiktokDownloadLinkId) -- URL partagee conservee',
+        );
       }
       return uri;
     } catch (e) {
