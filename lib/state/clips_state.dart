@@ -355,8 +355,17 @@ class ClipsState extends ChangeNotifier {
     // 3. Match partiel par nom
     for (final cat in _categories) {
       final cName = cat.name.trim().toLowerCase();
-      if (cName.contains(normalized) && normalized.length / cName.length > 0.6 ||
-          normalized.contains(cName)) {
+      // `A && B || C` s'evaluait `(A && B) || C` : la branche C
+      // (`normalized.contains(cName)`) n'avait aucune garde de longueur, si
+      // bien qu'une categorie courte absorbait n'importe quel nom la
+      // contenant. On applique desormais la meme regle symetrique que
+      // `CategoryClassifier.matchExisting` : le plus court doit representer
+      // plus de 60 % du plus long.
+      final shorter = cName.length <= normalized.length ? cName : normalized;
+      final longer = cName.length > normalized.length ? cName : normalized;
+      if (shorter.length >= 5 &&
+          longer.contains(shorter) &&
+          shorter.length / longer.length > 0.6) {
         return cat;
       }
     }
