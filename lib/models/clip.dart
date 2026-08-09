@@ -10,6 +10,12 @@ class Clip {
   final int position;
   final String? channel;
 
+  /// Description publique de la vidéo, récupérée à l'hydratation (oEmbed ou
+  /// og:description). Stockée uniquement pour être relue par le classifieur :
+  /// sans elle, la description était refetchée puis jetée entre l'hydratation
+  /// et la classification. Aucun affichage ne s'en sert.
+  final String? description;
+
   const Clip({
     required this.id,
     required this.url,
@@ -21,6 +27,7 @@ class Clip {
     this.thumbnailUrl,
     this.position = 0,
     this.channel,
+    this.description,
   });
 
   Map<String, dynamic> toMap() => {
@@ -34,6 +41,7 @@ class Clip {
         'thumbnailUrl': thumbnailUrl,
         'position': position,
         'channel': channel,
+        'description': description,
       };
 
   factory Clip.fromMap(Map<String, dynamic> map) => Clip(
@@ -52,6 +60,7 @@ class Clip {
         thumbnailUrl: map['thumbnailUrl'] as String?,
         position: (map['position'] as int?) ?? 0,
         channel: map['channel'] as String?,
+        description: map['description'] as String?,
       );
 
   Clip copyWith({String? categoryId, int? position}) => Clip(
@@ -65,5 +74,6 @@ class Clip {
         thumbnailUrl: thumbnailUrl,
         position: position ?? this.position,
         channel: channel,
+        description: description,
       );
 }

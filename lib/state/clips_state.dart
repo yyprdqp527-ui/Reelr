@@ -308,6 +308,7 @@ class ClipsState extends ChangeNotifier {
           thumbnailUrl: c.thumbnailUrl,
           position: c.position,
           channel: c.channel,
+          description: c.description,
         );
         _clips[i] = fixed;
         unawaited(DatabaseHelper.instance.insertClip(fixed));
@@ -432,6 +433,7 @@ class ClipsState extends ChangeNotifier {
                 platform: clip.platform,
                 thumbnailUrl: clip.thumbnailUrl,
                 channel: clip.channel,
+                description: clip.description,
               ),
               profile: profile,
             );
@@ -490,6 +492,7 @@ class ClipsState extends ChangeNotifier {
                   platform: clip.platform,
                   thumbnailUrl: clip.thumbnailUrl,
                   channel: clip.channel,
+                  description: clip.description,
                 ),
                 profile: profile,
               );

@@ -591,9 +591,10 @@ class OEmbedService {
       // cette Epingle de <auteur>") qui ne decrit jamais le contenu
       // reel du pin. Le vrai texte (legende de l'auteur) est dans
       // og:description, quand elle existe.
-      final ogDescription = platformId == 'pinterest'
-          ? _extractMetaContent(body, property: 'og:description')
-          : null;
+      final rawDescription = _extractMetaContent(body, property: 'og:description') ??
+          _extractMetaContent(body, name: 'twitter:description') ??
+          _extractMetaContent(body, name: 'description');
+      final ogDescription = platformId == 'pinterest' ? rawDescription : null;
       final title = (ogDescription != null && ogDescription.trim().isNotEmpty)
           ? ogDescription
           : ogTitle;
@@ -617,11 +618,21 @@ class OEmbedService {
         return null;
       }
 
+      // Le corps HTML est deja telecharge : recuperer la description ne coute
+      // aucune requete supplementaire. Garde-fou Pinterest : og:description y
+      // sert deja de titre (voir plus haut), on ne la renvoie pas deux fois.
+      final cleanedDescription = (rawDescription ?? '').trim();
+      final usableDescription =
+          cleanedDescription.isEmpty || cleanedDescription == cleanedTitle
+              ? null
+              : cleanedDescription;
+
       return VideoData(
         title: cleanedTitle.isEmpty ? SocialPlatform.detect(uri.toString()).name : cleanedTitle,
         channel: (channel ?? '').trim().isEmpty ? null : channel!.trim(),
         platform: platformId,
         thumbnailUrl: cleanedThumb,
+        description: usableDescription,
       );
     } catch (e) {
       debugPrint('[oembed] og error: $e');

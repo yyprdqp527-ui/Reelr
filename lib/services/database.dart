@@ -20,12 +20,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 12, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 13, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 12, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 13, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -150,6 +150,13 @@ class DatabaseHelper {
         )
       ''');
     }
+    if (oldVersion < 13) {
+      // La description publique etait deja recuperee a l'hydratation puis
+      // jetee : le classifieur recevait un VideoData sans description alors
+      // que le prompt sait la lire. On la persiste pour la lui rendre.
+      // Les clips existants restent a NULL, sans refetch.
+      await db.execute('ALTER TABLE clips ADD COLUMN description TEXT');
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -248,7 +255,8 @@ class DatabaseHelper {
         classification_confidence INTEGER,
         classification_reason TEXT,
         classification_tags TEXT,
-        channel TEXT
+        channel TEXT,
+        description TEXT
       )
     ''');
     await db.execute('''

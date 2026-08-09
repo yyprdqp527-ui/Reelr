@@ -565,6 +565,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           thumbnailUrl: clip.thumbnailUrl,
           position: clip.position,
           channel: meta.channel ?? clip.channel,
+          description: meta.description ?? clip.description,
         ),
       );
       return;
@@ -587,6 +588,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         thumbnailUrl: resolvedThumbnailUrl,
         position: clip.position,
         channel: meta.channel ?? clip.channel,
+        description: meta.description ?? clip.description,
       ),
     );
   }
