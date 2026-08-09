@@ -11,6 +11,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../app.dart';
 import '../core/l10n.dart';
 import '../core/theme.dart';
+import '../services/database.dart';
 import '../services/purchase_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
@@ -51,13 +52,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
       for (final cat in categories) cat.id: cat.name,
     };
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    // Journal de classification : ce que la machine avait predit, avec quelle
+    // confiance et par quelle couche. Une seule requete pour tous les clips.
+    final journal =
+        await DatabaseHelper.instance.getClassificationJournalAll();
+    if (!mounted) return;
     final buffer = StringBuffer();
+    // `categorie_attendue` est volontairement VIDE. C'est la colonne que tu
+    // remplis a la main, et c'est la seule qui compte comme verite.
+    //
+    // La colonne `category` n'est PAS une verite : pour tout clip que tu n'as
+    // jamais deplace, c'est la sortie de la machine. La reprendre telle quelle
+    // reviendrait a mesurer le systeme contre lui-meme -- un score proche de
+    // 100 % qui n'apprend rien. Une ligne laissee vide est une ligne non
+    // relue, et elle sera exclue du jeu de mesure.
     buffer.writeln(
-      'id,url,title,platform,category,tags,addedAt,channel',
+      'id,url,title,platform,category,tags,addedAt,channel,description,'
+      'predite,confiance,couche,categorie_attendue',
     );
     for (final clip in clips) {
       final categoryName = categoryNames[clip.categoryId] ??
           (isFr ? 'Sans categorie' : 'Uncategorized');
+      final entry = journal[clip.id];
+      final reason = (entry?['classification_reason'] as String?) ?? '';
+      // `classification_reason` est prefixe par la couche qui a tranche,
+      // entre crochets : « [couche 1 · mots-cles locaux] ... ». On n'exporte
+      // que ce prefixe, la phrase complete etant illisible dans un tableur.
+      final layer = RegExp(r'^\[([^\]]*)\]').firstMatch(reason)?.group(1) ?? '';
       final row = [
         clip.id,
         clip.url,
@@ -67,6 +88,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         clip.tags.join(';'),
         clip.addedAt.toIso8601String(),
         clip.channel ?? '',
+        // Tronquee a 800 comme dans `_buildUserText` : le jeu de mesure doit
+        // contenir ce que le classifieur voit, pas davantage.
+        (clip.description ?? '').length > 800
+            ? clip.description!.substring(0, 800)
+            : (clip.description ?? ''),
+        (entry?['classification_category'] as String?) ?? '',
+        (entry?['classification_confidence'] as int?)?.toString() ?? '',
+        layer,
+        '', // categorie_attendue : a remplir a la main
       ].map(_csvField).join(',');
       buffer.writeln(row);
     }

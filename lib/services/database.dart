@@ -523,6 +523,21 @@ class DatabaseHelper {
     return {for (final m in maps) m['id'] as String: m['subcategoryId'] as String};
   }
 
+  /// Journal de classification de tous les clips, en une seule requete.
+  /// Sert a l'export : pendant la relecture, savoir ce que la machine avait
+  /// predit, avec quelle confiance et par quelle couche, permet de porter
+  /// l'attention sur les cas ou elle hesitait plutot que de tout relire a plat.
+  Future<Map<String, Map<String, Object?>>> getClassificationJournalAll() async {
+    final db = await database;
+    final maps = await db.query('clips', columns: [
+      'id',
+      'classification_category',
+      'classification_confidence',
+      'classification_reason',
+    ]);
+    return {for (final m in maps) m['id'] as String: m};
+  }
+
   Future<Map<String, String>> getClipSubSubcategoryMapAll() async {
     final db = await database;
     final maps = await db.query('clips',
