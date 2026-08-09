@@ -572,7 +572,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                       return sorted
                           .where((c) =>
                               c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
-                          .map((c) => c.thumbnailUrl!)
+                          .map((c) => OEmbedService.bestThumbnailUrl(
+                              c.url, c.thumbnailUrl))
+                          .whereType<String>()
                           .firstOrNull;
                     }(),
               showBadge:
@@ -1345,7 +1347,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                               c.thumbnailUrl != null
                                                   ? ResilientThumbnail(
                                                       key: ValueKey('recent_thumb_${c.id}'),
-                                                      url: c.thumbnailUrl,
+                                                      url: OEmbedService.bestThumbnailUrl(
+                                                          c.url, c.thumbnailUrl),
                                                       cacheKeyId: c.id,
                                                       platformId: c.platform,
                                                       fit: BoxFit.cover,
