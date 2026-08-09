@@ -28,7 +28,7 @@ class CategorySuggestion {
 
   static const unclassified = CategorySuggestion(
     key: 'unclassified',
-    name: 'Non classé',
+    name: 'À trier',
     color: Color.fromRGBO(150, 150, 150, 1),
     icon: Icons.help_outline_rounded,
     isUnclassified: true,
@@ -88,6 +88,9 @@ class CategoryClassifier {
       'haul vetements', 'haul vêtements', 'style vestimentaire', 'tendance mode',
       'capsule wardrobe', 'thrift', 'friperie', 'vintage clothes',
       'dressing', 'shopping mode', 'try on', 'styling',
+      // Sans ça, « défilé haute couture » partait dans Couture (le seau
+      // 'tricot') parce que « couture » y matche seul.
+      'haute couture', 'défilé mode', 'defile mode',
     ],
     'travel': [
       'voyage', 'travel', 'vacances', 'trip', 'destination', 'hotel', 'hôtel',
@@ -344,15 +347,26 @@ class CategoryClassifier {
       'parkour', 'freerun', 'wingsuit', 'speed riding', 'kitesurf',
       'wakeboard', 'snowkite', 'dirt bike', 'quad', 'adrenaline',
     ],
+    // ATTENTION : le seau 'tricot' s'affiche « Couture », le seau 'tricotage'
+    // s'affiche « Tricot ». Nommage historique, ne pas s'y fier : ajoute un
+    // mot de tricot dans 'tricotage', un mot de couture dans 'tricot'.
     'tricot': [
-      'couture', 'machine coudre', 'patron', 'pattern', 'couture debutant',
-      'apprendre coudre', 'sewing', 'tissage', 'weaving', 'fil', 'broderie',
+      'couture', 'coutures', 'machine coudre', 'machine à coudre',
+      'couture debutant', 'couture débutant', 'apprendre coudre', 'sewing',
+      // « patron » seul = le chef, « pattern » seul = design/trading/sommeil.
+      // « fil » seul = fil rouge, fil d'actu. On qualifie.
+      'patron couture', 'patron de couture', 'sewing pattern',
+      'fil a coudre', 'fil à coudre',
+      'tissage', 'weaving', 'broderie', 'broder', 'brodé', 'brode',
     ],
     'tricotage': [
-      'tricot', 'laine', 'wool', 'aiguille', 'point tricot', 'yarn', 'knitting',
+      'tricot', 'tricots', 'tricoter', 'tricotin', 'laine', 'wool',
+      'aiguille', 'aiguilles', 'point tricot', 'yarn', 'knitting',
     ],
     'crochet': [
-      'crochet', 'amigurumi', 'macrame',
+      'crochet', 'crochets', 'crocheter', 'amigurumi',
+      // « macrame » sans accent ne matchait jamais l'orthographe française.
+      'macramé', 'macrame',
     ],
     'diy_jardin': [
       'jardinage', 'jardin', 'garden', 'gardening', 'potager', 'plantes interieur',
@@ -795,6 +809,8 @@ class CategoryClassifier {
     'meurtre': 2, 'crime': 2,
     // Documentaire
     'documentaire': 3, 'documentary': 3, 'reportage': 3,
+    // Mode vs Couture : « haute couture » doit battre « couture » seul.
+    'haute couture': 3, 'défilé mode': 3, 'defile mode': 3,
     // Cinéma / Séries
     'bande annonce': 3, 'trailer': 3, 'critique film': 3, 'review film': 3,
     'netflix': 2, 'disney+': 2, 'disney plus': 2, 'hbo': 2,
