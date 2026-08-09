@@ -671,6 +671,76 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Compare la categorie choisie a la main par l'utilisateur au verdict que
+  /// le classifieur avait journalise. Si les deux different, le geste est une
+  /// correction : on l'enregistre.
+  ///
+  /// Le signal est deduit, jamais demande. Aucun bouton, aucune interface :
+  /// deplacer un clip suffit. C'est la lecture du journal, restee sans
+  /// appelant depuis son ecriture, qui rend cette deduction possible.
+  ///
+  /// Echoue en silence et sans rien enregistrer dans tous les cas douteux --
+  /// un faux positif apprendrait a l'envers, ce qui coute plus cher que de
+  /// rater une correction.
+  Future<void> recordUserCategoryChoice(Clip clip, String? newCategoryId) async {
+    try {
+      if (newCategoryId == null || newCategoryId.isEmpty) return;
+
+      final journal =
+          await DatabaseHelper.instance.getClassificationDiagnostic(clip.id);
+      final predictedRaw =
+          (journal?['classification_category'] as String?)?.trim() ?? '';
+      // Vide = la machine n'a jamais tranche : soit le clip est anterieur au
+      // journal, soit elle s'est abstenue sous le seuil de confiance. Ranger
+      // un clip depuis « A trier » enseigne bien quelque chose, mais ce n'est
+      // pas une correction -- il n'y a pas d'erreur a corriger. Cas laisse de
+      // cote volontairement, a traiter separement.
+      if (predictedRaw.isEmpty) {
+        debugPrint('[correction] ignore "${clip.title}" : journal vide '
+            '(clip anterieur au journal, ou abstention sous le seuil)');
+        return;
+      }
+
+      final predicted = findBestCategoryMatch(predictedRaw);
+      if (predicted == null) {
+        debugPrint('[correction] ignore "${clip.title}" : categorie predite '
+            '"$predictedRaw" introuvable dans la taxonomie actuelle');
+        return;
+      }
+      // L'utilisateur confirme le verdict : rien a apprendre.
+      if (predicted.id == newCategoryId) {
+        debugPrint('[correction] ignore "${clip.title}" : le choix confirme '
+            'le verdict (${predicted.name})');
+        return;
+      }
+
+      ClipCategory? chosen;
+      for (final c in _categories) {
+        if (c.id == newCategoryId) {
+          chosen = c;
+          break;
+        }
+      }
+      if (chosen == null) {
+        debugPrint('[correction] ignore "${clip.title}" : categorie choisie '
+            '$newCategoryId introuvable');
+        return;
+      }
+
+      debugPrint('[correction] "${clip.title}" : '
+          '${predicted.name} -> ${chosen.name}');
+      await ProfileService().correctClassification(
+        videoTitle: clip.title,
+        wrongCategory: predicted.name,
+        correctCategory: chosen.name,
+      );
+    } catch (e) {
+      // Une correction manquee n'est pas une raison de faire echouer le
+      // deplacement que l'utilisateur vient de demander.
+      debugPrint('[correction] echec silencieux: $e');
+    }
+  }
+
   Future<void> removeClip(String id) async {
     await DatabaseHelper.instance.deleteClip(id);
     _clips.removeWhere((c) => c.id == id);

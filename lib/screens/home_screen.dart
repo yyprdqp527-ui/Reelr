@@ -2985,6 +2985,10 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                   onTap: () async {
                     final updated = widget.clip.copyWith(categoryId: cat.id);
                     await widget.state.updateClip(updated);
+                    // L'ordre est libre : `upsertClip` ne touche pas aux
+                    // colonnes classification_*, le journal est intact.
+                    await widget.state
+                        .recordUserCategoryChoice(widget.clip, cat.id);
                     if (ctx.mounted) Navigator.pop(ctx);
                   },
                   child: Padding(
@@ -4085,6 +4089,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
       description: widget.clip.description,
     );
     await widget.state.updateClip(updated);
+    await widget.state.recordUserCategoryChoice(widget.clip, categoryId);
     if (mounted) Navigator.pop(context);
   }
 
