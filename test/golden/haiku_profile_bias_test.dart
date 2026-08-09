@@ -20,7 +20,7 @@
 // corrections, pas de style de vie. On isole exactement deux lignes du
 // prompt -- la liste des categories dominantes et la phrase "privilegie".
 //
-// Reference sans profil : 84,3 % (107/127).
+// Reference sans profil, apres les arbitrages de frontiere : 94,1 %.
 //
 //   REELR_GOLDEN_NETWORK=1 flutter test test/golden/haiku_profile_bias_test.dart
 //
@@ -36,8 +36,11 @@ import 'golden_data.dart';
 
 const int _concurrency = 4;
 
-/// Reference mesuree le 2026-08-09 avec `profile: null`.
-const double _baselineWithoutProfile = 84.3;
+/// Reference mesuree le 2026-08-09 avec `profile: null`, APRES les arbitrages
+/// de frontiere du prompt. Moyenne de deux runs consecutifs (94,5 % et 94,4 %
+/// hors erreur reseau) : le harnais a un bruit d'environ 1 point, une mesure
+/// unique ne suffit pas.
+const double _baselineWithoutProfile = 94.1;
 
 /// Profil biaise : trois categories dominantes, rien d'autre.
 final ClientProfile _biasedProfile = const ClientProfile(
