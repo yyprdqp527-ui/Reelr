@@ -781,10 +781,56 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void _scheduleThumbnailRepair() {
     if (_thumbnailRepairStarted) return;
     _thumbnailRepairStarted = true;
-    Future<void>.delayed(_thumbnailRepairStartDelay, () {
+    Future<void>.delayed(_thumbnailRepairStartDelay, () async {
+      if (!mounted) return;
+      await _purgeContentlessClips();
       if (!mounted) return;
       unawaited(_repairMissingThumbnails());
     });
+  }
+
+  static const String _contentlessPurgeDoneKey = 'contentless_clips_purged_v1';
+
+  /// Migration unique : supprime les clips enregistres avant le garde-fou
+  /// d'ingestion et qui ne pointent vers aucun contenu (`tiktok.com/foryou`,
+  /// `tiktok.com/fr/`, pages d'accueil...), puis rend au compteur a vie les
+  /// unites qu'ils avaient consommees.
+  ///
+  /// C'est le seul endroit ou `_lifetimeClipsAdded` diminue, et c'est
+  /// justifie : ces clips n'auraient jamais du etre comptes. Le compteur
+  /// est plancherne a zero, et on ne rend jamais plus que ce qui a ete
+  /// effectivement supprime — un utilisateur ne peut donc pas s'en servir
+  /// pour regagner du quota.
+  ///
+  /// Ne s'execute qu'une fois par installation.
+  Future<void> _purgeContentlessClips() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_contentlessPurgeDoneKey) ?? false) return;
+    if (!mounted) return;
+
+    final doomed = widget.state.allClips
+        .where((c) => OEmbedService.isContentlessUrl(c.url))
+        .toList();
+    if (doomed.isEmpty) {
+      await prefs.setBool(_contentlessPurgeDoneKey, true);
+      return;
+    }
+
+    for (final clip in doomed) {
+      debugPrint('[purge] carte vide supprimee : ${clip.url}');
+      await widget.state.removeClip(clip.id);
+      if (!mounted) return;
+    }
+
+    _lifetimeClipsAdded =
+        (_lifetimeClipsAdded - doomed.length).clamp(0, _lifetimeClipsAdded);
+    await prefs.setInt('lifetime_clips_added', _lifetimeClipsAdded);
+    await prefs.setBool(_contentlessPurgeDoneKey, true);
+    debugPrint(
+      '[purge] ${doomed.length} carte(s) vide(s) supprimee(s), '
+      'compteur a vie ramene a $_lifetimeClipsAdded',
+    );
+    if (mounted) setState(() {});
   }
 
   /// Retente l'extraction des clips enregistres sans vignette.
