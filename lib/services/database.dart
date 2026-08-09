@@ -307,10 +307,43 @@ class DatabaseHelper {
     await batch.commit(noResult: true);
   }
 
+  /// Insertion d'un clip NEUF. `replace` ecrase la ligne entiere : reserve
+  /// donc a la creation, ou il n'y a rien a preserver. Pour modifier un clip
+  /// existant, passer par `upsertClip`.
   Future<void> insertClip(Clip clip) async {
     final db = await database;
     await db.insert('clips', clip.toMap(),
         conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Met a jour un clip sans detruire les colonnes que `Clip.toMap()` ne porte
+  /// pas. La table compte 16 colonnes, `toMap()` en connait 11 : passer par
+  /// `insertClip` (DELETE + INSERT) remettait les 5 autres a NULL a chaque
+  /// modification, y compris pour un simple renommage.
+  ///
+  /// Etaient perdus : `subcategoryId` et `subsubcategoryId` (ecrits a part par
+  /// `setClipSubcategory`), et les quatre colonnes `classification_*` du
+  /// journal de decision. Cette derniere perte etait la plus couteuse :
+  /// `classification_category` retient ce que la machine avait predit, et
+  /// c'est en le comparant a la categorie choisie par l'utilisateur qu'on
+  /// reconnait une correction. Le geste de correction effacait donc sa propre
+  /// preuve.
+  ///
+  /// `UPDATE` ne touche que les colonnes citees. Repli sur insertion si la
+  /// ligne n'existe pas encore, pour rester sur d'un appelant qui se tromperait.
+  Future<void> upsertClip(Clip clip) async {
+    final db = await database;
+    final map = clip.toMap();
+    final rows = await db.update(
+      'clips',
+      map,
+      where: 'id = ?',
+      whereArgs: [clip.id],
+    );
+    if (rows == 0) {
+      await db.insert('clips', map,
+          conflictAlgorithm: ConflictAlgorithm.replace);
+    }
   }
 
   Future<void> updateClipClassification({

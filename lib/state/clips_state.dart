@@ -311,7 +311,7 @@ class ClipsState extends ChangeNotifier {
           description: c.description,
         );
         _clips[i] = fixed;
-        unawaited(DatabaseHelper.instance.insertClip(fixed));
+        unawaited(DatabaseHelper.instance.upsertClip(fixed));
       }
     }
     // Les couleurs/icônes des catégories standard (cat_xxx) sont déjà
@@ -644,10 +644,10 @@ class ClipsState extends ChangeNotifier {
       if (current.categoryId != null) return;
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
-      // A ecrire APRES `updateClip` : celui-ci passe par `insertClip` en
-      // ConflictAlgorithm.replace, qui reecrit la ligne entiere depuis
-      // `Clip.toMap()`, lequel ne contient pas les colonnes
-      // classification_*. Ecrire avant les effacerait aussitot.
+      // L'ordre n'est plus contraint depuis que `updateClip` passe par
+      // `upsertClip` : un UPDATE partiel ne touche plus aux colonnes
+      // classification_*. On le conserve tel quel, il reste le plus lisible
+      // — le clip existe avant qu'on journalise sa classification.
       await DatabaseHelper.instance.updateClipClassification(
         clipId: updated.id,
         category: catName,
@@ -665,7 +665,7 @@ class ClipsState extends ChangeNotifier {
   }
 
   Future<void> updateClip(Clip clip) async {
-    await DatabaseHelper.instance.insertClip(clip);
+    await DatabaseHelper.instance.upsertClip(clip);
     final idx = _clips.indexWhere((c) => c.id == clip.id);
     if (idx != -1) _clips[idx] = clip;
     notifyListeners();
