@@ -442,7 +442,62 @@ class CategoryClassifier {
     ],
   };
 
+  /// Correspondance bucket de mots-cles -> cle de suggestion.
+  ///
+  /// Les cles de `_keywords` et celles de `_suggestions` ont diverge au fil
+  /// du temps : 15 buckets pointaient dans le vide, ce qui faisait lever
+  /// `_suggestions[best]!` sur environ un titre sur cinq. Cette table est
+  /// desormais la seule autorite sur cette correspondance.
+  ///
+  /// Regle : tout nouveau bucket ajoute a `_keywords` doit soit porter le
+  /// meme nom que sa suggestion, soit etre declare ici.
+  static const Map<String, String> _bucketToSuggestionKey = {
+    'beauty': 'beaute',
+    'travel': 'voyage',
+    'wellness': 'yoga',
+    'diy': 'diy_crea',
+    'pets': 'animaux',
+    'diy_jardin': 'jardin',
+    'doc': 'documentaire',
+    'truecrime': 'true_crime',
+    'astro': 'astro_spirituel',
+    'cinema': 'cinema_series',
+  };
+
+  /// Resout un bucket de mots-cles vers sa suggestion, alias compris.
+  /// Renvoie `null` plutot que de lever : une couche de classification n'a
+  /// jamais le droit de faire tomber le pipeline.
+  static CategorySuggestion? _suggestionFor(String bucket) =>
+      _suggestions[_bucketToSuggestionKey[bucket] ?? bucket];
+
   static const Map<String, CategorySuggestion> _suggestions = {
+    // Ces cinq suggestions manquaient completement : leurs buckets de
+    // mots-cles existaient dans `_keywords` mais ne menaient nulle part.
+    'fitness': CategorySuggestion(
+      key: 'fitness', name: 'Fitness',
+      color: Color(0xFF4ECDC4),
+      icon: Icons.fitness_center_rounded,
+    ),
+    'famille': CategorySuggestion(
+      key: 'famille', name: 'Famille',
+      color: Color(0xFFFD79A8),
+      icon: Icons.family_restroom_rounded,
+    ),
+    'deco': CategorySuggestion(
+      key: 'deco', name: 'Déco',
+      color: Color(0xFFFAB1A0),
+      icon: Icons.home_rounded,
+    ),
+    'culture': CategorySuggestion(
+      key: 'culture', name: 'Culture',
+      color: Color(0xFF8E44AD),
+      icon: Icons.theater_comedy_rounded,
+    ),
+    'growth': CategorySuggestion(
+      key: 'growth', name: 'Dév. Personnel',
+      color: Color(0xFF27AE60),
+      icon: Icons.rocket_launch_rounded,
+    ),
     'food': CategorySuggestion(
       key: 'food', name: 'Food',
       color: Color.fromRGBO(212, 133, 106, 1),
@@ -544,7 +599,7 @@ class CategoryClassifier {
       icon: Icons.memory_outlined,
     ),
     'nature': CategorySuggestion(
-      key: 'nature', name: 'Nature & Écologie',
+      key: 'nature', name: 'Nature',
       color: Color(0xFF4ECDC4),
       icon: Icons.park_outlined,
     ),
@@ -559,7 +614,7 @@ class CategoryClassifier {
       icon: Icons.pets_outlined,
     ),
     'nature_eco': CategorySuggestion(
-      key: 'nature_eco', name: 'Nature & Écologie',
+      key: 'nature_eco', name: 'Nature',
       color: Color(0xFF81C784),
       icon: Icons.park_outlined,
     ),
@@ -599,12 +654,12 @@ class CategoryClassifier {
       icon: Icons.video_library_outlined,
     ),
     'cinema_series': CategorySuggestion(
-      key: 'cinema_series', name: 'Cinéma & Séries',
+      key: 'cinema_series', name: 'Cinéma',
       color: Color(0xFFEF9A9A),
       icon: Icons.movie_outlined,
     ),
     'religion': CategorySuggestion(
-      key: 'religion', name: 'Religion & Foi',
+      key: 'religion', name: 'Religion',
       color: Color(0xFFB39DDB),
       icon: Icons.auto_awesome_outlined,
     ),
@@ -629,7 +684,7 @@ class CategoryClassifier {
       icon: Icons.account_balance_outlined,
     ),
     'crypto': CategorySuggestion(
-      key: 'crypto', name: 'Crypto & Web3',
+      key: 'crypto', name: 'Crypto',
       color: Color(0xFFF7DC6F),
       icon: Icons.currency_bitcoin_outlined,
     ),
@@ -649,12 +704,12 @@ class CategoryClassifier {
       icon: Icons.palette_outlined,
     ),
     'photo': CategorySuggestion(
-      key: 'photo', name: 'Photo & Vidéo',
+      key: 'photo', name: 'Photo',
       color: Color(0xFF4DD0E1),
       icon: Icons.camera_alt_outlined,
     ),
     'outdoor': CategorySuggestion(
-      key: 'outdoor', name: 'Outdoor & Aventure',
+      key: 'outdoor', name: 'Outdoor',
       color: Color(0xFF69F0AE),
       icon: Icons.terrain_outlined,
     ),
@@ -664,7 +719,7 @@ class CategoryClassifier {
       icon: Icons.psychology_outlined,
     ),
     'luxe': CategorySuggestion(
-      key: 'luxe', name: 'Luxe & Lifestyle',
+      key: 'luxe', name: 'Luxe',
       color: Color(0xFFFFD700),
       icon: Icons.diamond_outlined,
     ),
@@ -679,7 +734,7 @@ class CategoryClassifier {
       icon: Icons.school_outlined,
     ),
     'cosplay': CategorySuggestion(
-      key: 'cosplay', name: 'Cosplay & Geek',
+      key: 'cosplay', name: 'Cosplay',
       color: Color(0xFFBA68C8),
       icon: Icons.masks_outlined,
     ),
@@ -699,22 +754,22 @@ class CategoryClassifier {
       icon: Icons.yard_outlined,
     ),
     'sport_extreme': CategorySuggestion(
-      key: 'sport_extreme', name: 'Sports Extrêmes',
+      key: 'sport_extreme', name: 'Extrême',
       color: Color(0xFFFF6D00),
       icon: Icons.paragliding_outlined,
     ),
     'nutrition': CategorySuggestion(
-      key: 'nutrition', name: 'Nutrition & Diète',
+      key: 'nutrition', name: 'Nutrition',
       color: Color(0xFF66BB6A),
       icon: Icons.restaurant_menu_outlined,
     ),
     'vintage': CategorySuggestion(
-      key: 'vintage', name: 'Vintage & Rétro',
+      key: 'vintage', name: 'Vintage',
       color: Color(0xFFD7CCC8),
       icon: Icons.watch_outlined,
     ),
     'fail': CategorySuggestion(
-      key: 'fail', name: 'Fails & Compilations',
+      key: 'fail', name: 'Fails',
       color: Color(0xFFFF5722),
       icon: Icons.sentiment_very_dissatisfied_outlined,
     ),
@@ -819,7 +874,7 @@ class CategoryClassifier {
     if (scores.isEmpty) return CategorySuggestion.unclassified;
     final best =
         scores.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
-    return _suggestions[best]!;
+    return _suggestionFor(best) ?? CategorySuggestion.unclassified;
   }
 
   /// Renvoie l'ID d'une catégorie existante correspondant à [suggestion].
@@ -1027,7 +1082,7 @@ class CategoryClassifier {
     if (scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
     if (best.value < 3) return null;
-    return _suggestions[best.key]?.name;
+    return _suggestionFor(best.key)?.name;
   }
 }
 
