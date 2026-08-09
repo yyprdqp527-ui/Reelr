@@ -2684,7 +2684,6 @@ class ClipCard extends StatelessWidget {
         OEmbedService.bestThumbnailUrl(clip.url, clip.thumbnailUrl);
     final isPendingClassification = category == null &&
         DateTime.now().difference(clip.addedAt) < const Duration(seconds: 20);
-    debugPrint('[badge] id=${clip.id} categoryId=${clip.categoryId} pending=$isPendingClassification elapsedMs=${DateTime.now().difference(clip.addedAt).inMilliseconds}');
 
     return GlassCard(
       padding: EdgeInsets.zero,

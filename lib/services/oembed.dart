@@ -292,6 +292,40 @@ class OEmbedService {
     }
   }
 
+  /// Pseudo de l'auteur, lu dans le chemin de l'URL (`/@pseudo/video/123`).
+  /// Deterministe, sans reseau. Sert au repli : `og:site_name` ne renvoie que
+  /// « TikTok », un nom generique qui n'apprend rien et encombre le prompt.
+  static String? _tiktokHandleFromUri(Uri uri) {
+    for (final seg in uri.pathSegments) {
+      if (seg.startsWith('@') && seg.length > 1) return seg.substring(1);
+    }
+    return null;
+  }
+
+  /// Second canal pour TikTok : la page elle-meme, via OpenGraph.
+  ///
+  /// TikTok etait la seule plateforme sans repli -- Instagram retombe ici
+  /// quand son oEmbed echoue, Facebook et Pinterest y passent d'office. Une
+  /// reponse partielle reste precieuse : la miniature seule suffit souvent,
+  /// TikTok faisant partie des plateformes classees en multimodal.
+  static Future<VideoData?> _fetchTikTokMetadataViaPage(Uri videoUri) async {
+    final og = await _fetchOpenGraphMetadata(videoUri, platformId: 'tiktok');
+    if (og == null) {
+      debugPrint('[oembed] tiktok: repli OpenGraph infructueux lui aussi');
+      return null;
+    }
+    final handle = _tiktokHandleFromUri(videoUri);
+    debugPrint('[oembed] tiktok: repli OpenGraph -> titre="${og.title}" '
+        'thumb=${og.thumbnailUrl != null} description=${og.description != null}');
+    return VideoData(
+      title: og.title,
+      channel: (handle != null && handle.isNotEmpty) ? handle : og.channel,
+      platform: 'tiktok',
+      thumbnailUrl: og.thumbnailUrl,
+      description: og.description,
+    );
+  }
+
   static Future<VideoData?> _fetchTikTokMetadata(Uri videoUri) async {
     final requestUri = Uri.https('www.tiktok.com', '/oembed', {
       'url': videoUri.toString(),
@@ -301,21 +335,54 @@ class OEmbedService {
       final response = await http
           .get(requestUri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
-      if (response.statusCode != 200) return null;
+      // Ces trois sorties etaient muettes : un 403 ou un 429 de TikTok
+      // passait totalement inapercu, et `_hydrateClip` abandonnait sans
+      // laisser la moindre trace dans la console.
+      if (response.statusCode != 200) {
+        final peek = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
+        debugPrint('[oembed] tiktok: oEmbed statut ${response.statusCode} '
+            '-- debut du corps: $peek');
+        return _fetchTikTokMetadataViaPage(videoUri);
+      }
 
       final payload = json.decode(response.body) as Map<String, dynamic>;
       final title = (payload['title'] as String?)?.trim();
-      if (title == null || title.isEmpty) return null;
+      final thumbnail = _sanitizeMediaUrl(payload['thumbnail_url'] as String?);
+      if (title == null || title.isEmpty) {
+        // Un titre vide ne justifie PAS de jeter la vignette. L'ancien
+        // code repartait sur le scraping OpenGraph, qui ne ramene que la
+        // coquille JS de TikTok : une image valide etait perdue alors
+        // qu'elle est exactement ce qu'on cherche.
+        if (thumbnail != null && thumbnail.isNotEmpty) {
+          debugPrint(
+            '[oembed] tiktok: oEmbed 200 sans titre MAIS vignette presente '
+            '-- vignette conservee',
+          );
+          return VideoData(
+            title: '',
+            channel: (payload['author_name'] as String?)?.trim(),
+            platform: 'tiktok',
+            thumbnailUrl: thumbnail,
+          );
+        }
+        debugPrint(
+          '[oembed] tiktok: oEmbed 200 sans titre NI vignette '
+          '-- video probablement supprimee, privee ou restreinte',
+        );
+        return _fetchTikTokMetadataViaPage(videoUri);
+      }
 
       return VideoData(
         title: title,
         channel: (payload['author_name'] as String?)?.trim(),
         platform: 'tiktok',
-        thumbnailUrl: _sanitizeMediaUrl(payload['thumbnail_url'] as String?),
+        thumbnailUrl: thumbnail,
       );
     } catch (e) {
       debugPrint('[oembed] tiktok error: $e');
-      return null;
+      return _fetchTikTokMetadataViaPage(videoUri);
     }
   }
 
@@ -338,13 +405,22 @@ class OEmbedService {
 
       final payload = json.decode(response.body) as Map<String, dynamic>;
       final title = (payload['title'] as String?)?.trim();
-      if (title == null || title.isEmpty) return null;
+      final thumbnail = _sanitizeMediaUrl(payload['thumbnail_url'] as String?);
+      // Meme raisonnement que pour TikTok : un titre vide ne doit pas
+      // faire perdre une vignette valide (les Reels sans legende sont
+      // frequents et renvoient precisement ce profil).
+      if (title == null || title.isEmpty) {
+        if (thumbnail == null || thumbnail.isEmpty) return null;
+        debugPrint(
+          '[oembed] instagram: titre vide mais vignette presente -- conservee',
+        );
+      }
 
       return VideoData(
-        title: title,
+        title: title ?? '',
         channel: (payload['author_name'] as String?)?.trim(),
         platform: 'instagram',
-        thumbnailUrl: _sanitizeMediaUrl(payload['thumbnail_url'] as String?),
+        thumbnailUrl: thumbnail,
       );
     } catch (e) {
       debugPrint('[oembed] instagram error: $e');
@@ -391,17 +467,22 @@ class OEmbedService {
 
       final item = items.first as Map<String, dynamic>;
       final title = (item['title'] as String?)?.trim();
-      if (title == null || title.isEmpty) {
-        return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
-      }
 
       final thumbnailTemplate = item['thumbnail_url'] as String?;
       final thumbnailUrl = _sanitizeMediaUrl(
         thumbnailTemplate?.replaceAll('{width}x{height}', '480x270'),
       );
 
+      // Meme correction que pour TikTok : un titre vide ne doit pas faire
+      // jeter une vignette valide deja recue. On ne repart sur le repli
+      // OpenGraph que si l'API n'a vraiment rien donne d'exploitable.
+      if ((title == null || title.isEmpty) &&
+          (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
+        return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
+      }
+
       return VideoData(
-        title: title,
+        title: title ?? '',
         channel: (item['broadcaster_name'] as String?)?.trim(),
         description: (item['game_name'] as String?)?.trim(),
         views: item['view_count'] is int
@@ -598,6 +679,151 @@ class OEmbedService {
     }
   }
 
+  /// Titres renvoyes par la coquille JavaScript d'une plateforme quand le
+  /// contenu n'a pas pu etre rendu : video supprimee, privee, bloquee
+  /// geographiquement, ou simple refus anti-bot.
+  ///
+  /// Ils DOIVENT etre traites comme un titre absent. Sinon l'hydratation
+  /// ecrase le titre existant du clip par « TikTok - Make Your Day », puis
+  /// lance une classification sur cette chaine vide de sens — observe en
+  /// production : `cat_humour, confiance 25`.
+  static const Set<String> _placeholderTitles = {
+    'tiktok - make your day',
+    'tiktok',
+    'instagram',
+    'instagram video',
+    'facebook',
+    'facebook watch',
+    'watch',
+    'reddit - dive into anything',
+    'reddit',
+    'pinterest',
+    'video',
+    'log in or sign up to view',
+    'page not found',
+    'content not available',
+  };
+
+  /// Vrai si [title] est vide ou n'est qu'un titre de coquille (cf.
+  /// [_placeholderTitles]) : dans les deux cas, aucune information utile.
+  static bool isPlaceholderTitle(String? title) {
+    final t = title?.trim().toLowerCase();
+    if (t == null || t.isEmpty) return true;
+    return _placeholderTitles.contains(t);
+  }
+
+  /// Segments de langue/region que certaines plateformes inserent en tete
+  /// de chemin : tiktok.com/fr/, tiktok.com/en/@user/video/123.
+  static const Set<String> _localePathSegments = {
+    'fr', 'en', 'es', 'de', 'it', 'pt', 'nl', 'pl', 'ru', 'tr', 'ja', 'ko',
+    'zh', 'ar', 'sv', 'da', 'no', 'fi', 'cs', 'el', 'he', 'hi', 'id', 'th',
+    'vi', 'uk', 'ro', 'hu',
+    'fr-fr', 'en-us', 'en-gb', 'es-es', 'es-mx', 'pt-br', 'pt-pt', 'de-de',
+    'it-it', 'nl-nl', 'zh-cn', 'zh-tw', 'ja-jp', 'ko-kr',
+  };
+
+  /// Premiers segments de chemin qui designent une page de navigation (flux,
+  /// recherche, reglages) et jamais un contenu precis, par domaine.
+  ///
+  /// Liste volontairement courte : on n'y met que des segments dont on est
+  /// certain qu'ils ne peuvent pas mener a une video.
+  static const Map<String, Set<String>> _navigationFirstSegments = {
+    'tiktok.com': {
+      'foryou', 'following', 'friends', 'explore', 'upload', 'messages',
+      'search', 'discover', 'live', 'activity', 'setting', 'coin',
+    },
+    'instagram.com': {'explore', 'accounts', 'direct', 'your_activity'},
+    'youtube.com': {'feed', 'results', 'account', 'playlists'},
+    'facebook.com': {'watch', 'marketplace', 'notifications', 'friends'},
+    'reddit.com': {'popular', 'all', 'search', 'submit', 'settings'},
+    'pinterest.com': {'search', 'today', 'ideas'},
+    'x.com': {'home', 'explore', 'notifications', 'messages', 'search'},
+    'twitter.com': {'home', 'explore', 'notifications', 'messages', 'search'},
+    'linkedin.com': {'feed', 'mynetwork', 'jobs', 'messaging'},
+  };
+
+  /// Segments qui, presents plus loin dans le chemin, prouvent qu'une URL
+  /// designe malgre tout un contenu precis (ex. instagram.com/explore/reels/ABC/).
+  static const Set<String> _contentPathMarkers = {
+    'video', 'reel', 'reels', 'p', 'tv', 'shorts', 'watch', 'comments',
+    'status', 'clip', 'clips', 'pin', 'v', 't', 'photo', 'embed',
+    // `update` : LinkedIn publie ses posts sous
+    // linkedin.com/feed/update/urn:li:activity:... — c'est exactement le
+    // lien que donne « copier le lien du post ». Sans ce marqueur, le
+    // segment `feed` faisait rejeter un partage parfaitement legitime.
+    'update', 'posts', 'live',
+  };
+
+  /// Parametres de requete qui portent un identifiant de contenu.
+  ///
+  /// Distinguer ceux-la des autres est indispensable : la premiere version
+  /// considerait que TOUT parametre rendait une URL exploitable, ce qui
+  /// laissait passer `tiktok.com/foryou?lang=fr` — observe en production.
+  /// Or TikTok ajoute `?is_from_webapp=1&sender_device=pc` a chacun de ses
+  /// partages : sans cette distinction, le garde-fou etait contournable
+  /// par n'importe quel lien de flux partage depuis l'application.
+  static const Set<String> _contentQueryKeys = {
+    'v', 'id', 'vid', 'video_id', 'story_fbid', 'fbid', 'photo_id', 'clip',
+  };
+
+  static bool _hasContentQuery(Uri uri) => uri.queryParameters.keys
+      .any((k) => _contentQueryKeys.contains(k.toLowerCase()));
+
+  /// Vrai si [url] ne peut designer aucun contenu precis : URL non
+  /// analysable, page d'accueil d'une plateforme, ou page de navigation
+  /// (« Pour toi », recherche, explorer, messagerie...).
+  ///
+  /// Sert de garde-fou a l'ingestion : ces URLs creaient jusqu'ici une
+  /// carte vide ET consommaient une unite du quota gratuit a vie, que
+  /// l'utilisateur ne pouvait pas recuperer.
+  ///
+  /// Volontairement conservateur : en cas de doute, renvoie `false` et
+  /// l'URL est acceptee. Un faux positif empecherait d'enregistrer une
+  /// video legitime — bien pire qu'une carte vide occasionnelle.
+  static bool isContentlessUrl(String url) {
+    final uri = _parseHttpUri(url.trim());
+    if (uri == null) return true;
+
+    var segments =
+        uri.pathSegments.where((s) => s.trim().isNotEmpty).toList();
+    if (segments.isNotEmpty &&
+        _localePathSegments.contains(segments.first.toLowerCase())) {
+      segments = segments.sublist(1);
+    }
+
+    // Page d'accueil : aucun segment utile, et aucun parametre portant un
+    // identifiant de contenu (youtube.com/?v=abc reste exploitable).
+    if (segments.isEmpty) return !_hasContentQuery(uri);
+
+    final host = uri.host.toLowerCase();
+    final first = segments.first.toLowerCase();
+
+    // Cas particulier Reddit : les flux globaux ont le segment de
+    // navigation en deuxieme position (/r/popular, /r/all). Un vrai post
+    // porte toujours /comments/ ensuite, d'ou la restriction a 2 segments.
+    if ((host == 'reddit.com' || host.endsWith('.reddit.com')) &&
+        first == 'r' &&
+        segments.length == 2 &&
+        const {'popular', 'all'}.contains(segments[1].toLowerCase())) {
+      return true;
+    }
+
+    for (final entry in _navigationFirstSegments.entries) {
+      final domain = entry.key;
+      if (host != domain && !host.endsWith('.$domain')) continue;
+      if (!entry.value.contains(first)) continue;
+      // Un marqueur de contenu plus loin dans le chemin rend la page
+      // exploitable malgre un premier segment de navigation.
+      final rest = segments.skip(1).map((s) => s.toLowerCase());
+      if (rest.any(_contentPathMarkers.contains)) return false;
+      // Idem si l'identifiant est passe en query (facebook.com/watch/?v=).
+      // Un `?lang=fr` ou `?is_from_webapp=1` ne compte pas.
+      if (_hasContentQuery(uri)) return false;
+      return true;
+    }
+    return false;
+  }
+
   static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
     final resolvedUri = await _resolveRedditShareLink(videoUri);
     try {
@@ -676,7 +902,12 @@ class OEmbedService {
       // rendu cote serveur quand la requete ne ressemble pas assez a un
       // vrai navigateur). En-tetes plus complets pour ces deux
       // plateformes, sans toucher aux autres.
-      final needsRealisticHeaders = platformId == 'pinterest' || platformId == 'reddit';
+      // TikTok ajoute a la liste : son oEmbed etrangle les rafales non
+      // authentifiees, et la page repond mal a une requete qui ne ressemble
+      // pas a un vrai navigateur. Meme raison que Pinterest et Reddit.
+      final needsRealisticHeaders = platformId == 'pinterest' ||
+          platformId == 'reddit' ||
+          platformId == 'tiktok';
       final response = await http.get(
         uri,
         headers: needsRealisticHeaders

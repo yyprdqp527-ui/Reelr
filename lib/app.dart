@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -209,6 +210,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     });
     _drainPendingShare();
     _drainPendingPlaylist();
+    _scheduleThumbnailRepair();
   }
 
   void _initDeepLinks() {
@@ -407,6 +409,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final dedupUrl = parsedUrl != null
         ? (await OEmbedService.resolveShortLinkForDedup(parsedUrl)).toString()
         : url;
+    // Garde-fou : une URL sans contenu precis (page d'accueil, flux
+    // « Pour toi », recherche...) ne doit ni creer de carte vide, ni
+    // consommer une unite du quota gratuit a vie — ce compteur ne
+    // redescend jamais, meme apres suppression du clip.
+    if (OEmbedService.isContentlessUrl(dedupUrl)) {
+      debugPrint('[ingest] URL sans contenu ignoree : $dedupUrl');
+      _showContentlessUrlNotice();
+      return;
+    }
     if (widget.state.isDuplicate(dedupUrl)) return;
     if (!_isPremium && _lifetimeClipsAdded >= freeClipsLimit) {
       showPaywall();
@@ -477,6 +488,37 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
   }
 
+  /// Explique pourquoi un partage n'a rien produit, plutôt que d'échouer
+  /// en silence : sans message, l'utilisateur croit que l'app est cassée.
+  void _showContentlessUrlNotice({int attempt = 0}) {
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) {
+      // Au demarrage a froid, la file de partages est vidée avant que le
+      // Navigator ne soit construit : sans ce report, le message ne
+      // s'afficherait jamais et l'utilisateur croirait son partage perdu
+      // sans savoir pourquoi. On retente brievement, puis on renonce.
+      if (attempt >= 3) {
+        debugPrint('[ingest] notice non affichable (pas de contexte)');
+        return;
+      }
+      Future<void>.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _showContentlessUrlNotice(attempt: attempt + 1);
+      });
+      return;
+    }
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(
+          _locale.languageCode == 'fr'
+              ? "Ce lien ne pointe pas vers une vidéo précise — ouvre la vidéo, puis partage-la depuis son écran."
+              : "This link doesn't point to a specific video — open the video first, then share it from there.",
+        ),
+        duration: const Duration(seconds: 5),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   /// Ouvre l'écran d'abonnement Premium. Accessible depuis le flux de
   /// limite gratuite (_ingestSharedUrl) et directement depuis les Réglages,
   /// pour que l'achat ne soit pas caché derrière la limite de 50 clips
@@ -532,25 +574,61 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   Future<void> _hydrateAndClassify(Clip clip) async {
-    await _hydrateClip(clip);
+    final hasRealTitle = await _hydrateClip(clip);
     final updated =
         widget.state.allClips.where((c) => c.id == clip.id).firstOrNull ?? clip;
+    // Ne pas payer un appel de classification pour rien : quand
+    // l'extraction a echoue, le clip ne porte que le nom de la
+    // plateforme (« TikTok »). Observe en production, le classifieur
+    // repondait « À trier, confiance 5 » — resultat previsible, facture
+    // reelle. Le clip reste simplement a trier manuellement.
+    final hasDescription = updated.description?.trim().isNotEmpty ?? false;
+    if (!hasRealTitle && !hasDescription) {
+      debugPrint(
+        '[classify] ignore (aucun signal exploitable): "${updated.title}"',
+      );
+      return;
+    }
     await widget.state.classifyClipInBackground(updated);
   }
 
-  Future<void> _hydrateClip(Clip clip) async {
+  /// Renseigne titre, vignette, chaine et description d'un clip.
+  ///
+  /// Renvoie `true` si un VRAI titre a ete extrait. Un titre de repli
+  /// (nom du createur, nom de plateforme) ne compte pas : c'est cette
+  /// distinction qui permet a `_hydrateAndClassify` de ne pas payer une
+  /// classification sur un signal qui n'en est pas un.
+  Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
-    if (meta == null) return;
+    if (meta == null) return false;
     debugPrint('[hydrate] ${DateTime.now()} done url=${clip.url}');
     debugPrint(
       '[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}',
     );
     debugPrint('[hydrate] channel: ${meta.channel}');
-    final title = meta.title.trim();
+    // Un titre de coquille JS (« TikTok - Make Your Day ») vaut un titre
+    // absent : l'ecrire ecraserait le vrai titre du clip et declencherait
+    // une classification sur une chaine sans contenu.
+    final rawTitle = meta.title.trim();
+    final title = OEmbedService.isPlaceholderTitle(rawTitle) ? '' : rawTitle;
+    if (title.isEmpty && rawTitle.isNotEmpty) {
+      debugPrint('[hydrate] titre de coquille ignore: "$rawTitle"');
+    }
+    // Titre de repli quand la video n'a pas de legende : le nom du
+    // createur est bien plus parlant que « TikTok » sur une carte, et
+    // c'est frequent (TikTok renvoie regulierement un titre vide avec
+    // une vignette valide). On ne remplace jamais un vrai titre.
+    final channel = (meta.channel ?? clip.channel)?.trim();
+    final fallbackTitle =
+        (channel != null &&
+                channel.isNotEmpty &&
+                OEmbedService.isPlaceholderTitle(clip.title))
+            ? channel
+            : clip.title;
     final thumbnailUrl = meta.thumbnailUrl;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
-      if (clip.title.isNotEmpty) return;
+      if (clip.title.isNotEmpty) return false;
       final platform =
           clip.platform[0].toUpperCase() + clip.platform.substring(1);
       await widget.state.updateClip(
@@ -568,7 +646,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           description: meta.description ?? clip.description,
         ),
       );
-      return;
+      return false;
     }
     final resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
         ? clip.thumbnailUrl
@@ -587,7 +665,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       Clip(
         id: clip.id,
         url: clip.url,
-        title: title.isEmpty ? clip.title : title,
+        title: title.isEmpty ? fallbackTitle : title,
         platform: clip.platform,
         categoryId: clip.categoryId,
         tags: clip.tags,
@@ -598,21 +676,231 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         description: meta.description ?? clip.description,
       ),
     );
+    if (title.isEmpty && fallbackTitle != clip.title) {
+      debugPrint('[hydrate] titre de repli = createur: "$fallbackTitle"');
+    }
+    return title.isNotEmpty;
   }
+
+  /// Délais entre deux tentatives de pré-cache. La fenêtre totale (~10 s)
+  /// est volontairement courte : les jetons CDN sont signés et il ne sert
+  /// à rien d'insister longtemps sur une URL qui va expirer.
+  static const List<Duration> _precacheRetryDelays = [
+    Duration(seconds: 2),
+    Duration(seconds: 8),
+  ];
 
   /// Télécharge la vignette en arrière-plan pour la mettre en cache disque
   /// immédiatement après le partage, pendant que l'URL est encore fraîche
   /// (jetons CDN à courte durée de vie sur Facebook/Instagram/TikTok/etc.).
-  /// Échec silencieux : ResilientThumbnail retentera au réseau à l'affichage.
+  ///
+  /// Réessaie jusqu'à 3 fois : une seule tentative signifiait qu'une
+  /// coupure réseau passagère au moment du partage condamnait la vignette
+  /// définitivement. Passé ~24 h le jeton CDN est mort et plus aucune
+  /// tentative ne peut aboutir — d'où la fenêtre courte.
+  ///
+  /// Échec final silencieux : ResilientThumbnail retentera au réseau à
+  /// l'affichage, et retombera sur le logo de plateforme si besoin.
   Future<void> _precacheThumbnail(String url) async {
+    final host = Uri.tryParse(url)?.host ?? url;
+    for (var attempt = 0; ; attempt++) {
+      try {
+        await ThumbnailCache.instance.downloadFile(
+          url,
+          authHeaders: ThumbnailCache.headersFor(url),
+        );
+        debugPrint('[precache] vignette mise en cache: $host');
+        return;
+      } catch (e) {
+        if (attempt >= _precacheRetryDelays.length) {
+          debugPrint(
+            '[precache] échec définitif ($host) après ${attempt + 1} '
+            'tentative(s): $e',
+          );
+          return;
+        }
+        debugPrint(
+          '[precache] tentative ${attempt + 1} échouée ($host), '
+          'nouvel essai dans ${_precacheRetryDelays[attempt].inSeconds}s: $e',
+        );
+        await Future<void>.delayed(_precacheRetryDelays[attempt]);
+        if (!mounted) return;
+      }
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // REPARATION DES VIGNETTES MANQUANTES
+  // ─────────────────────────────────────────────
+
+  /// Clips traites au maximum par lancement.
+  ///
+  /// Historique, pour ne pas refaire le raisonnement a l'envers : ce
+  /// plafond avait ete abaisse a 5 en soupconnant une limitation de debit
+  /// cote TikTok, apres une passe ou 7 reparations enchainees avaient
+  /// toutes echoue. C'etait un diagnostic errone. La vraie cause etait
+  /// un bug local — `_fetchTikTokMetadata` jetait la vignette des que le
+  /// titre etait vide. Corrige, la meme passe est passee a 5 succes sur
+  /// 5. Le rythme n'a jamais ete en cause.
+  static const int _thumbnailRepairBatchSize = 12;
+
+  /// Pause entre deux reparations : simple politesse reseau, pas une
+  /// protection contre une limitation de debit (cf. ci-dessus).
+  static const Duration _thumbnailRepairSpacing = Duration(seconds: 2);
+
+  /// Au-dela de ce nombre d'echecs, un clip n'est plus retente. Sans ce
+  /// plafond, les clips definitivement inextricables (Reddit, Facebook
+  /// Reels) relanceraient une extraction inutile a chaque ouverture.
+  static const int _thumbnailRepairMaxAttempts = 3;
+
+  static const String _thumbnailRepairPrefsKey = 'thumbnail_repair_attempts';
+
+  /// Delai avant de lancer la passe : laisse le premier rendu et le
+  /// chargement des clips se terminer sans concurrence reseau.
+  static const Duration _thumbnailRepairStartDelay = Duration(seconds: 4);
+
+  /// Une seule passe par session, meme si _loadPrefs est rappele.
+  bool _thumbnailRepairStarted = false;
+
+  void _scheduleThumbnailRepair() {
+    if (_thumbnailRepairStarted) return;
+    _thumbnailRepairStarted = true;
+    Future<void>.delayed(_thumbnailRepairStartDelay, () {
+      if (!mounted) return;
+      unawaited(_repairMissingThumbnails());
+    });
+  }
+
+  /// Retente l'extraction des clips enregistres sans vignette.
+  ///
+  /// `_hydrateClip` n'etait appele qu'au moment du partage : un clip
+  /// ajoute pendant une coupure reseau, ou avant que la resolution des
+  /// liens courts n'existe, restait sans vignette pour toujours. Cette
+  /// passe repare l'existant.
+  ///
+  /// Deux precautions par rapport a une simple re-extraction :
+  ///   - l'URL est d'abord re-resolue (pin.it, share.google, wrapper
+  ///     TikTok...), sinon une URL non resolue echouerait exactement
+  ///     comme la premiere fois ;
+  ///   - chaque tentative est comptee et persistee AVANT d'etre jouee,
+  ///     pour qu'un crash en cours de route ne produise pas une boucle
+  ///     de re-tentatives a chaque lancement.
+  Future<void> _repairMissingThumbnails() async {
+    if (!_onboardingDone) return;
+    final prefs = await SharedPreferences.getInstance();
+    final attempts = _readRepairAttempts(prefs);
+
+    final candidates = widget.state.allClips
+        .where((c) => c.thumbnailUrl == null || c.thumbnailUrl!.isEmpty)
+        // Les clips enregistres avant le garde-fou d'ingestion pointent
+        // parfois vers une page sans contenu (tiktok.com/foryou, /fr/).
+        // Aucune extraction ne les reparera : les inclure gaspillait des
+        // creneaux de la passe — observe en production, 3 sur 8.
+        .where((c) => !OEmbedService.isContentlessUrl(c.url))
+        .where((c) =>
+            (attempts[c.id] ?? 0) < _thumbnailRepairMaxAttempts)
+        .toList()
+      // Les clips les plus recents d'abord : ce sont ceux que
+      // l'utilisateur regarde, et ceux dont les jetons CDN ont encore
+      // une chance d'etre valides.
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+
+    if (candidates.isEmpty) {
+      // Rien a reparer : on purge les compteurs devenus inutiles.
+      if (attempts.isNotEmpty) await _pruneRepairAttempts(prefs, attempts);
+      return;
+    }
+
+    final batch = candidates.take(_thumbnailRepairBatchSize).toList();
+    debugPrint(
+      '[repair] ${candidates.length} clip(s) sans vignette, '
+      '${batch.length} traite(s) sur cette session',
+    );
+
+    for (final clip in batch) {
+      if (!mounted) return;
+      attempts[clip.id] = (attempts[clip.id] ?? 0) + 1;
+      await prefs.setString(_thumbnailRepairPrefsKey, jsonEncode(attempts));
+      try {
+        await _repairOneThumbnail(clip);
+      } catch (e) {
+        debugPrint('[repair] echec ${clip.id}: $e');
+      }
+      if (!mounted) return;
+      // Respiration entre deux clips : evite la rafale de requetes qui
+      // faisait basculer TikTok en mode anti-bot.
+      await Future<void>.delayed(_thumbnailRepairSpacing);
+    }
+
+    if (!mounted) return;
+    await _pruneRepairAttempts(prefs, attempts);
+  }
+
+  /// Repare un clip : re-resolution de l'URL puis re-extraction.
+  Future<void> _repairOneThumbnail(Clip clip) async {
+    var target = clip;
+
+    // 1. Re-resoudre l'URL si c'est un lien court connu. `dedupUrl`
+    //    devient l'URL stockee, comme a l'ingestion.
+    final parsed = Uri.tryParse(clip.url.trim());
+    if (parsed != null) {
+      final resolved =
+          (await OEmbedService.resolveShortLinkForDedup(parsed)).toString();
+      if (resolved != clip.url && !widget.state.isDuplicate(resolved)) {
+        debugPrint('[repair] URL re-resolue: ${clip.url} -> $resolved');
+        target = Clip(
+          id: clip.id,
+          url: resolved,
+          title: clip.title,
+          platform: SocialPlatform.detect(resolved).id,
+          categoryId: clip.categoryId,
+          tags: clip.tags,
+          addedAt: clip.addedAt,
+          thumbnailUrl: clip.thumbnailUrl,
+          position: clip.position,
+          channel: clip.channel,
+          description: clip.description,
+        );
+        await widget.state.updateClip(target);
+      }
+    }
+
+    // 2. Re-extraire les metadonnees. `_hydrateClip` se charge de la mise
+    //    a jour du clip et du pre-cache de la vignette.
+    if (!mounted) return;
+    await _hydrateClip(target);
+  }
+
+  Map<String, int> _readRepairAttempts(SharedPreferences prefs) {
+    final raw = prefs.getString(_thumbnailRepairPrefsKey);
+    if (raw == null || raw.isEmpty) return <String, int>{};
     try {
-      await ThumbnailCache.instance.downloadFile(
-        url,
-        authHeaders: ThumbnailCache.headersFor(url),
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return <String, int>{};
+      return decoded.map(
+        (k, v) => MapEntry('$k', v is int ? v : int.tryParse('$v') ?? 0),
       );
-      debugPrint('[precache] vignette mise en cache: ${Uri.tryParse(url)?.host ?? url}');
-    } catch (e) {
-      debugPrint('[precache] échec pré-téléchargement vignette: $e');
+    } catch (_) {
+      return <String, int>{};
+    }
+  }
+
+  /// Oublie les compteurs des clips supprimes ou desormais pourvus d'une
+  /// vignette, pour que la preference ne grossisse pas indefiniment et
+  /// qu'un clip repare redevienne eligible s'il reperd sa vignette.
+  Future<void> _pruneRepairAttempts(
+    SharedPreferences prefs,
+    Map<String, int> attempts,
+  ) async {
+    final stillMissing = widget.state.allClips
+        .where((c) => c.thumbnailUrl == null || c.thumbnailUrl!.isEmpty)
+        .map((c) => c.id)
+        .toSet();
+    attempts.removeWhere((id, _) => !stillMissing.contains(id));
+    if (attempts.isEmpty) {
+      await prefs.remove(_thumbnailRepairPrefsKey);
+    } else {
+      await prefs.setString(_thumbnailRepairPrefsKey, jsonEncode(attempts));
     }
   }
 
