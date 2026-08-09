@@ -15,7 +15,7 @@ import 'core/theme.dart';
 import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/playlist_import_screen.dart';
-import 'package:flutter_cache_manager/flutter_cache_manager.dart';
+import 'services/thumbnail_cache.dart';
 import 'services/oembed.dart';
 import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
@@ -573,8 +573,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
         ? clip.thumbnailUrl
         : thumbnailUrl;
-    if (resolvedThumbnailUrl != null && resolvedThumbnailUrl.isNotEmpty) {
-      unawaited(_precacheThumbnail(resolvedThumbnailUrl));
+    // Le pre-cache doit viser EXACTEMENT l'URL que l'affichage
+    // reclamera (cf. bestThumbnailUrl, qui proxifie Facebook / Reddit /
+    // Pinterest). Pre-telecharger l'URL brute produirait une cle de
+    // cache differente de celle lue a l'affichage : le fichier ne
+    // serait jamais retrouve et le pre-cache serait inutile.
+    final effectiveThumbnailUrl =
+        OEmbedService.bestThumbnailUrl(clip.url, resolvedThumbnailUrl);
+    if (effectiveThumbnailUrl != null && effectiveThumbnailUrl.isNotEmpty) {
+      unawaited(_precacheThumbnail(effectiveThumbnailUrl));
     }
     await widget.state.updateClip(
       Clip(
@@ -599,7 +606,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// Échec silencieux : ResilientThumbnail retentera au réseau à l'affichage.
   Future<void> _precacheThumbnail(String url) async {
     try {
-      await DefaultCacheManager().downloadFile(url);
+      await ThumbnailCache.instance.downloadFile(
+        url,
+        authHeaders: ThumbnailCache.headersFor(url),
+      );
       debugPrint('[precache] vignette mise en cache: ${Uri.tryParse(url)?.host ?? url}');
     } catch (e) {
       debugPrint('[precache] échec pré-téléchargement vignette: $e');
