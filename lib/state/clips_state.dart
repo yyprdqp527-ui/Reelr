@@ -379,12 +379,23 @@ class ClipsState extends ChangeNotifier {
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" ? "gaming streaming ${clip.url}" : clip.title;
       String? catName;
+      // Journal de decision. Ces informations arrivaient deja de Claude mais
+      // etaient silencieusement jetees : `updateClipClassification` existait
+      // sans jamais etre appelee. On ne change rien au classement, on arrete
+      // seulement de perdre l'explication.
+      var decisionSource = "aucune";
+      var decisionConfidence = 0;
+      var decisionReason = "";
+      var decisionTags = const <String>[];
 
       // Court-circuit local, dans l'ordre de fiabilite :
       // 1) Marque/influenceur/media connu (liste figee, fiable des la 1ere fois)
       catName = CategoryClassifier.detectStrongMatch(effectiveTitle, channel: clip.channel);
       if (catName != null) {
         debugPrint('[classify] correspondance forte -> $catName (Claude saute)');
+        decisionSource = "couche 1 · mots-clés locaux";
+        decisionReason = "Marque, influenceur ou mot-clé fort reconnu dans le "
+            "titre. Claude n'a pas été appelé.";
       }
 
       // 2) Chaine deja vue et apprise automatiquement
@@ -392,6 +403,11 @@ class ClipsState extends ChangeNotifier {
         catName = profile.learnedCategoryForChannel(clip.channel!);
         if (catName != null) {
           debugPrint('[classify] chaine connue "${clip.channel}" -> $catName (Claude saute)');
+          decisionSource = "couche 2 · chaîne apprise";
+          decisionReason = "La chaîne « ${clip.channel} » a déjà été classée "
+              "au moins 3 fois dans cette catégorie. Claude n'a pas été "
+              "appelé. Cet apprentissage vient des prédictions passées, pas "
+              "de tes corrections.";
         }
       }
 
@@ -423,6 +439,10 @@ class ClipsState extends ChangeNotifier {
             _ClassifyLimiter.release();
           }
           catName = result.categoriePrincipale;
+          decisionSource = "Claude";
+          decisionConfidence = result.confiance;
+          decisionReason = result.raison;
+          decisionTags = result.tagsSuggeres;
           debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
           debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
           if (result.confiance >= 60) {
@@ -439,6 +459,10 @@ class ClipsState extends ChangeNotifier {
             if (keywordMatch != null) {
               catName = keywordMatch;
               debugPrint('[classify] mots-cles confirment: $catName');
+              decisionSource = "Claude + repli mots-clés";
+              decisionReason = "Confiance Claude trop basse "
+                  "($decisionConfidence). Reclassé par mots-clés locaux. "
+                  "Raison initiale de Claude : $decisionReason";
             } else {
               debugPrint('[classify] confiance trop basse mais classement conserve quand meme: ${clip.id}');
             }
@@ -463,6 +487,10 @@ class ClipsState extends ChangeNotifier {
               _ClassifyLimiter.release();
             }
             catName = retryResult.categoriePrincipale;
+            decisionSource = "Claude (2e tentative)";
+            decisionConfidence = retryResult.confiance;
+            decisionReason = retryResult.raison;
+            decisionTags = retryResult.tagsSuggeres;
             debugPrint('[classify] retry succeeded: $catName');
           } catch (e2) {
             debugPrint('[classify] retry failed, falling back to keywords: $e2');
@@ -473,6 +501,9 @@ class ClipsState extends ChangeNotifier {
               return;
             }
             debugPrint('[classify] keyword fallback result: $catName');
+            decisionSource = "repli mots-clés (Claude indisponible)";
+            decisionReason = "Claude n'a pas répondu après 2 tentatives. "
+                "Classement effectué par mots-clés locaux uniquement.";
           }
         }
       }
@@ -588,6 +619,17 @@ class ClipsState extends ChangeNotifier {
       if (current.categoryId != null) return;
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
+      // A ecrire APRES `updateClip` : celui-ci passe par `insertClip` en
+      // ConflictAlgorithm.replace, qui reecrit la ligne entiere depuis
+      // `Clip.toMap()`, lequel ne contient pas les colonnes
+      // classification_*. Ecrire avant les effacerait aussitot.
+      await DatabaseHelper.instance.updateClipClassification(
+        clipId: updated.id,
+        category: catName,
+        confidence: decisionConfidence,
+        reason: "[$decisionSource] $decisionReason",
+        tags: decisionTags,
+      );
       _newlyClassifiedCategoryIds.add(matchedCat.id);
       _categories = await DatabaseHelper.instance.getAllCategories();
       _clips = await DatabaseHelper.instance.getAllClips();
