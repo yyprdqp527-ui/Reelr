@@ -1138,6 +1138,18 @@ class ClaudeClassifier {
   static const String _model = 'claude-haiku-4-5-20251001';
   static const String _apiUrl = Secrets.reelrProxyUrl;
 
+  /// Plafond d'attente d'une reponse du proxy.
+  ///
+  /// Etait a 8 s, pour des appels reussis mesures a 4,4 / 4,9 / 5,6 / 5,7 s le
+  /// 2026-08-09 : deux a trois secondes de marge seulement. Le multimodal
+  /// creuse encore l'ecart, Anthropic allant chercher la miniature cote
+  /// serveur. Chaque depassement declenchait un second appel complet -- cout
+  /// double, et huit secondes perdues avant meme de reessayer.
+  ///
+  /// Le classement tourne en arriere-plan : personne n'attend devant l'ecran.
+  /// Patienter coute bien moins cher qu'un appel de plus.
+  static const Duration _requestTimeout = Duration(seconds: 20);
+
   static const String _systemPrompt = '''
 Tu es une personne réelle qui consomme énormément de contenu en ligne — YouTube, TikTok, Instagram Reels. Tu connais la culture internet française par cœur : les créateurs, les tendances, les codes visuels, les communautés.
 
@@ -1521,7 +1533,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         'content-type': 'application/json',
       },
       body: body,
-    ).timeout(const Duration(seconds: 8));
+    ).timeout(_requestTimeout);
 
     if (response.statusCode != 200) {
       // Certains CDN (Instagram, Twitch, LinkedIn...) bloquent parfois
@@ -1556,7 +1568,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
             'content-type': 'application/json',
           },
           body: textOnlyBody,
-        ).timeout(const Duration(seconds: 8));
+        ).timeout(_requestTimeout);
         if (retryResponse.statusCode != 200) {
           throw Exception(
               'Claude API error ${retryResponse.statusCode}: ${retryResponse.body}');
