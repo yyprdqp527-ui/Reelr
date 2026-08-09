@@ -256,8 +256,18 @@ class ClientProfile {
     String? lifestyle,
     String? influencer,
   }) {
-    final newCategoryCount = Map<String, int>.from(categoryCount);
-    newCategoryCount[category] = (newCategoryCount[category] ?? 0) + 1;
+    // `categoryCount` n'est PLUS incrémenté (2026-08-09). Il n'alimentait
+    // que `topCategories`, qui alimentait la ligne « Catégories les plus
+    // regardées » du prompt — retirée le même jour parce qu'elle coûtait
+    // 4,3 points sur le jeu golden.
+    //
+    // Le compteur montait sur les propres prédictions du modèle, sans aucune
+    // validation humaine : plus il montait, plus le prompt poussait vers la
+    // catégorie dominante, plus il montait. Boucle fermée.
+    //
+    // Le champ est conservé pour que les profils déjà stockés continuent de
+    // se charger, mais plus rien ne l'écrit ni ne le lit. Ne le rebranche pas
+    // sans repasser par `test/golden/haiku_profile_bias_test.dart`.
 
     final newLifestyleCount = Map<String, int>.from(lifestyleCount);
     if (lifestyle != null) {
@@ -271,7 +281,7 @@ class ClientProfile {
 
     return ClientProfile(
       userId: userId,
-      categoryCount: newCategoryCount,
+      categoryCount: categoryCount,
       knownInfluencers: newInfluencers,
       lifestyleCount: newLifestyleCount,
       corrections: corrections,
