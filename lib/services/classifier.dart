@@ -1605,10 +1605,18 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
 
     if (profile != null && profile.totalVideosClassified > 0) {
       buf.writeln('\nPROFIL CLIENT :');
-      if (profile.topCategories.isNotEmpty) {
-        buf.writeln(
-            '- Catégories les plus regardées : ${profile.topCategories.join(', ')}');
-      }
+      // RETIRE le 2026-08-09 : la liste des categories dominantes et la
+      // consigne « privilegie la categorie la plus regardee » coutaient
+      // -4,3 points sur le jeu golden (94,1 % -> 89,8 %) et detournaient
+      // 7 clips sur 127 vers les categories dejà dominantes.
+      //
+      // `categoryCount` s'incremente sur les propres predictions du modele,
+      // sans validation humaine : c'etait une boucle fermee, une categorie
+      // dominante devenait mecaniquement plus dominante.
+      //
+      // Ce qui reste ci-dessous — influenceurs, style de vie, corrections —
+      // n'a pas ete mesure isolement et est conserve. Les corrections, elles,
+      // viennent d'un geste humain : c'est le seul signal legitime.
       if (profile.knownInfluencers.isNotEmpty) {
         buf.writeln(
             '- Influenceurs suivis : ${profile.knownInfluencers.join(', ')}');
@@ -1625,8 +1633,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
               '  • "${c.videoTitle}" : ${c.wrongCategory} → ${c.correctCategory}');
         }
       }
-      buf.writeln(
-          "En cas d'ambiguïté, privilégie la catégorie que cet utilisateur regarde le plus.");
     }
 
     return buf.toString();
