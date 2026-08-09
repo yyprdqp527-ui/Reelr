@@ -45,13 +45,20 @@ class ProfileService {
     String userId = 'default',
   }) async {
     final profile = await loadProfile(userId);
-    var updated = profile
-        .withConfirmedClassification(
-          result.categoriePrincipale,
-          lifestyle: result.styleDeVie,
-          influencer: result.influenceurDetecte,
-        )
-        .withLearnedWords(videoTitle, result.categoriePrincipale, increment: 1);
+    // `withLearnedWords` retire de cette chaine le 2026-08-09. Il alimentait
+    // `personalVocabulary`, dont la lecture a ete desactivee le matin meme
+    // (commit 4de62d4) : ce mecanisme apprenait mot par mot, y compris des
+    // mots generiques comme « vie » ou « affaire ».
+    //
+    // On ecrivait donc dans un magasin que plus personne ne lisait — et pire,
+    // on y ecrivait a partir des predictions du modele, pas de corrections
+    // humaines. `videoTitle` reste dans la signature : il redeviendra utile
+    // le jour ou l'apprentissage sera rebranche sur un vrai signal.
+    var updated = profile.withConfirmedClassification(
+      result.categoriePrincipale,
+      lifestyle: result.styleDeVie,
+      influencer: result.influenceurDetecte,
+    );
     if (channel != null && channel.isNotEmpty) {
       updated = updated.withLearnedChannel(
           channel, result.categoriePrincipale,
@@ -76,12 +83,13 @@ class ProfileService {
       correctCategory: correctCategory,
       correctedAt: DateTime.now(),
     );
-    final updated = profile
-        .withCorrection(correction)
-        // Les mots du titre pointent vers la bonne catégorie avec score fort
-        .withLearnedWords(videoTitle, correctCategory, increment: 2)
-        // Et on pénalise légèrement pour la mauvaise
-        .withLearnedWords(videoTitle, wrongCategory, increment: -1);
+    // Les deux `withLearnedWords` ont ete retires le 2026-08-09, pour la meme
+    // raison que dans `confirmClassification` : `personalVocabulary` n'est
+    // plus lu, et l'apprentissage mot par mot etait la source du probleme.
+    //
+    // Seule la correction elle-meme est conservee. C'est elle qui compte :
+    // le prompt injecte les trois dernieres via `profile.corrections`.
+    final updated = profile.withCorrection(correction);
     await saveProfile(updated);
     return updated;
   }
