@@ -455,13 +455,26 @@ class OEmbedService {
         },
       ).timeout(const Duration(seconds: 10));
 
+      // Branche muette jusqu'ici : un jeton d'application expire (ils
+      // durent ~60 jours) faisait silencieusement retomber TOUS les clips
+      // et VOD Twitch sur le repli OpenGraph, lequel ne renvoie que le
+      // logo Twitch en guise de miniature. Rien dans la console ne
+      // permettait de faire la difference avec un identifiant invalide.
       if (response.statusCode != 200) {
+        final peek = response.body.length > 200
+            ? response.body.substring(0, 200)
+            : response.body;
+        debugPrint('[oembed] twitch: API statut ${response.statusCode} '
+            '${response.statusCode == 401 ? "(jeton expire ou invalide ?) " : ""}'
+            '-- debut du corps: $peek');
         return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
       }
 
       final payload = json.decode(response.body) as Map<String, dynamic>;
       final items = payload['data'] as List<dynamic>?;
       if (items == null || items.isEmpty) {
+        debugPrint('[oembed] twitch: API 200 mais aucun element '
+            '-- identifiant introuvable ou contenu supprime');
         return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
       }
 
@@ -657,6 +670,11 @@ class OEmbedService {
         final scheme = resolved.scheme.toLowerCase();
         if ((scheme == 'http' || scheme == 'https') &&
             resolved.host.isNotEmpty) {
+          final canonical = _canonicalPinterestPinUrl(resolved);
+          if (canonical != null) {
+            debugPrint('[shortlink] ${uri.host} -> $canonical (epingle canonique)');
+            return canonical;
+          }
           debugPrint('[shortlink] ${uri.host} -> $resolved');
           return resolved;
         }
@@ -702,7 +720,30 @@ class OEmbedService {
     'log in or sign up to view',
     'page not found',
     'content not available',
+    // Ajoutes apres coup : quand l'API Helix echoue, l'og:title de Twitch
+    // vaut litteralement « Twitch ». Le classifieur etait quand meme
+    // appele et repondait « cat_gaming, confiance 95 » sur ce seul mot.
+    // Les autres noms de plateformes sont ajoutes par symetrie, le meme
+    // scenario pouvant se produire partout.
+    'twitch', 'vimeo', 'youtube', 'linkedin', 'twitter',
   };
+
+  /// Images generiques servies par une plateforme quand elle n'a pas de
+  /// visuel a proposer : logo maison, image par defaut.
+  ///
+  /// Les retenir comme miniature est pire que de n'en avoir aucune : la
+  /// carte parait remplie, le pre-cache les stocke, et la passe de
+  /// reparation ne les reprend jamais puisque `thumbnailUrl` n'est pas
+  /// vide. Observe sur Twitch : `ttv-static-metadata/twitch_logo3.jpg`.
+  static const List<String> _genericImageMarkers = [
+    'ttv-static-metadata/twitch_logo',
+    '/twitch_logo',
+  ];
+
+  static bool _isGenericPlatformImage(String url) {
+    final lower = url.toLowerCase();
+    return _genericImageMarkers.any(lower.contains);
+  }
 
   /// Vrai si [title] est vide ou n'est qu'un titre de coquille (cf.
   /// [_placeholderTitles]) : dans les deux cas, aucune information utile.
@@ -822,6 +863,41 @@ class OEmbedService {
       return true;
     }
     return false;
+  }
+
+  /// Ramene une URL Pinterest a la page canonique de l'epingle.
+  ///
+  /// `pin.it` ne redirige pas vers l'epingle mais vers une page
+  /// d'invitation personnalisee :
+  ///   fr.pinterest.com/pin/<id>/sent/?invite_code=...&sender=<compte>
+  ///
+  /// Deux consequences mesurees en production :
+  ///   - cette page ne porte pas d'`og:description`, donc l'extraction
+  ///     retombe sur l'`og:title` generique et localise (« Decouvrez cette
+  ///     Epingle de <prenom> »). Le classifieur repondait 25 a 35 de
+  ///     confiance et les epingles restaient a trier ;
+  ///   - l'identifiant du compte Pinterest de l'utilisateur (`sender`)
+  ///     etait stocke en base et repris dans les exports CSV.
+  ///
+  /// Le dedoublonnage, lui, n'etait pas affecte : `_canonicalVideoUrl`
+  /// extrait deja `pinterest:<id>` du chemin.
+  ///
+  /// Renvoie `null` si [uri] n'est pas une epingle Pinterest, auquel cas
+  /// l'appelant conserve l'URL telle quelle.
+  static Uri? _canonicalPinterestPinUrl(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host != 'pinterest.com' && !host.endsWith('.pinterest.com')) {
+      return null;
+    }
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    final pinIndex = segments.indexOf('pin');
+    if (pinIndex == -1 || pinIndex + 1 >= segments.length) return null;
+    final pinId = segments[pinIndex + 1];
+    if (pinId.isEmpty || int.tryParse(pinId) == null) return null;
+    // Deja canonique : ne rien changer, et surtout ne pas signaler un
+    // changement qui n'en est pas un.
+    if (segments.length == pinIndex + 2 && uri.query.isEmpty) return null;
+    return Uri(scheme: uri.scheme, host: uri.host, path: '/pin/$pinId/');
   }
 
   static Future<VideoData?> _fetchRedditMetadata(Uri videoUri) async {
@@ -951,7 +1027,14 @@ class OEmbedService {
       final channel = _extractMetaContent(body, property: 'og:site_name');
 
       var cleanedTitle = (title ?? '').trim();
-      final cleanedThumb = _sanitizeMediaUrl(thumb);
+      var cleanedThumb = _sanitizeMediaUrl(thumb);
+      // Un logo de plateforme n'est pas une miniature (cf.
+      // _genericImageMarkers) : mieux vaut aucune vignette, le clip reste
+      // alors eligible a la passe de reparation.
+      if (cleanedThumb != null && _isGenericPlatformImage(cleanedThumb)) {
+        debugPrint('[oembed] image generique ignoree: $cleanedThumb');
+        cleanedThumb = null;
+      }
       final lowerTitle = cleanedTitle.toLowerCase();
       if (lowerTitle.contains('please wait') ||
           lowerTitle.contains('verification') ||
