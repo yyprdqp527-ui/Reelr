@@ -452,20 +452,30 @@ class ClipsState extends ChangeNotifier {
               channel: clip.channel,
             );
           }
+          // ABSTENTION. Mesure du 2026-08-09 sur le jeu golden (127 cas) :
+          // sous 40 de confiance, Haiku donne la bonne categorie environ une
+          // fois sur quatre. L'ancien comportement — « classement conserve
+          // quand meme » — produisait la totalite des erreurs restantes sous
+          // seuil. Une tuile fausse abime la confiance dans toute la grille ;
+          // un clip a trier ne coute qu'un appui.
+          //
+          // Le repli mots-cles est retire d'ici volontairement : cette couche
+          // n'a jamais ete mesuree sur ces cas precis, et rien ne dit qu'elle
+          // fasse mieux que le doute. Elle reste active plus bas, dans le
+          // chemin « Claude indisponible », ou elle est le seul recours.
           if (result.confiance < 40) {
-            debugPrint('[classify] confiance trop basse (${result.confiance}), verification par mots-cles');
-            final existingNames = _categories.map((c) => c.name).toList();
-            final keywordMatch = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
-            if (keywordMatch != null) {
-              catName = keywordMatch;
-              debugPrint('[classify] mots-cles confirment: $catName');
-              decisionSource = "Claude + repli mots-clés";
-              decisionReason = "Confiance Claude trop basse "
-                  "($decisionConfidence). Reclassé par mots-clés locaux. "
-                  "Raison initiale de Claude : $decisionReason";
-            } else {
-              debugPrint('[classify] confiance trop basse mais classement conserve quand meme: ${clip.id}');
-            }
+            debugPrint('[classify] confiance trop basse (${result.confiance}), clip laisse a trier: ${clip.id}');
+            // Le journal est ecrit malgre tout : sans lui, « A trier » serait
+            // une boite noire et tu ne saurais pas pourquoi le clip y est.
+            await DatabaseHelper.instance.updateClipClassification(
+              clipId: clip.id,
+              category: "",
+              confidence: result.confiance,
+              reason: "[abstention] Confiance ${result.confiance}, sous le "
+                  "seuil de 40. Raison de Claude : ${result.raison}",
+              tags: result.tagsSuggeres,
+            );
+            return;
           }
         } catch (e) {
           debugPrint('[classify] Claude failed, retrying once: $e');
