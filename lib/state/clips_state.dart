@@ -507,6 +507,18 @@ class ClipsState extends ChangeNotifier {
           }
         }
       }
+      // Claude renvoie parfois un JSON sans `categorie_principale` : le repli
+      // de `ClassificationResult.fromJson` vaut alors « À trier ». Sans cette
+      // garde, cette chaîne descendait jusqu'à `addCategory` et devenait une
+      // vraie catégorie en base — c'est l'origine de la tuile fantôme.
+      // On laisse simplement le clip sans catégorie.
+      const noResultLabels = {
+        'à trier', 'a trier', 'non classé', 'non classe', 'unclassified',
+      };
+      if (noResultLabels.contains(catName.trim().toLowerCase())) {
+        debugPrint('[classify] aucune categorie exploitable, clip laisse a trier: ${clip.id}');
+        return;
+      }
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {

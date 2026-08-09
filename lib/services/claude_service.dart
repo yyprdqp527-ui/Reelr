@@ -44,7 +44,7 @@ Sois précis et universel.
 
 Règles absolues :
 - Réponse = UN SEUL nom, rien d'autre
-- Jamais "Non classé"
+- Jamais "Non classé" ni "À trier"
 - Toujours trouver quelque chose
 - Maximum 3 mots'''
             }

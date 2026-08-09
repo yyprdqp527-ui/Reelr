@@ -28,7 +28,7 @@ class ClassificationResult {
     final marque = json['marque_detectee'];
     return ClassificationResult(
       categoriePrincipale:
-          json['categorie_principale'] as String? ?? 'Non classé',
+          json['categorie_principale'] as String? ?? 'À trier',
       sousCategories: (json['sous_categories'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
