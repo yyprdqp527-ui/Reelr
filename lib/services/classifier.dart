@@ -1374,9 +1374,66 @@ cat_histoire        → faits et récits historiques passés. Diff. cat_culture 
 cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré.
 cat_lang            → apprentissage des langues étrangères
 cat_science         → sciences dures, espace, physique, biologie
-cat_doc             → documentaire long format, reportage de fond. Le FORMAT prime sur le sujet : un doc scientifique reste cat_doc.
+cat_doc             → documentaire long format, reportage de fond. Le SUJET prime sur le format : un documentaire sur une affaire criminelle va dans cat_truecrime, un doc sur l'espace dans cat_science. cat_doc ne recueille que les documentaires dont le sujet n'a pas de catégorie propre.
 cat_religion        → religion, foi, spiritualité religieuse organisée. Diff. cat_astro/cat_wellness : lié à une religion établie, pas ésotérisme ou bien-être individuel.
 cat_cinema          → cinéma, séries, films, critiques, Netflix
+
+ARBITRAGES — quand deux catégories s'appliquent
+
+PRINCIPE : la catégorie la plus SPÉCIFIQUE qui s'applique gagne toujours.
+Les catégories larges — cat_diy, cat_science, cat_actu, cat_education,
+cat_culture, cat_doc, cat_travel, cat_finance — sont des filets de dernier
+recours. Ne les choisis que si aucune catégorie plus précise ne convient.
+
+1. Une catégorie précise bat cat_diy. cat_diy = fabrication créative SANS
+   sous-univers dédié. Si cat_tricot (couture), cat_tricotage, cat_crochet,
+   cat_art, cat_jardin, cat_auto ou cat_deco s'applique, elle gagne — même
+   si le titre dit "tuto", "DIY" ou "fabriquer soi-même".
+   Ex : "coudre une robe" → cat_tricot. "macramé mural" → cat_crochet.
+   "changer ses plaquettes de frein" → cat_auto.
+
+2. cat_sante bat cat_science dès que le sujet est le corps humain, une
+   maladie, un organe ou un traitement, même en vulgarisation.
+   cat_science = sciences dures, espace, physique, biologie non humaine.
+   Ex : "ce que l'AVC fait au cerveau" → cat_sante.
+
+3. cat_nature bat cat_science dès que le sujet est un écosystème, une
+   espèce ou le climat.
+   Ex : "pourquoi les coraux blanchissent" → cat_nature.
+
+4. cat_outdoor bat cat_travel quand l'ACTIVITÉ est le sujet (bivouac,
+   randonnée, camping, survie), même si un lieu est nommé. cat_travel =
+   découverte d'une destination.
+   Ex : "bivouac 3 jours dans le Mercantour" → cat_outdoor.
+
+5. cat_art bat cat_culture pour les arts visuels : exposition, peintre,
+   musée, œuvre plastique. cat_culture = littérature, philosophie,
+   culture générale.
+   Ex : "exposition Vermeer au Rijksmuseum" → cat_art.
+
+6. cat_politique bat cat_actu quand le sujet est une institution, une loi
+   ou une réforme. cat_actu = événement daté, fait du jour.
+   Ex : "réforme des retraites : ce qui change" → cat_politique.
+
+7. cat_education ne gagne QUE si la matière enseignée n'a pas sa propre
+   catégorie. Si on enseigne une langue, une science, l'histoire ou la
+   politique, c'est cette catégorie-là. cat_education = méthode
+   d'apprentissage, révisions, pédagogie en général.
+   Ex : "tuto : conjuguer au prétérit" → cat_lang.
+   Ex : "comment fonctionne le Sénat" → cat_politique.
+
+8. cat_immo bat cat_finance dès qu'un bien immobilier est en jeu (locatif,
+   rentabilité, achat, visite). cat_finance = épargne, bourse, budget.
+   Ex : "investissement locatif : calcul de rentabilité" → cat_immo.
+
+9. cat_bebe bat cat_nutrition et cat_sante quand le sujet est un tout-petit.
+   Ex : "diversification alimentaire : par où commencer" → cat_bebe.
+
+10. Le sujet précis bat le format. Une affaire criminelle traitée en
+    profondeur est cat_truecrime, pas cat_doc ni cat_actu, quelle que soit
+    la longueur ou le ton du reportage.
+    Ex : "femmes infanticides : le tabou" → cat_truecrime.
+    Ex : "révélations dans l'affaire Jubillar" → cat_truecrime.
 
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
