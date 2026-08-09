@@ -2133,8 +2133,6 @@ class _EmptyStateState extends State<_EmptyState> {
   Widget build(BuildContext context) {
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
-    final subColor = isDark ? Colors.white.withValues(alpha: 0.5) : AppTheme.lightTextSecondary;
     final borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : AppTheme.lightBorder.withValues(alpha: 0.6);
 
     return Center(
@@ -2177,17 +2175,11 @@ class _EmptyStateState extends State<_EmptyState> {
               ),
               const SizedBox(height: 10),
               Text(
-                isFr ? 'Tes vidéos préférées,\nenfin au même endroit' : 'Your favorite videos,\nall in one place',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, height: 1.3, color: textColor),
-              ),
-              const SizedBox(height: 10),
-              Text(
                 isFr
                     ? 'Va sur ta plateforme préférée, sélectionne une vidéo,\npuis partage-la vers Reelr'
                     : 'Go to your favorite platform, pick a video,\nthen share it to Reelr',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
+                style: const TextStyle(fontSize: 14, height: 1.6, color: Colors.white),
               ),
               const SizedBox(height: 26),
               Wrap(
