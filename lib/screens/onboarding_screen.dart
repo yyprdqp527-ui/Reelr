@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../app.dart';
@@ -24,45 +26,37 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   List<_PageData> _buildPages(bool isFr) => [
     _PageData(
+      icon: Icons.find_in_page_rounded,
+      accentColor: const Color(0xFFA855F7),
+      iconBgColor: const Color(0xFF7C3AED),
+      eyebrow: isFr ? 'TU CONNAIS ÇA ?' : 'SOUND FAMILIAR?',
+      title: isFr ? 'Tes vidéos, éparpillées partout' : 'Your videos, scattered everywhere',
+      subtitle: isFr
+          ? "Une sur TikTok, une sur Instagram, une sur YouTube... et impossible de remettre la main dessus. Reelr classe toutes tes vidéos préférées au même endroit, automatiquement."
+          : "One on TikTok, one on Instagram, one on YouTube... and no way to find them again. Reelr keeps all your favorite videos in one place, automatically.",
+      showScatteredLogos: true,
+    ),
+    _PageData(
       icon: Icons.ios_share_rounded,
       accentColor: const Color(0xFFA855F7),
       iconBgColor: const Color(0xFF7C3AED),
-      eyebrow: isFr ? 'PARTAGE EXPRESS' : 'QUICK SHARE',
-      title: isFr ? "Partage depuis n'importe quelle app" : 'Share from any app',
+      eyebrow: isFr ? 'COMMENT PARTAGER' : 'HOW TO SHARE',
+      title: isFr ? "Cherche l'icône de partage" : 'Find the share icon',
       subtitle: isFr
-          ? "Sur YouTube, TikTok, Instagram... appuie sur ↑ Partager → Reelr. La vidéo est sauvegardée instantanément."
-          : 'On YouTube, TikTok, Instagram... tap ↑ Share → Reelr. The video is saved instantly.',
+          ? "Tu es sur YouTube, TikTok, Instagram... (pas dans Reelr). Elle change de forme selon l'app."
+          : "You're on YouTube, TikTok, Instagram... (not in Reelr). It looks different in every app.",
+      showIconLegend: true,
     ),
     _PageData(
       icon: Icons.more_horiz_rounded,
       accentColor: const Color(0xFFA855F7),
       iconBgColor: const Color(0xFF7C3AED),
       eyebrow: isFr ? 'ASTUCE RAPIDE' : 'QUICK TIP',
-      title: isFr ? 'Tu ne vois pas Reelr ?' : "Don't see Reelr?",
+      title: isFr ? 'Fixe Reelr tout en haut' : 'Pin Reelr to the top',
       subtitle: isFr
-          ? "Certaines apps cachent les nouvelles options. Appuie sur ··· Plus, active Reelr une fois : il restera épinglé ensuite."
-          : "Some apps hide new options. Tap ··· More, turn on Reelr once — it'll stay pinned after that.",
+          ? "La 1ʳᵉ fois, Reelr est tout en bas de la liste. Appuie sur ··· Plus → Modifier, puis fais-la glisser en haut : elle y restera à chaque partage."
+          : "The first time, Reelr sits at the bottom of the list. Tap ··· More → Edit, then drag it to the top — it'll stay there every time you share.",
       showDiagram: true,
-    ),
-    _PageData(
-      icon: Icons.grid_view_rounded,
-      accentColor: const Color(0xFF60A5FA),
-      iconBgColor: const Color(0xFF2563EB),
-      eyebrow: isFr ? 'RANGEMENT AUTO' : 'AUTO-SORTED',
-      title: isFr ? 'Toujours bien rangée' : 'Always neatly sorted',
-      subtitle: isFr
-          ? "Reelr repère le thème de chaque vidéo et la classe dans la bonne catégorie. Zéro tri à faire."
-          : 'Reelr spots the topic of each video and files it into the right category. Zero sorting needed.',
-    ),
-    _PageData(
-      icon: Icons.video_library_rounded,
-      accentColor: const Color(0xFFA855F7),
-      iconBgColor: const Color(0xFF7C3AED),
-      eyebrow: isFr ? 'TA COLLECTION' : 'YOUR COLLECTION',
-      title: isFr ? 'Toujours avec toi' : 'Always with you',
-      subtitle: isFr
-          ? "Retrouve toutes tes vidéos favorites au même endroit, organisées et prêtes à regarder."
-          : 'Find all your favorite videos in one place, organized and ready to watch.',
     ),
   ];
 
@@ -173,6 +167,8 @@ class _PageData {
   final String title;
   final String subtitle;
   final bool showDiagram;
+  final bool showScatteredLogos;
+  final bool showIconLegend;
 
   const _PageData({
     required this.icon,
@@ -182,6 +178,8 @@ class _PageData {
     required this.title,
     required this.subtitle,
     this.showDiagram = false,
+    this.showScatteredLogos = false,
+    this.showIconLegend = false,
   });
 }
 
@@ -218,6 +216,7 @@ class _OnboardingPage extends StatelessWidget {
               Container(
                 width: 76,
                 height: 76,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(22),
                   color: data.iconBgColor.withValues(alpha: 0.18),
@@ -269,9 +268,17 @@ class _OnboardingPage extends StatelessWidget {
                   height: 1.5,
                 ),
               ),
+              if (data.showScatteredLogos) ...[
+                const SizedBox(height: 20),
+                const _ScatteredLogos(),
+              ],
+              if (data.showIconLegend) ...[
+                const SizedBox(height: 20),
+                const _ShareIconLegend(),
+              ],
               if (data.showDiagram) ...[
                 const SizedBox(height: 20),
-                _ShareSheetDiagram(
+                _PinAnimationDiagram(
                   accentColor: data.accentColor,
                   iconBgColor: data.iconBgColor,
                 ),
@@ -285,68 +292,333 @@ class _OnboardingPage extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// MINI DIAGRAM (Partager → Plus → Activé)
-// Utilisé sur la page "Tu ne vois pas Reelr ?"
+// DIAGRAMME ANIMÉ (Partager → Plus → Modifier → épingler)
+// Utilisé sur la page "Fixe Reelr tout en haut".
+// Boucle en continu : pastille "Plus" qui pulse, puis la ligne
+// Reelr qui glisse en haut de la liste "Modifier".
 // ─────────────────────────────────────────────
 
-class _ShareSheetDiagram extends StatelessWidget {
+class _PinAnimationDiagram extends StatefulWidget {
   final Color accentColor;
   final Color iconBgColor;
 
-  const _ShareSheetDiagram({
+  const _PinAnimationDiagram({
     required this.accentColor,
     required this.iconBgColor,
   });
 
-  Widget _step(IconData icon, {bool filled = false}) {
+  @override
+  State<_PinAnimationDiagram> createState() => _PinAnimationDiagramState();
+}
+
+class _PinAnimationDiagramState extends State<_PinAnimationDiagram>
+    with TickerProviderStateMixin {
+  static const double _rowHeight = 40;
+  static const List<String> _order = ['reelr', 'w', 'm', 'n'];
+
+  late final AnimationController _pulseController;
+  Timer? _timer;
+  bool _pinned = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+    _timer = Timer.periodic(const Duration(milliseconds: 2200), (_) {
+      if (mounted) setState(() => _pinned = !_pinned);
+    });
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Widget _shareDot(IconData icon, Color color) {
     return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: iconBgColor.withValues(alpha: filled ? 0.30 : 0.18),
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Icon(icon, size: 16, color: accentColor),
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(8)),
+      child: Icon(icon, size: 13, color: Colors.white),
     );
   }
 
-  Widget _arrow() => Text(
-        '→',
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.25),
-          fontSize: 14,
-        ),
-      );
+  Widget _pulsingPlus() {
+    return AnimatedBuilder(
+      animation: _pulseController,
+      builder: (context, child) {
+        final t = _pulseController.value;
+        return Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(9),
+            border: const Border.fromBorderSide(
+              BorderSide(color: Color(0xFF22D3EE), width: 1.5),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF22D3EE).withValues(alpha: 0.45 * (1 - t)),
+                spreadRadius: 7 * t,
+              ),
+            ],
+          ),
+          child: const Icon(Icons.more_horiz_rounded, size: 16, color: Color(0xFF22D3EE)),
+        );
+      },
+    );
+  }
+
+  Widget _row(String id) {
+    const labels = {'reelr': 'Reelr', 'w': 'WhatsApp', 'm': 'Messages', 'n': 'Notes'};
+    const colors = {
+      'w': Color(0xFF25D366),
+      'm': Color(0xFF0C447C),
+      'n': Color(0xFFFAC775),
+    };
+    final isReelr = id == 'reelr';
+    return SizedBox(
+      height: _rowHeight,
+      child: Row(
+        children: [
+          if (isReelr) ...[
+            const Icon(Icons.drag_indicator_rounded, size: 15, color: Color(0xFFA855F7)),
+            const SizedBox(width: 4),
+          ],
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              gradient: isReelr
+                  ? const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFFA855F7)])
+                  : null,
+              color: isReelr ? null : colors[id],
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            labels[id]!,
+            style: TextStyle(
+              color: isReelr ? Colors.white : Colors.white.withValues(alpha: 0.7),
+              fontSize: 12,
+              fontWeight: isReelr ? FontWeight.w600 : FontWeight.w400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final order = _pinned ? _order : ['w', 'm', 'n', 'reelr'];
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 0.5),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _shareDot(Icons.chat_bubble_outline_rounded, const Color(0xFF25D366)),
+              const SizedBox(width: 10),
+              _shareDot(Icons.mail_outline_rounded, const Color(0xFF0C447C)),
+              const SizedBox(width: 10),
+              _shareDot(Icons.description_outlined, const Color(0xFFFAC775)),
+              const SizedBox(width: 10),
+              _pulsingPlus(),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          '↓ Plus → Modifier',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.25), fontSize: 11),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: _order.length * _rowHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 0.5),
+          ),
+          child: Stack(
+            children: [
+              for (final id in _order)
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 700),
+                  curve: Curves.easeInOutCubic,
+                  top: order.indexOf(id) * _rowHeight,
+                  left: 0,
+                  right: 0,
+                  child: _row(id),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// LOGOS DISPERSÉS
+// Utilisés sur la page "Tes vidéos, éparpillées partout" pour
+// illustrer visuellement le message. Mêmes assets que la grille
+// de plateformes et que l'écran d'accueil vide.
+// ─────────────────────────────────────────────
+
+class _ScatteredLogos extends StatelessWidget {
+  const _ScatteredLogos();
+
+  static const double _height = 124;
+
+  // left/top exprimés en fraction de la largeur/hauteur disponible (0..1),
+  // pour rester cohérent quelle que soit la taille de l'écran.
+  static const List<Map<String, Object>> _items = [
+    {'asset': 'assets/icons/youtube.png', 'left': 0.16, 'top': 0.10, 'size': 46.0, 'angle': -0.22},
+    {'asset': 'assets/icons/tiktok.png', 'left': 0.80, 'top': 0.06, 'size': 40.0, 'angle': 0.18},
+    {'asset': 'assets/icons/instagram.png', 'left': 0.48, 'top': 0.28, 'size': 54.0, 'angle': -0.10},
+    {'asset': 'assets/icons/facebook.png', 'left': 0.20, 'top': 0.62, 'size': 34.0, 'angle': 0.16},
+    {'asset': 'assets/icons/pinterest.png', 'left': 0.76, 'top': 0.60, 'size': 36.0, 'angle': -0.18},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _height,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          return Stack(
+            children: [
+              for (final item in _items)
+                Positioned(
+                  left: (item['left'] as double) * (w - (item['size'] as double)),
+                  top: (item['top'] as double) * _height,
+                  child: Transform.rotate(
+                    angle: item['angle'] as double,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular((item['size'] as double) * 0.28),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular((item['size'] as double) * 0.28),
+                        child: Image.asset(
+                          item['asset'] as String,
+                          width: item['size'] as double,
+                          height: item['size'] as double,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// LÉGENDE DES ICÔNES DE PARTAGE
+// Utilisée sur la page "Cherche l'icône de partage" : montre les
+// 3 formes les plus courantes du bouton de partage selon les apps.
+// ─────────────────────────────────────────────
+
+class _ShareIconLegend extends StatelessWidget {
+  const _ShareIconLegend();
+
+  static const List<IconData> _icons = [
+    Icons.ios_share_rounded,
+    Icons.send_rounded,
+    Icons.more_vert_rounded,
+  ];
+
+  static const List<Map<String, String>> _variants = [
+    {'labelFr': 'Carré + flèche', 'labelEn': 'Square + arrow', 'sub': 'YouTube, Safari'},
+    {'labelFr': 'Avion', 'labelEn': 'Plane', 'sub': 'Instagram, TikTok'},
+    {'labelFr': '"Partager via"', 'labelEn': '"Share via"', 'sub': 'Android, menus ⋮'},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.06),
-          width: 0.5,
-        ),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 0.5),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _step(Icons.ios_share_rounded),
-          const SizedBox(width: 8),
-          _arrow(),
-          const SizedBox(width: 8),
-          _step(Icons.more_horiz_rounded),
-          const SizedBox(width: 8),
-          _arrow(),
-          const SizedBox(width: 8),
-          _step(Icons.check_rounded, filled: true),
+          for (var i = 0; i < _variants.length; i++)
+            SizedBox(
+              width: 84,
+              child: Column(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(_icons[i], size: 20, color: const Color(0xFFA855F7)),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    isFr ? _variants[i]['labelFr']! : _variants[i]['labelEn']!,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _variants[i]['sub']!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 10),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 }
+
 
 // ─────────────────────────────────────────────
 // DOT INDICATOR
