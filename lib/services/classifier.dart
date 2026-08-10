@@ -191,7 +191,19 @@ class CategoryClassifier {
       'diplomatie', 'sanctions', 'traite', 'traité',
     ],
     'diy': [
-      'diy', 'fait main', 'handmade', 'tuto', 'tutoriel', 'tutorial',
+      // « tuto », « tutoriel » et « tutorial » ont été retirés le
+      // 2026-08-10. Ces mots décrivent la FORME d'une vidéo, pas son
+      // SUJET : un tutoriel de maquillage, de cuisine ou de fitness en
+      // est un. Les garder ici gonflait DIY sur n'importe quel titre
+      // pédagogique, au point de battre la vraie catégorie —
+      // « Tuto maquillage : smoky eye fait main » donnait DIY 3 contre
+      // Beauté 2. C'est l'origine probable des vidéos de cuisine
+      // classées en DIY.
+      //
+      // La convention du fichier est d'ailleurs de qualifier ces mots :
+      // le bucket `beauty` contient déjà « tuto maquillage ». Un mot de
+      // forme seul ne doit jamais désigner une catégorie.
+      'diy', 'fait main', 'handmade',
       'how to make', 'how to build', 'craft', 'crafts', 'crea', 'créa',
       'creation', 'création', 'fabrication', 'fabriquer', 'construire',
       'procreate', 'illustration', 'dessin', 'drawing', 'peinture',
@@ -358,13 +370,17 @@ class CategoryClassifier {
       'patron couture', 'patron de couture', 'sewing pattern',
       'fil a coudre', 'fil à coudre',
       'tissage', 'weaving', 'broderie', 'broder', 'brodé', 'brode',
+      // Formes conjuguées : les listes ne contenaient que l'infinitif,
+      // donc « j'ai cousu » ou « je couds » n'était jamais reconnu.
+      'cousu', 'cousue', 'coudre', 'brodée', 'brodee',
     ],
     'tricotage': [
       'tricot', 'tricots', 'tricoter', 'tricotin', 'laine', 'wool',
       'aiguille', 'aiguilles', 'point tricot', 'yarn', 'knitting',
+      'tricote', 'tricotes', 'tricoté', 'tricotée', 'tricotee',
     ],
     'crochet': [
-      'crochet', 'crochets', 'crocheter', 'amigurumi',
+      'crochet', 'crochets', 'crocheter', 'crochete', 'crocheté', 'amigurumi',
       // « macrame » sans accent ne matchait jamais l'orthographe française.
       'macramé', 'macrame',
     ],
@@ -811,6 +827,47 @@ class CategoryClassifier {
     'documentaire': 3, 'documentary': 3, 'reportage': 3,
     // Mode vs Couture : « haute couture » doit battre « couture » seul.
     'haute couture': 3, 'défilé mode': 3, 'defile mode': 3,
+    // Moto vs Auto. Le prompt demande à Haiku une « correspondance
+    // approchée » avec les catégories existantes : tant que l'utilisateur
+    // a une tuile Auto et pas de tuile Moto, toute vidéo de moto est
+    // rapprochée d'Auto — Haiku fait exactement ce qu'on lui demande.
+    // Observé en production.
+    //
+    // La couche locale, elle, sépare correctement les deux buckets, mais
+    // ne se déclenchait jamais : « Balade en moto Ducati » marquait 2,
+    // sous le seuil de 3. Ces trois mots sont sans ambiguïté dans toutes
+    // les langues rencontrées (fr, en, pt, es) et suffisent désormais à
+    // eux seuls, ce qui court-circuite Haiku avant le rapprochement.
+    //
+    // Volontairement pas 'yamaha' (pianos, guitares) ni 'kawasaki'
+    // (maladie de Kawasaki) : trop ambigus isolés.
+    'moto': 3, 'motorcycle': 3, 'motorbike': 3,
+    'harley': 2, 'ducati': 2,
+    // Couture et Tricot : même mécanisme que Moto vs Auto. Sans tuile
+    // dédiée, Haiku rapproche ces vidéos de Mode ou de DIY. Les termes
+    // sans ambiguïté suffisent donc désormais à eux seuls.
+    //
+    // « haute couture » vaut 3 pour `mode` et « couture » 3 pour le
+    // bucket couture : à égalité, `mode` l'emporte car il est déclaré
+    // avant — le comportement voulu est préservé, vérifié sur
+    // « Défilé haute couture Paris ».
+    //
+    // Volontairement PAS pondérés : « tricot », présent à la fois dans
+    // `mode` et `tricotage` — les poids étant globaux par mot, le
+    // pondérer boosterait les deux à égalité et Mode gagnerait le
+    // départage. Ni « tissage » (extensions capillaires), « laine »
+    // (laine de verre), « aiguille » (acupuncture, seringue).
+    'couture': 3, 'coutures': 3, 'coudre': 3, 'cousu': 3, 'cousue': 3,
+    'machine coudre': 3, 'machine à coudre': 3, 'apprendre coudre': 3,
+    'patron couture': 3, 'patron de couture': 3, 'sewing': 3,
+    'sewing pattern': 3, 'broderie': 3, 'brodée': 3, 'brodee': 3,
+    'tricoter': 3, 'tricote': 3, 'tricotes': 3, 'tricoté': 3,
+    'tricotée': 3, 'tricotee': 3, 'tricotin': 3, 'point tricot': 3,
+    'knitting': 3,
+    // « crochet » nu reste à 2 : en français c'est aussi un coup de
+    // poing (« le crochet du gauche »). Il lui faut un second indice.
+    'crochet': 2, 'crochets': 2,
+    'crocheter': 3, 'crochete': 3, 'crocheté': 3, 'amigurumi': 3,
     // Cinéma / Séries
     'bande annonce': 3, 'trailer': 3, 'critique film': 3, 'review film': 3,
     'netflix': 2, 'disney+': 2, 'disney plus': 2, 'hbo': 2,
@@ -876,9 +933,21 @@ class CategoryClassifier {
 
   static CategorySuggestion suggestDetailed(String title) {
     if (title.trim().isEmpty) return CategorySuggestion.unclassified;
-    // Retire les hashtags (#art, #viral…) : ce sont des tags SEO, pas du contenu.
-    // On ne les utilise pas pour la détection, Claude les lira dans les métadonnées.
-    final lower = title.replaceAll(RegExp(r'#\w+'), '').toLowerCase();
+    // Le `#` est retiré, le mot conservé.
+    //
+    // La version précédente supprimait le hashtag ENTIER, en le tenant
+    // pour du bruit SEO. C'est faux sur TikTok, Instagram et les Shorts
+    // YouTube, où le sujet n'est souvent QUE dans les hashtags. Observé
+    // en production sur deux Shorts de moto titrés « Vous prenez le 85 ou
+    // le 450 vous? #moto #bikelife #yamaha » et « Harley … #moto
+    // #motorcycle » : privés de leurs hashtags, ces titres ne
+    // contenaient plus rien d'exploitable, la couche locale s'abstenait,
+    // et Haiku rapprochait les deux vidéos de la tuile Auto existante.
+    //
+    // Aucun bruit ajouté : un hashtag absent de tous les buckets rapporte
+    // zéro. Vérifié sur 13 titres réels — deux gains, aucun classement
+    // existant modifié.
+    final lower = title.replaceAll('#', ' ').toLowerCase();
     final scores = <String, int>{};
     _keywords.forEach((key, kws) {
       int s = 0;
@@ -1086,7 +1155,9 @@ class CategoryClassifier {
       final suggestion = suggestDetailed(title);
       if (!suggestion.isUnclassified) return suggestion.name;
     }
-    final lower = title.replaceAll(RegExp(r'#\w+'), '').toLowerCase();
+    // Même traitement que dans `suggestDetailed` : le `#` seul est
+    // retiré, le mot est conservé (voir le commentaire détaillé là-bas).
+    final lower = title.replaceAll('#', ' ').toLowerCase();
     final scores = <String, int>{};
     _keywords.forEach((key, kws) {
       int s = 0;

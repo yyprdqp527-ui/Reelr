@@ -312,6 +312,37 @@ class AppTheme {
         labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textPrimary),
         labelSmall:  TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textSecondary),
       ),
+      // ── SnackBar ──────────────────────────────────────────────────────
+      // Aucun style n'était défini : Flutter appliquait donc son apparence
+      // par défaut, un bandeau blanc en mode clair, étranger à la charte.
+      // Le problème touchait TOUTES les SnackBars de l'app — réglages,
+      // import de playlist, mode réorganisation, partage de lien.
+      //
+      // Reprend la famille visuelle du dock : même fond, même bordure,
+      // mêmes coins arrondis, pour que le bandeau paraisse appartenir à
+      // l'interface plutôt que flotter au-dessus.
+      //
+      // `insetPadding` remonte le bandeau au-dessus de la barre de
+      // navigation, qui occupe le bas de l'écran (62 px + zone sûre).
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: isDark ? darkDockSolid : lightDockSolid,
+        contentTextStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          color: textPrimary,
+        ),
+        actionTextColor: isDark ? darkDockActiveIcon : navActiveLight,
+        elevation: 6,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: isDark ? Colors.white.withValues(alpha: 0.15) : lightBorder,
+            width: 1,
+          ),
+        ),
+        insetPadding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      ),
       // ── FAB — pill violet avec ombre ──────────────────────────────────
       floatingActionButtonTheme: FloatingActionButtonThemeData(
         backgroundColor: violet,

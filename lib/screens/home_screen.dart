@@ -472,94 +472,32 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   List<ClipCategory>? _previewOrder;
   int? _previewIndex;
 
-  /// Zone de suppression affichée pendant un glisser-déposer.
+  /// Vrai si le doigt a effectivement deplace la tuile pendant le
+  /// glissement en cours.
   ///
-  /// Passe par un `OverlayEntry` et non par la grille : la grille vit dans
-  /// une zone défilante, la corbeille doit rester ancrée en bas de l'écran
-  /// où qu'en soit le défilement. L'appui long reste dédié au
-  /// réordonnancement, qui fonctionne et qu'on ne remplace pas.
-  OverlayEntry? _trashEntry;
+  /// C'est ce qui distingue les deux intentions derriere le meme appui
+  /// long : bouger, c'est reordonner ; ne pas bouger, c'est vouloir agir
+  /// sur la tuile elle-meme. On ne propose donc la suppression qu'au
+  /// second cas, sans rien retirer au premier.
+  ///
+  /// Remplace une zone de corbeille en bas de l'ecran : trop basse pour
+  /// le pouce, et visuellement lourde par-dessus la barre de navigation.
+  bool _didReorderDuringDrag = false;
 
-  @override
-  void dispose() {
-    _removeTrashZone();
-    super.dispose();
-  }
-
-  void _showTrashZone() {
-    if (_trashEntry != null) return;
-    final overlay = Overlay.maybeOf(context);
-    if (overlay == null) return;
-    _trashEntry = OverlayEntry(builder: _buildTrashZone);
-    overlay.insert(_trashEntry!);
-  }
-
-  void _removeTrashZone() {
-    _trashEntry?.remove();
-    _trashEntry = null;
-  }
-
-  Widget _buildTrashZone(BuildContext overlayContext) {
-    final isDark = Theme.of(overlayContext).brightness == Brightness.dark;
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: DragTarget<String>(
-          onWillAcceptWithDetails: (_) => true,
-          onAcceptWithDetails: (details) {
-            _removeTrashZone();
-            _resetPreview();
-            _confirmDeleteCategory(details.data);
-          },
-          builder: (ctx, candidate, _) {
-            final active = candidate.isNotEmpty;
-            return Container(
-              height: 120 + MediaQuery.of(ctx).padding.bottom,
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(ctx).padding.bottom + 12,
-              ),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.red.withValues(alpha: 0),
-                    Colors.red.withValues(alpha: active ? 0.55 : 0.30),
-                  ],
-                ),
-              ),
-              alignment: Alignment.bottomCenter,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    active
-                        ? Icons.delete_forever_rounded
-                        : Icons.delete_outline_rounded,
-                    color: Colors.white,
-                    size: active ? 40 : 32,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    widget.l.t('drop_to_delete'),
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.95),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      shadows: isDark
-                          ? null
-                          : const [
-                              Shadow(color: Colors.black38, blurRadius: 4),
-                            ],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-      ),
-    );
+  /// Propose la suppression apres un appui long immobile.
+  ///
+  /// Ouvre directement la boite de confirmation, sans SnackBar
+  /// intermediaire. La version precedente en affichait une, portant une
+  /// action « Supprimer » : `theme.dart` ne definit aucun
+  /// `snackBarTheme`, donc Flutter lui appliquait son apparence par
+  /// defaut — un bandeau blanc etranger a la charte de l'application.
+  ///
+  /// La supprimer ne retire aucune securite : la boite de confirmation
+  /// demande deja l'accord de l'utilisateur et annonce ce qu'il advient
+  /// des videos de la categorie.
+  void _offerDeleteAfterStaticPress(String categoryId) {
+    if (!mounted) return;
+    _confirmDeleteCategory(categoryId);
   }
 
   Future<void> _confirmDeleteCategory(String categoryId) async {
@@ -639,6 +577,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     if (fromIdx == -1) return;
     final moved = base.removeAt(fromIdx);
     base.insert(targetIndex.clamp(0, base.length), moved);
+    _didReorderDuringDrag = true;
     setState(() {
       _previewIndex = targetIndex;
       _previewOrder = base;
@@ -753,14 +692,23 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                   opacity: 0.85,
                   child: SizedBox(width: 100, height: 100, child: tile)),
               childWhenDragging: Opacity(opacity: 0.3, child: tile),
-              onDragStarted: _showTrashZone,
-              onDraggableCanceled: (_, _) {
-                _removeTrashZone();
-                _resetPreview();
-              },
+              onDragStarted: () => _didReorderDuringDrag = false,
+              // `onDraggableCanceled` ne fait que remettre l'aperçu à
+              // zéro. Elle NE doit pas proposer la suppression : Flutter
+              // déclenche `onDraggableCanceled` PUIS `onDragEnd` quand un
+              // glissement se termine sans être accepté par une cible —
+              // c'est-à-dire exactement le cas de l'appui long relâché
+              // sur place. Les deux rappels affichaient donc chacun leur
+              // message. Une seule voie, `onDragEnd`, qui elle est
+              // toujours appelée.
+              onDraggableCanceled: (_, _) => _resetPreview(),
               onDragEnd: (_) {
-                _removeTrashZone();
                 _resetPreview();
+                // Appui long relache sans avoir bouge : l'utilisateur
+                // visait la tuile, pas sa position.
+                if (!_didReorderDuringDrag) {
+                  _offerDeleteAfterStaticPress(cat.id);
+                }
               },
               child: tile,
             );

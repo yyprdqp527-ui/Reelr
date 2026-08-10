@@ -453,6 +453,31 @@ class ClipsState extends ChangeNotifier {
       //   debugPrint('[classify] vocabulaire personnel -> $catName (Claude saute)');
       // }
 
+      // Garde-fou AVANT l'appel payant, et seulement lui : les couches 1
+      // et 2 ci-dessus sont locales, gratuites et deterministes, elles
+      // doivent toujours s'executer.
+      //
+      // Quand la video n'a pas de legende, `_hydrateClip` met le nom du
+      // createur en titre. Interroger Claude sur un pseudonyme seul
+      // produit une reponse sure d'elle mais arbitraire, et instable :
+      // « Mouhamed VJ🤴🏾 » a donne `cat_mode` a 82 de confiance a 15 h,
+      // puis `cat_deco` a 65 a 20 h — meme clip, meme entree, deux
+      // categories, toutes deux au-dessus du seuil d'application.
+      //
+      // Mieux vaut ne pas classer : le clip porte alors la puce
+      // « À trier », visible et rangeable en un appui — et ce rangement
+      // enseigne le createur, donc la prochaine video du meme compte
+      // sera tranchee gratuitement par la couche 2.
+      final channelTrimmed = clip.channel?.trim() ?? '';
+      final titreEstSeulementLeCreateur = channelTrimmed.isNotEmpty &&
+          effectiveTitle.trim() == channelTrimmed;
+      final aUneDescription = clip.description?.trim().isNotEmpty ?? false;
+      if (catName == null && titreEstSeulementLeCreateur && !aUneDescription) {
+        debugPrint('[classify] Claude non appele : le titre n\'est que le '
+            'createur ("$channelTrimmed"), aucun signal a interpreter');
+        return;
+      }
+
       if (catName == null) {
         try {
           await _ClassifyLimiter.acquire();
