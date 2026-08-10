@@ -24,6 +24,13 @@ class AppL10n {
       // trancher. Un appui ouvre le sélecteur de catégorie.
       'to_sort': 'À trier',
       'to_sort_hint': "Titre trop vague pour classer — appuie pour choisir",
+      // Corbeille affichée pendant le déplacement d'une tuile de catégorie.
+      'drop_to_delete': 'Déposer ici pour supprimer',
+      'delete_category_confirm': 'Supprimer « {name} » ?',
+      'delete_category_empty': 'Cette catégorie est vide.',
+      'delete_category_keeps_clips':
+          'Les {n} vidéos de cette catégorie ne seront pas supprimées : '
+              'elles repasseront simplement en « À trier ».',
       'delete': 'Supprimer',
       'share': 'Partager',
       'open': 'Ouvrir',
@@ -114,6 +121,12 @@ class AppL10n {
       'move_to_category': 'Move to...',
       'to_sort': 'To sort',
       'to_sort_hint': 'Title too vague to classify — tap to choose',
+      'drop_to_delete': 'Drop here to delete',
+      'delete_category_confirm': 'Delete "{name}"?',
+      'delete_category_empty': 'This category is empty.',
+      'delete_category_keeps_clips':
+          "The {n} videos in this category won't be deleted: "
+              'they will simply move back to "To sort".',
       'delete': 'Delete',
       'share': 'Share',
       'open': 'Open',

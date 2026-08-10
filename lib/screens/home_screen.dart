@@ -472,6 +472,130 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   List<ClipCategory>? _previewOrder;
   int? _previewIndex;
 
+  /// Zone de suppression affichée pendant un glisser-déposer.
+  ///
+  /// Passe par un `OverlayEntry` et non par la grille : la grille vit dans
+  /// une zone défilante, la corbeille doit rester ancrée en bas de l'écran
+  /// où qu'en soit le défilement. L'appui long reste dédié au
+  /// réordonnancement, qui fonctionne et qu'on ne remplace pas.
+  OverlayEntry? _trashEntry;
+
+  @override
+  void dispose() {
+    _removeTrashZone();
+    super.dispose();
+  }
+
+  void _showTrashZone() {
+    if (_trashEntry != null) return;
+    final overlay = Overlay.maybeOf(context);
+    if (overlay == null) return;
+    _trashEntry = OverlayEntry(builder: _buildTrashZone);
+    overlay.insert(_trashEntry!);
+  }
+
+  void _removeTrashZone() {
+    _trashEntry?.remove();
+    _trashEntry = null;
+  }
+
+  Widget _buildTrashZone(BuildContext overlayContext) {
+    final isDark = Theme.of(overlayContext).brightness == Brightness.dark;
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: DragTarget<String>(
+          onWillAcceptWithDetails: (_) => true,
+          onAcceptWithDetails: (details) {
+            _removeTrashZone();
+            _resetPreview();
+            _confirmDeleteCategory(details.data);
+          },
+          builder: (ctx, candidate, _) {
+            final active = candidate.isNotEmpty;
+            return Container(
+              height: 120 + MediaQuery.of(ctx).padding.bottom,
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(ctx).padding.bottom + 12,
+              ),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.red.withValues(alpha: 0),
+                    Colors.red.withValues(alpha: active ? 0.55 : 0.30),
+                  ],
+                ),
+              ),
+              alignment: Alignment.bottomCenter,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    active
+                        ? Icons.delete_forever_rounded
+                        : Icons.delete_outline_rounded,
+                    color: Colors.white,
+                    size: active ? 40 : 32,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.l.t('drop_to_delete'),
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.95),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      shadows: isDark
+                          ? null
+                          : const [
+                              Shadow(color: Colors.black38, blurRadius: 4),
+                            ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteCategory(String categoryId) async {
+    final cat = widget.state.categoryById(categoryId);
+    if (cat == null || !mounted) return;
+    final l = widget.l;
+    final name = l.localizeCategoryDisplay(cat.id, cat.name);
+    final count = widget.state.countForCategory(cat.id);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t('delete_category_confirm').replaceAll('{name}', name)),
+        // Les clips ne sont jamais supprimés : `removeCategory` les repasse
+        // simplement en « À trier ». On le dit, sinon le geste paraît
+        // beaucoup plus destructeur qu'il ne l'est.
+        content: Text(
+          count == 0
+              ? l.t('delete_category_empty')
+              : l.t('delete_category_keeps_clips').replaceAll('{n}', '$count'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l.t('delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await widget.state.removeCategory(categoryId);
+  }
+
   static const int _crossAxisCount = 3;
   static const double _spacing = 16;
 
@@ -629,8 +753,15 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                   opacity: 0.85,
                   child: SizedBox(width: 100, height: 100, child: tile)),
               childWhenDragging: Opacity(opacity: 0.3, child: tile),
-              onDraggableCanceled: (_, _) => _resetPreview(),
-              onDragEnd: (_) => _resetPreview(),
+              onDragStarted: _showTrashZone,
+              onDraggableCanceled: (_, _) {
+                _removeTrashZone();
+                _resetPreview();
+              },
+              onDragEnd: (_) {
+                _removeTrashZone();
+                _resetPreview();
+              },
               child: tile,
             );
           },

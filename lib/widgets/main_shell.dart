@@ -32,6 +32,22 @@ class _MainShellState extends State<MainShell> {
 
   void setIndex(int i) => setState(() => _index = i);
 
+  static const int _pageCount = 3;
+
+  /// Vitesse minimale, en pixels par seconde, pour qu'un balayage change
+  /// de page. Évite qu'un mouvement hésitant pendant un défilement
+  /// vertical ne fasse basculer d'écran par accident.
+  static const double _swipeVelocityThreshold = 250;
+
+  void _onHorizontalSwipe(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity.abs() < _swipeVelocityThreshold) return;
+    // Vitesse négative = doigt vers la gauche = page suivante.
+    final next = velocity < 0 ? _index + 1 : _index - 1;
+    if (next < 0 || next >= _pageCount) return;
+    setState(() => _index = next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -58,15 +74,30 @@ class _MainShellState extends State<MainShell> {
         body: Stack(
           children: [
             GradientBackground(isDark: isDark),
-            Padding(
-              padding: EdgeInsets.only(bottom: navBarHeight + 8),
-              child: IndexedStack(
-                index: _index,
-                children: [
-                  HomeScreen(state: widget.state, onPasteUrl: widget.onPasteUrl),
-                  CategoriesScreen(state: widget.state),
-                  SettingsScreen(state: widget.state),
-                ],
+            // Balayage horizontal pour changer de page, en plus de la
+            // barre de navigation. L'IndexedStack est conservé : les trois
+            // pages restent construites et gardent intégralement leur état,
+            // position de défilement comprise. Un PageView aurait offert
+            // une animation suivant le doigt, au prix de la reconstruction
+            // des pages sortant de l'écran.
+            //
+            // Seul le geste horizontal est capté : le défilement vertical
+            // des listes n'est pas affecté, et les rares défilements
+            // horizontaux internes (chips de sous-catégories) gagnent
+            // l'arbitrage puisqu'ils sont plus proches du doigt.
+            GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: _onHorizontalSwipe,
+              child: Padding(
+                padding: EdgeInsets.only(bottom: navBarHeight + 8),
+                child: IndexedStack(
+                  index: _index,
+                  children: [
+                    HomeScreen(state: widget.state, onPasteUrl: widget.onPasteUrl),
+                    CategoriesScreen(state: widget.state),
+                    SettingsScreen(state: widget.state),
+                  ],
+                ),
               ),
             ),
             if (!(_index == 0 && widget.state.totalClipsCount == 0))
