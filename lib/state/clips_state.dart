@@ -340,6 +340,37 @@ class ClipsState extends ChangeNotifier {
     await DatabaseHelper.instance.insertClip(clip);
     _clips.insert(0, clip);
     notifyListeners();
+    if (clip.categoryId == null) _schedulePendingClassificationRefresh(clip);
+  }
+
+  /// Durée pendant laquelle un clip sans catégorie est considéré « en
+  /// cours de classement » par l'interface.
+  static const Duration pendingClassificationWindow = Duration(seconds: 20);
+
+  /// Réveille l'interface à la fin de la fenêtre d'attente.
+  ///
+  /// `hasPendingClassification` dépend de l'heure courante, mais n'est
+  /// réévalué qu'au moment d'un redessin. Or plusieurs chemins de
+  /// classification se terminent sans jamais notifier : confiance trop
+  /// basse, aucune catégorie exploitable, repli par mots-clés
+  /// infructueux, et — depuis l'ajout du garde-fou — les clips sans
+  /// aucun signal exploitable, pour lesquels le classifieur n'est même
+  /// plus appelé.
+  ///
+  /// Sans ce réveil, la tuile « Tout » restait figée sur `ReelrLoader`,
+  /// une animation `..repeat()` : l'écran se redessinait en continu et
+  /// consommait de la batterie indéfiniment, en donnant l'impression que
+  /// l'application cherchait encore.
+  void _schedulePendingClassificationRefresh(Clip clip) {
+    final remaining =
+        pendingClassificationWindow - DateTime.now().difference(clip.addedAt);
+    if (remaining.isNegative) return;
+    Timer(remaining + const Duration(milliseconds: 200), () {
+      // Le notifier peut avoir ete dispose entre-temps.
+      try {
+        notifyListeners();
+      } catch (_) {}
+    });
   }
 
   ClipCategory? findBestCategoryMatch(String name) {
@@ -956,7 +987,7 @@ class ClipsState extends ChangeNotifier {
 
   bool get hasPendingClassification => _clips.any((c) =>
       c.categoryId == null &&
-      DateTime.now().difference(c.addedAt) < const Duration(seconds: 20));
+      DateTime.now().difference(c.addedAt) < pendingClassificationWindow);
 
   /// Point d'entrée public pour normaliser une URL de déduplication —
   /// utilisé aussi par app.dart pour éviter de dupliquer cette logique

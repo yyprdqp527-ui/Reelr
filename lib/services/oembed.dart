@@ -1012,10 +1012,43 @@ class OEmbedService {
     }
   }
 
+  /// Prefixes de sous-domaine mobile qui servent une coquille JavaScript
+  /// au lieu des balises OpenGraph.
+  ///
+  /// Observe en production sur `m.facebook.com` : un Reel y renvoie le
+  /// titre « Facebook » et aucun `og:image`, alors que le meme contenu sur
+  /// `www.facebook.com` renvoie titre complet et vignette.
+  ///
+  /// Seuls `m.` et `mobile.` sont concernes. Les sous-domaines de langue
+  /// (`fr.pinterest.com`...) servent des metadonnees correctes et ne
+  /// doivent surtout pas etre reecrits.
+  static const List<String> _mobileHostPrefixes = ['m.', 'mobile.'];
+
+  /// Variante « bureau » d'une URL, pour la REQUETE d'extraction seulement.
+  ///
+  /// L'URL stockee reste celle partagee par l'utilisateur : la carte doit
+  /// continuer d'ouvrir la version mobile sur telephone.
+  static Uri _desktopVariantForScraping(Uri uri) {
+    final host = uri.host.toLowerCase();
+    for (final prefix in _mobileHostPrefixes) {
+      if (!host.startsWith(prefix)) continue;
+      final rest = host.substring(prefix.length);
+      // Garde-fou : `m.me` (liens Messenger) donnerait « www.me ».
+      // On n'accepte que ce qui reste un nom de domaine complet.
+      if (!rest.contains('.')) continue;
+      return uri.replace(host: 'www.$rest');
+    }
+    return uri;
+  }
+
   static Future<VideoData?> _fetchOpenGraphMetadata(
-    Uri uri, {
+    Uri originalUri, {
     required String platformId,
   }) async {
+    final uri = _desktopVariantForScraping(originalUri);
+    if (uri != originalUri) {
+      debugPrint('[oembed] scraping sur ${uri.host} au lieu de ${originalUri.host}');
+    }
     try {
       // Pinterest et Reddit renvoient des erreurs / pages anti-bot avec
       // l'en-tete User-Agent generique utilise pour les autres
