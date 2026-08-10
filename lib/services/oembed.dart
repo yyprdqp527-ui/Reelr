@@ -149,11 +149,30 @@ class SocialPlatform {
 }
 
 class OEmbedService {
-  // ignore: unused_element
-  static String get _ytApiKey => Secrets.youtubeApiKey;
+  // `_ytApiKey` retire : l'extraction YouTube passe par l'oEmbed public,
+  // qui ne demande aucune cle. La cle voyageait dans le binaire sans
+  // jamais etre appelee.
   static String get _instagramAccessToken => Secrets.instagramAccessToken;
   static String get _twitchClientId => Secrets.twitchClientId;
   static String get _twitchAccessToken => Secrets.twitchAccessToken;
+
+  /// Vrai si une clé a réellement été renseignée.
+  ///
+  /// Le fichier d'exemple livre des valeurs du type
+  /// `YOUR_TWITCH_ACCESS_TOKEN`. Copiées telles quelles, elles ne sont
+  /// pas vides : le code les envoyait donc comme identifiants, et Twitch
+  /// répondait `401 Invalid OAuth token` à chaque partage. Un
+  /// aller-retour réseau perdu d'avance avant de retomber sur OpenGraph.
+  ///
+  /// Diagnostiqué à tort comme un jeton expiré : il n'a jamais existé.
+  static bool _isConfigured(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return false;
+    final upper = trimmed.toUpperCase();
+    return !upper.startsWith('YOUR') &&
+        !upper.contains('VOTRE') &&
+        !upper.contains('...');
+  }
 
   static String? bestThumbnailUrl(String url, String? storedThumbUrl) {
     final lower = url.toLowerCase();
@@ -387,8 +406,9 @@ class OEmbedService {
   }
 
   static Future<VideoData?> _fetchInstagramMetadata(Uri videoUri) async {
-    if (_instagramAccessToken.trim().isEmpty) {
-      debugPrint('[oembed] instagram error: missing access token');
+    if (!_isConfigured(_instagramAccessToken)) {
+      debugPrint('[oembed] instagram: jeton absent ou non remplace '
+          '-- repli OpenGraph direct');
       return _fetchOpenGraphMetadata(videoUri, platformId: 'instagram');
     }
 
@@ -436,8 +456,9 @@ class OEmbedService {
       return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
     }
 
-    if (_twitchClientId.trim().isEmpty || _twitchAccessToken.trim().isEmpty) {
-      debugPrint('[oembed] twitch error: missing credentials');
+    if (!_isConfigured(_twitchClientId) || !_isConfigured(_twitchAccessToken)) {
+      debugPrint('[oembed] twitch: identifiants absents ou non remplaces '
+          '-- repli OpenGraph direct, sans appel API');
       return _fetchOpenGraphMetadata(videoUri, platformId: 'twitch');
     }
 
