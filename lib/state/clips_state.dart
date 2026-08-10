@@ -727,8 +727,21 @@ class ClipsState extends ChangeNotifier {
       // pas une correction -- il n'y a pas d'erreur a corriger. Cas laisse de
       // cote volontairement, a traiter separement.
       if (predictedRaw.isEmpty) {
-        debugPrint('[correction] ignore "${clip.title}" : journal vide '
-            '(clip anterieur au journal, ou abstention sous le seuil)');
+        // La machine n'a jamais tranche : abstention sous le seuil, ou
+        // aucun signal exploitable. Ce n'est pas une correction — il n'y
+        // a pas d'erreur a corriger — mais l'utilisateur vient malgre
+        // tout d'enseigner quelque chose de precis.
+        //
+        // On l'enregistre la ou c'est exploitable et sans risque : la
+        // chaine. `channelVocabulary` est relu par la couche 2 de la
+        // classification, donc la prochaine video du meme createur sera
+        // rangee localement, gratuitement et instantanement.
+        //
+        // Volontairement PAS d'apprentissage mot par mot : c'est
+        // `personalVocabulary`, desactive le 2026-08-09 parce qu'il
+        // retenait des mots generiques (« vie », « affaire »). Le
+        // createur est un signal autrement plus precis.
+        await _learnChannelFromUserChoice(clip, newCategoryId);
         return;
       }
 
@@ -791,6 +804,54 @@ class ClipsState extends ChangeNotifier {
       // deplacement que l'utilisateur vient de demander.
       debugPrint('[correction] echec silencieux: $e');
     }
+  }
+
+  /// Enseigne « ce créateur → cette catégorie » à partir d'un rangement
+  /// manuel, quand la machine s'était abstenue.
+  ///
+  /// Poids 3, soit exactement le seuil de `learnedCategoryForChannel` :
+  /// **un seul geste de l'utilisateur suffit**, là où il faut trois
+  /// prédictions automatiques concordantes. C'est délibéré — un choix
+  /// humain vaut mieux que trois devinettes de la machine.
+  ///
+  /// Effet concret : la prochaine vidéo du même créateur est rangée par
+  /// la couche 2, localement, sans appel à Claude. C'est ce qui manquait
+  /// pour les vidéos sans légende, où le créateur est le seul signal.
+  ///
+  /// Pas d'apprentissage mot par mot : `personalVocabulary` a été
+  /// désactivé le 2026-08-09 parce qu'il retenait des mots génériques.
+  /// Les noms de plateformes (« Twitch », « Pinterest »…) sont déjà
+  /// écartés par `withLearnedChannel` lui-même.
+  Future<void> _learnChannelFromUserChoice(
+    Clip clip,
+    String newCategoryId,
+  ) async {
+    final channel = clip.channel?.trim() ?? '';
+    if (channel.isEmpty) {
+      debugPrint('[apprentissage] "${clip.title}" : aucun créateur connu, '
+          'rien à retenir');
+      return;
+    }
+    ClipCategory? chosen;
+    for (final c in _categories) {
+      if (c.id == newCategoryId) {
+        chosen = c;
+        break;
+      }
+    }
+    if (chosen == null) return;
+
+    final service = ProfileService();
+    final profile = await service.loadProfile();
+    final updated =
+        profile.withLearnedChannel(channel, chosen.name, increment: 3);
+    if (identical(updated, profile)) {
+      debugPrint('[apprentissage] "$channel" écarté (nom de plateforme)');
+      return;
+    }
+    await service.saveProfile(updated);
+    debugPrint('[apprentissage] créateur « $channel » → ${chosen.name} '
+        '(rangement manuel, poids 3)');
   }
 
   Future<void> removeClip(String id) async {

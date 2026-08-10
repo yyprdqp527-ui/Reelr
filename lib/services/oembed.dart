@@ -561,10 +561,33 @@ class OEmbedService {
   /// recours, au cas ou les noms de parametres changeraient.
   ///
   /// Renvoie null si [uri] n'est pas un lien de ce type.
-  static String? _tiktokVideoIdFromDownloadLink(Uri uri) {
+  static bool _isTikTokDownloadLink(Uri uri) {
     final host = uri.host.toLowerCase();
-    if (host != 'tiktok.com' && !host.endsWith('.tiktok.com')) return null;
-    if (!uri.pathSegments.contains('download-link')) return null;
+    if (host != 'tiktok.com' && !host.endsWith('.tiktok.com')) return false;
+    return uri.pathSegments.contains('download-link');
+  }
+
+  /// NE PAS utiliser `canonical` ni `c=video_{id}` ici.
+  ///
+  /// Ces wrappers portent DEUX identifiants, et il est tentant de croire
+  /// que `canonical` designe la video partagee. C'est faux, et verifie
+  /// aupres de l'utilisatrice :
+  ///
+  ///   - `canonical` et `c=video_{id}` designent la PAGE WEB depuis
+  ///     laquelle le lien a ete genere ;
+  ///   - `click=` et `deep_link_value=snssdk1233://aweme/detail/{id}`
+  ///     designent la video sur laquelle l'utilisateur a reellement
+  ///     appuye.
+  ///
+  /// Sur un partage depuis une liste (`action=list_video`,
+  /// `tap_target=hot_video`), les deux different : on consulte la page
+  /// d'une video, on en partage une autre vue dans la liste. Preferer
+  /// `canonical` enregistrerait alors la mauvaise video.
+  ///
+  /// Ce commentaire existe parce que l'inversion a ete tentee puis
+  /// annulee : ne la refaites pas.
+  static String? _tiktokVideoIdFromDownloadLink(Uri uri) {
+    if (!_isTikTokDownloadLink(uri)) return null;
 
     final pattern = RegExp(r'aweme/detail/(\d+)');
     final candidates = <String?>[
@@ -607,6 +630,8 @@ class OEmbedService {
   ///   - reddit.com/r/x/s/          (liens de partage Reddit)
   ///   - share.google               (raccourcisseur de partage Google)
   ///   - tiktok.com/download-link/  (wrapper AppsFlyer TikTok)
+  ///   - vm./vt.tiktok.com          (liens courts TikTok)
+  ///   - tiktok.com/t/xxx           (idem, forme par chemin)
   ///
   /// Le resultat sert a la deduplication (isDuplicate), mais aussi —
   /// et c'est essentiel — d'URL stockee pour le clip : dans
@@ -629,10 +654,21 @@ class OEmbedService {
         host.endsWith('reddit.com') && uri.pathSegments.contains('s');
     final isGoogleShareLink =
         host == 'share.google' || host.endsWith('.share.google');
+    // Liens courts TikTok : vm./vt.tiktok.com et tiktok.com/t/xxx.
+    // Non resolus, ils cassaient le dedoublonnage : `_tiktokVideoId`
+    // cherche un segment `video` dans le chemin, absent de ces formes.
+    // La meme video partagee une fois en lien court et une fois en lien
+    // complet creait donc deux clips.
+    final isTikTokShortLink = host == 'vm.tiktok.com' ||
+        host == 'vt.tiktok.com' ||
+        (host.endsWith('tiktok.com') &&
+            uri.pathSegments.isNotEmpty &&
+            uri.pathSegments.first == 't');
     final tiktokDownloadLinkId = _tiktokVideoIdFromDownloadLink(uri);
     if (!isPinterestShortLink &&
         !isRedditShareLink &&
         !isGoogleShareLink &&
+        !isTikTokShortLink &&
         tiktokDownloadLinkId == null) {
       return uri;
     }

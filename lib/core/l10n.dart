@@ -20,6 +20,10 @@ class AppL10n {
       'add': 'Ajouter',
       'cancel': 'Annuler',
       'move_to_category': 'Déplacer vers...',
+      // Puce affichée sur une carte que la classification n'a pas su
+      // trancher. Un appui ouvre le sélecteur de catégorie.
+      'to_sort': 'À trier',
+      'to_sort_hint': "Titre trop vague pour classer — appuie pour choisir",
       'delete': 'Supprimer',
       'share': 'Partager',
       'open': 'Ouvrir',
@@ -108,6 +112,8 @@ class AppL10n {
       'add': 'Add',
       'cancel': 'Cancel',
       'move_to_category': 'Move to...',
+      'to_sort': 'To sort',
+      'to_sort_hint': 'Title too vague to classify — tap to choose',
       'delete': 'Delete',
       'share': 'Share',
       'open': 'Open',

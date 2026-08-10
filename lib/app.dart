@@ -599,7 +599,21 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     // repondait « À trier, confiance 5 » — resultat previsible, facture
     // reelle. Le clip reste simplement a trier manuellement.
     final hasDescription = updated.description?.trim().isNotEmpty ?? false;
-    if (!hasRealTitle && !hasDescription) {
+    // Le createur est un signal a part entiere : `classifyClipInBackground`
+    // commence par un `detectStrongMatch` local et gratuit qui reconnait
+    // les medias d'actualite, influenceurs et marques connus a partir de
+    // la chaine, et le prompt envoye a Claude contient « Chaîne: ... ».
+    // La premiere version de ce garde-fou coupait les deux : une video
+    // sans legende publiee par un media connu n'etait plus classee, alors
+    // qu'une regle deterministe sans appel API l'aurait attrapee.
+    //
+    // On ecarte en revanche les faux createurs : hors TikTok, `channel`
+    // vaut `og:site_name`, donc « Twitch », « Pinterest », « LinkedIn ».
+    // `isPlaceholderTitle` les reconnait deja.
+    final channel = updated.channel?.trim() ?? '';
+    final hasUsableChannel =
+        channel.isNotEmpty && !OEmbedService.isPlaceholderTitle(channel);
+    if (!hasRealTitle && !hasDescription && !hasUsableChannel) {
       debugPrint(
         '[classify] ignore (aucun signal exploitable): "${updated.title}"',
       );

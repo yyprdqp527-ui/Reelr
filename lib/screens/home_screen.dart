@@ -84,6 +84,20 @@ Future<void> _armAssignVideoHint() async {
   await prefs.setBool(_kOnboardingAssignVideoPendingKey, true);
 }
 
+/// Première URL http(s) trouvée dans [text], ou `null` s'il n'y en a pas.
+///
+/// Le bouton « coller » exigeait auparavant que le lien soit au tout
+/// début du presse-papier (`url.startsWith('http')`). Or TikTok,
+/// Instagram et Facebook copient fréquemment une phrase avant l'URL :
+/// le lien était bien présent, mais refusé.
+String? firstHttpUrlIn(String text) {
+  final match = RegExp(r'https?://\S+').firstMatch(text);
+  if (match == null) return null;
+  // Retire la ponctuation collée en fin de lien (fin de phrase,
+  // parenthèse ou guillemet fermants).
+  return match.group(0)!.replaceAll(RegExp(r'[)\]}>,.;!?"«»]+$'), '');
+}
+
 // ─────────────────────────────────────────────
 // HOME SCREEN
 // ─────────────────────────────────────────────
@@ -333,15 +347,40 @@ class _HomeScreenState extends State<HomeScreen> {
                 : 'Paste a link',
             onPressed: () async {
               final data = await Clipboard.getData(Clipboard.kTextPlain);
-              final url = data?.text?.trim() ?? '';
-              if (url.startsWith('http') && widget.onPasteUrl != null) {
+              final raw = data?.text?.trim() ?? '';
+              // Ce bouton affichait « aucun lien valide » quelle que soit
+              // la cause : presse-papier vide, texte sans lien, ou
+              // onPasteUrl absent. Impossible de diagnostiquer quoi que
+              // ce soit, ni pour l'utilisateur ni dans les logs.
+              debugPrint(
+                '[coller] presse-papier: '
+                '${raw.isEmpty ? "VIDE" : "${raw.length} caracteres"}'
+                '${raw.isEmpty ? "" : ' | debut: "${raw.length > 80 ? raw.substring(0, 80) : raw}"'}',
+              );
+              final url = firstHttpUrlIn(raw);
+              if (url != null && widget.onPasteUrl != null) {
+                debugPrint('[coller] lien extrait: $url');
                 await widget.onPasteUrl!(url);
-              } else {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun lien valide dans le presse-papier' : 'No valid link in clipboard')),
-                );
+                return;
               }
+              if (!mounted) return;
+              final fr = Localizations.localeOf(context).languageCode == 'fr';
+              final String message;
+              if (raw.isEmpty) {
+                message = fr
+                    ? "Presse-papier vide — copie d'abord le lien de la vidéo."
+                    : 'Clipboard is empty — copy the video link first.';
+              } else if (url == null) {
+                message = fr
+                    ? 'Aucun lien trouvé dans le texte copié.'
+                    : 'No link found in the copied text.';
+              } else {
+                message = fr
+                    ? "Impossible d'ajouter ce lien pour le moment."
+                    : "Can't add this link right now.";
+              }
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(message)));
             },
           ),
           const SizedBox(width: 16),
@@ -2807,8 +2846,11 @@ class ClipCard extends StatelessWidget {
             ),
           ),
           // ── Badges catégorie + tags ──────────────────────────────────
-          if (clip.tags.isNotEmpty || category != null || isPendingClassification)
-            Padding(
+          // La rangée est désormais toujours présente : sans catégorie et
+          // sans classement en cours, la puce « À trier » prend le relais.
+          // Auparavant l'emplacement restait vide, et rien n'indiquait à
+          // l'utilisateur que la vidéo n'avait pas pu être classée.
+          Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
               child: Wrap(
                 spacing: 6,
@@ -2826,15 +2868,32 @@ class ClipCard extends StatelessWidget {
                       color: isDark ? Colors.grey : AppTheme.lightTextTertiary,
                       icon: Icons.hourglass_top_rounded,
                     ),
+                  // Classement terminé sans résultat exploitable : on le
+                  // dit, et on offre le raccourci pour y remédier en un
+                  // appui plutôt que par le menu contextuel.
+                  if (category == null && !isPendingClassification)
+                    Tooltip(
+                      message: l.t('to_sort_hint'),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () => _handleAction(context, 'move', l),
+                        child: _Badge(
+                          label: l.t('to_sort'),
+                          // `_Badge` assombrit lui-même la teinte en mode
+                          // clair via `_legibleAccent` : la même couleur
+                          // reste lisible sur les deux thèmes.
+                          color: _toSortAccent,
+                          icon: Icons.label_off_rounded,
+                        ),
+                      ),
+                    ),
                   ...clip.tags.map((t) => _Badge(
                         label: '#$t',
                         color: Theme.of(context).colorScheme.primary,
                       )),
                 ],
               ),
-            )
-          else
-            const SizedBox(height: 10),
+            ),
         ],
       ),
     );
@@ -3238,6 +3297,17 @@ class _MenuItem extends StatelessWidget {
     );
   }
 }
+
+/// Teinte de la puce « À trier ».
+///
+/// Ambre plutôt que gris : le gris est déjà pris par « Classification en
+/// cours… », et les deux états se confondraient. L'ambre signale qu'il
+/// manque quelque chose sans crier à l'erreur — la classification n'a pas
+/// échoué, c'est le titre de la vidéo qui ne dit rien.
+///
+/// Une seule valeur pour les deux thèmes : `_Badge` l'assombrit en mode
+/// clair via `_legibleAccent`, comme pour les couleurs de catégorie.
+const Color _toSortAccent = Color(0xFFF0A020);
 
 class _Badge extends StatelessWidget {
   final String label;
