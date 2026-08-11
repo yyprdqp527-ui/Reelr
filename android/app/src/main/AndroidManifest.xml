@@ -1,4 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Indispensable en production. Le modèle Flutter ne déclare INTERNET
+         que dans les manifestes debug et profile, pour le service VM : une
+         build release en est donc dépourvue, et l'application n'a alors
+         aucun accès réseau — ni extraction de métadonnées, ni vignettes,
+         ni classification. Le défaut est invisible en développement,
+         puisque le manifeste debug la fournit. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="Reelr"
         android:name="${applicationName}"
