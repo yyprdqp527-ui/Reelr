@@ -20,7 +20,10 @@ import '../widgets/resilient_thumbnail.dart';
 class PlaylistImportScreen extends StatefulWidget {
   final ClipsState state;
   final PlaylistLink playlist;
-  final Future<void> Function(String url) onImportUrl;
+  /// Renvoie `true` si un clip a bien été créé. Doit être appelée en mode
+  /// silencieux : cet écran importe en boucle, et tout retour visuel émis
+  /// par l'ingestion se répéterait autant de fois qu'il y a de vidéos.
+  final Future<bool> Function(String url) onImportUrl;
 
   const PlaylistImportScreen({
     super.key,
@@ -72,8 +75,11 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     var imported = 0;
     for (final index in _selected.toList()..sort()) {
       final url = widget.playlist.items[index].url;
-      await widget.onImportUrl(url);
-      imported++;
+      // On compte les clips REELLEMENT crees. `onImportUrl` refuse
+      // silencieusement les doublons, les URLs sans contenu et tout ce
+      // qui depasse la limite gratuite : annoncer « 10 importees » quand
+      // trois seulement le sont serait mentir a l'utilisateur.
+      if (await widget.onImportUrl(url)) imported++;
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

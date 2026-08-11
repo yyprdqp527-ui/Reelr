@@ -302,7 +302,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         builder: (_) => PlaylistImportScreen(
           state: widget.state,
           playlist: playlist,
-          onImportUrl: _ingestSharedUrl,
+          // Mode silencieux obligatoire : l'ecran importe en boucle.
+          onImportUrl: (url) => _ingestSharedUrl(url, silent: true),
         ),
       ));
     });
@@ -398,7 +399,18 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   static const int freeClipsLimit = 50;
 
-  Future<void> _ingestSharedUrl(String url) async {
+  /// Enregistre un lien partagé. Renvoie `true` si un clip a été créé.
+  ///
+  /// [silent] supprime tout retour visuel — SnackBar d'URL sans contenu,
+  /// écran Premium. Indispensable pour l'import de playlist, qui appelle
+  /// cette méthode EN BOUCLE : sans lui, dix vidéos importées au-delà de
+  /// la limite gratuite empilaient dix écrans Premium à fermer un par un,
+  /// et chaque URL sans contenu ajoutait sa propre SnackBar. Signalé en
+  /// test : « il faut valider plusieurs fois pour aller dans Reelr ».
+  ///
+  /// L'appelant en boucle est responsable d'afficher UN seul message à la
+  /// fin, à partir du nombre de succès.
+  Future<bool> _ingestSharedUrl(String url, {bool silent = false}) async {
     // Resout les liens courts connus (pin.it, Reddit /s/xxxx) vers leur
     // URL canonique avant la verification de doublon, pour que deux
     // liens courts differents pointant vers le meme contenu soient
@@ -415,13 +427,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     // redescend jamais, meme apres suppression du clip.
     if (OEmbedService.isContentlessUrl(dedupUrl)) {
       debugPrint('[ingest] URL sans contenu ignoree : $dedupUrl');
-      _showContentlessUrlNotice();
-      return;
+      if (!silent) _showContentlessUrlNotice();
+      return false;
     }
-    if (widget.state.isDuplicate(dedupUrl)) return;
-    if (!canAddClip()) return;
+    if (widget.state.isDuplicate(dedupUrl)) return false;
+    if (!canAddClip(silent: silent)) return false;
     final normalized = ClipsState.normalizeUrlForDedup(dedupUrl);
-    if (_ingestingUrls.contains(normalized)) return;
+    if (_ingestingUrls.contains(normalized)) return false;
     _ingestingUrls.add(normalized);
     try {
       final platform = SocialPlatform.detect(dedupUrl);
@@ -438,20 +450,23 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       await widget.state.addClip(clip);
       registerClipAdded();
       unawaited(_hydrateAndClassify(clip));
+      return true;
     } finally {
       _ingestingUrls.remove(normalized);
     }
   }
 
   /// Vrai si un clip supplémentaire peut être ajouté. Affiche le paywall
-  /// et renvoie `false` sinon.
+  /// et renvoie `false` sinon — sauf en mode [silent].
   ///
   /// Public et centralisé pour que TOUTES les voies d'ajout passent par
   /// là. Le formulaire manuel « + » ne le faisait pas : il appelait
   /// `addClip` directement, permettant de dépasser la limite gratuite.
-  bool canAddClip() {
+  bool canAddClip({bool silent = false}) {
     if (_isPremium || _lifetimeClipsAdded < freeClipsLimit) return true;
-    showPaywall();
+    // En boucle (import de playlist), afficher le paywall a chaque
+    // iteration empilerait autant d'ecrans que de videos refusees.
+    if (!silent) showPaywall();
     return false;
   }
 

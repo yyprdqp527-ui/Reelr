@@ -2328,13 +2328,13 @@ class _EmptyStateState extends State<_EmptyState> {
                 spacing: 14,
                 runSpacing: 14,
                 children: [
-                  _AppShortcut(label: 'YouTube', assetImage: 'assets/icons/youtube.png', url: 'https://www.youtube.com'),
-                  _AppShortcut(label: 'TikTok', assetImage: 'assets/icons/tiktok.png', url: 'https://www.tiktok.com'),
-                  _AppShortcut(label: 'Instagram', assetImage: 'assets/icons/instagram.png', url: 'https://www.instagram.com'),
-                  _AppShortcut(label: 'Facebook', assetImage: 'assets/icons/facebook.png', url: 'https://www.facebook.com'),
-                  _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv'),
-                  _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com'),
-                  _AppShortcut(label: 'LinkedIn', assetImage: 'assets/icons/linkedin.png', url: 'https://www.linkedin.com'),
+                  _AppShortcut(label: 'YouTube', assetImage: 'assets/icons/youtube.png', url: 'https://www.youtube.com', appSchemes: const ['youtube', 'vnd.youtube']),
+                  _AppShortcut(label: 'TikTok', assetImage: 'assets/icons/tiktok.png', url: 'https://www.tiktok.com', appSchemes: const ['tiktok', 'snssdk1233']),
+                  _AppShortcut(label: 'Instagram', assetImage: 'assets/icons/instagram.png', url: 'https://www.instagram.com', appSchemes: const ['instagram']),
+                  _AppShortcut(label: 'Facebook', assetImage: 'assets/icons/facebook.png', url: 'https://www.facebook.com', appSchemes: const ['fb']),
+                  _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv', appSchemes: const ['twitch']),
+                  _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com', appSchemes: const ['pinterest']),
+                  _AppShortcut(label: 'LinkedIn', assetImage: 'assets/icons/linkedin.png', url: 'https://www.linkedin.com', appSchemes: const ['linkedin']),
                 ],
               ),
               const SizedBox(height: 18),
@@ -2505,7 +2505,43 @@ class _AppShortcut extends StatelessWidget {
   final String label;
   final String assetImage;
   final String url;
-  const _AppShortcut({required this.label, required this.assetImage, required this.url});
+
+  /// Schémas d'URL de l'application native, essayés dans l'ordre avant de
+  /// retomber sur le site.
+  ///
+  /// Ouvrir `https://www.tiktok.com` n'ouvre PAS l'application : les
+  /// plateformes ne déclarent leurs liens universels que pour des
+  /// contenus précis, pas pour la racine du site. L'utilisateur
+  /// atterrissait donc sur la page web mobile, qui lui proposait de
+  /// télécharger une application qu'il a déjà.
+  ///
+  /// Le schéma natif ouvre l'application sur le compte de l'utilisateur,
+  /// déjà connecté. Si l'application n'est pas installée — ou si le
+  /// schéma a changé — `canLaunchUrl` renvoie faux et on ouvre le site,
+  /// c'est-à-dire le comportement actuel. Aucune régression possible.
+  final List<String> appSchemes;
+
+  const _AppShortcut({
+    required this.label,
+    required this.assetImage,
+    required this.url,
+    this.appSchemes = const [],
+  });
+
+  Future<void> _openPlatform() async {
+    for (final scheme in appSchemes) {
+      final uri = Uri.parse('$scheme://');
+      try {
+        if (await canLaunchUrl(uri) &&
+            await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+          return;
+        }
+      } catch (_) {
+        // Schéma refusé ou inconnu : on passe au suivant, puis au web.
+      }
+    }
+    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+  }
 
   Future<void> _showShareReminder(BuildContext context) async {
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
@@ -2577,7 +2613,7 @@ class _AppShortcut extends StatelessWidget {
       },
     );
     if (context.mounted) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      await _openPlatform();
     }
   }
 

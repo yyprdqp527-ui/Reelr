@@ -37,6 +37,29 @@
 		</array>
 		<key>CFBundleVersion</key>
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<!-- Schémas interrogés par les raccourcis de l'accueil vide, pour
+		     ouvrir l'application native plutôt que le site web.
+
+		     iOS exige cette déclaration pour INTERROGER un schéma
+		     (canOpenURL), pas pour l'ouvrir. Un schéma absent ou erroné
+		     fait donc simplement échouer le test, et le raccourci
+		     retombe sur https:// — le comportement actuel. Aucun risque
+		     de régression.
+
+		     Les variantes sont listées quand elles existent : TikTok
+		     répond aussi à snssdk1233, YouTube à vnd.youtube. -->
+		<key>LSApplicationQueriesSchemes</key>
+		<array>
+			<string>tiktok</string>
+			<string>snssdk1233</string>
+			<string>instagram</string>
+			<string>youtube</string>
+			<string>vnd.youtube</string>
+			<string>fb</string>
+			<string>twitch</string>
+			<string>pinterest</string>
+			<string>linkedin</string>
+		</array>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>UIApplicationSceneManifest</key>
