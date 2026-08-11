@@ -795,6 +795,16 @@ class OEmbedService {
   static const List<String> _genericImageMarkers = [
     'ttv-static-metadata/twitch_logo',
     '/twitch_logo',
+    // LinkedIn sert son logo de marque quand la page ne rend pas le
+    // contenu du post. Les vraies images viennent de `media.licdn.com`
+    // (photos) et `dms.licdn.com` (miniatures video) ; `static.licdn.com`
+    // n'heberge que les elements d'interface du site.
+    //
+    // Mesure sur un export reel : 5 clips LinkedIn sur 11 portaient une
+    // image `static.licdn.com`, affichee comme un logo a la place de la
+    // video. Ecartee, la vignette redevient vide — donc le clip redevient
+    // eligible a la passe de reparation, qui retentera l'extraction.
+    'static.licdn.com',
   ];
 
   static bool _isGenericPlatformImage(String url) {
