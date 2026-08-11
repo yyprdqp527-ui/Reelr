@@ -346,31 +346,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 ? 'Coller un lien'
                 : 'Paste a link',
             onPressed: () async {
-              // `hasStrings()` demande à iOS s'il Y A du texte, sans en
-              // lire le contenu — et à ce titre ne déclenche PAS l'alerte
-              // système « Autoriser le collage ? », contrairement à
-              // `getData`.
+              // UN SEUL acces au presse-papier, volontairement.
               //
-              // Ce détour sert à distinguer deux situations que l'app
-              // confondait : un presse-papier réellement vide, et un
-              // collage refusé par l'utilisateur. Or iOS place « Ne pas
-              // autoriser le collage » en position par défaut, en bleu :
-              // le refus est le geste le plus probable. On répondait
-              // alors « presse-papier vide, copie d'abord le lien »,
-              // conseil faux qui envoyait l'utilisateur recopier un lien
-              // déjà présent, indéfiniment.
-              final hasText = await Clipboard.hasStrings();
-              final data = hasText
-                  ? await Clipboard.getData(Clipboard.kTextPlain)
-                  : null;
+              // Une version precedente appelait `Clipboard.hasStrings()`
+              // avant `getData`, pour distinguer un presse-papier vide
+              // d'un collage refuse. Mauvaise idee : cela produit deux
+              // acces consecutifs, donc potentiellement deux demandes
+              // d'autorisation iOS a la suite. L'utilisateur en accordait
+              // une, la seconde echouait, et le collage devenait
+              // impossible — signale en test.
+              //
+              // On ne peut donc pas distinguer les deux causes. Le
+              // message les couvre toutes les deux.
+              final data = await Clipboard.getData(Clipboard.kTextPlain);
               final raw = data?.text?.trim() ?? '';
               // Ce bouton affichait « aucun lien valide » quelle que soit
               // la cause : presse-papier vide, texte sans lien, ou
               // onPasteUrl absent. Impossible de diagnostiquer quoi que
               // ce soit, ni pour l'utilisateur ni dans les logs.
               debugPrint(
-                '[coller] hasStrings=$hasText | '
-                '${raw.isEmpty ? (hasText ? "COLLAGE REFUSE" : "VIDE") : "${raw.length} caracteres"}'
+                '[coller] presse-papier: '
+                '${raw.isEmpty ? "VIDE ou COLLAGE REFUSE" : "${raw.length} caracteres"}'
                 '${raw.isEmpty ? "" : ' | debut: "${raw.length > 80 ? raw.substring(0, 80) : raw}"'}',
               );
               final url = firstHttpUrlIn(raw);
@@ -382,15 +378,10 @@ class _HomeScreenState extends State<HomeScreen> {
               if (!mounted) return;
               final fr = Localizations.localeOf(context).languageCode == 'fr';
               final String message;
-              if (!hasText) {
+              if (raw.isEmpty) {
                 message = fr
-                    ? "Presse-papier vide — copie d'abord le lien de la vidéo."
-                    : 'Clipboard is empty — copy the video link first.';
-              } else if (raw.isEmpty) {
-                // Il y a bien du texte, mais iOS n'a pas laissé le lire.
-                message = fr
-                    ? 'Collage refusé — appuie sur « Autoriser le collage ».'
-                    : 'Paste denied — tap "Allow Paste" to continue.';
+                    ? "Rien à coller. Copie le lien de la vidéo, puis appuie sur « Autoriser le collage » si iOS le demande."
+                    : 'Nothing to paste. Copy the video link, then tap "Allow Paste" if iOS asks.';
               } else if (url == null) {
                 message = fr
                     ? 'Aucun lien trouvé dans le texte copié.'

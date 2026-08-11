@@ -67,7 +67,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // 100 % qui n'apprend rien. Une ligne laissee vide est une ligne non
     // relue, et elle sera exclue du jeu de mesure.
     buffer.writeln(
-      'id,url,title,platform,category,tags,addedAt,channel,description,'
+      'id,url,title,platform,category,vignette,tags,addedAt,channel,description,'
       'predite,confiance,couche,categorie_attendue',
     );
     for (final clip in clips) {
@@ -85,6 +85,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         clip.title,
         clip.platform,
         categoryName,
+        // URL de vignette réellement stockée. Ajoutée le 2026-08-11 :
+        // sans elle, impossible de distinguer depuis un export « aucune
+        // vignette n'a été extraite » de « l'URL existe mais l'image ne
+        // s'affiche pas » — deux causes opposées, deux correctifs
+        // opposés. Vide = rien n'a été extrait.
+        clip.thumbnailUrl ?? '',
         clip.tags.join(';'),
         clip.addedAt.toIso8601String(),
         clip.channel ?? '',

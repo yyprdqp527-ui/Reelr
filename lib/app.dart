@@ -622,6 +622,31 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     await widget.state.classifyClipInBackground(updated);
   }
 
+  /// Catégorie ACTUELLE du clip, relue dans l'état plutôt que prise dans
+  /// l'instantané reçu en paramètre.
+  ///
+  /// `_hydrateClip` réécrit le clip entier à la fin de son extraction, à
+  /// partir de l'objet qu'on lui a passé. Si une classification s'est
+  /// terminée entre-temps, cet objet est périmé et sa catégorie vide
+  /// écrase celle qui vient d'être attribuée.
+  ///
+  /// Le cas se produit vraiment : la passe de réparation démarre 4 s
+  /// après le lancement et traite les clips un par un avec des pauses,
+  /// donc elle peut ré-extraire un clip pendant que Claude le classe.
+  /// Observé en production — une catégorie « Luxe » créée, prédiction
+  /// `cat_luxe` à 65 de confiance enregistrée dans le journal, et le clip
+  /// resté sans catégorie.
+  ///
+  /// L'hydratation n'a de toute façon aucune raison de modifier la
+  /// catégorie : elle ne s'occupe que du titre, de la vignette, de la
+  /// chaîne et de la description.
+  String? _currentCategoryIdOf(Clip clip) {
+    for (final c in widget.state.allClips) {
+      if (c.id == clip.id) return c.categoryId;
+    }
+    return clip.categoryId;
+  }
+
   /// Renseigne titre, vignette, chaine et description d'un clip.
   ///
   /// Renvoie `true` si un VRAI titre a ete extrait. Un titre de repli
@@ -631,7 +656,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
     final meta = await OEmbedService.fetchMetadata(clip.url);
-    if (meta == null) return false;
+    if (meta == null) {
+      // Cette sortie etait muette : un `starting for` sans `done`, et rien
+      // pour dire pourquoi. C'est ce silence qui rendait les diagnostics
+      // interminables — impossible de distinguer une extraction qui a
+      // echoue d'une extraction qui n'a jamais rendu la main.
+      debugPrint('[hydrate] ECHEC TOTAL, aucune metadonnee : ${clip.url}');
+      return false;
+    }
     debugPrint('[hydrate] ${DateTime.now()} done url=${clip.url}');
     debugPrint(
       '[hydrate] title=${meta.title} thumb=${meta.thumbnailUrl ?? "NULL"}',
@@ -667,7 +699,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           url: clip.url,
           title: platform,
           platform: clip.platform,
-          categoryId: clip.categoryId,
+          categoryId: _currentCategoryIdOf(clip),
           tags: clip.tags,
           addedAt: clip.addedAt,
           thumbnailUrl: clip.thumbnailUrl,
@@ -697,7 +729,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         url: clip.url,
         title: title.isEmpty ? fallbackTitle : title,
         platform: clip.platform,
-        categoryId: clip.categoryId,
+        categoryId: _currentCategoryIdOf(clip),
         tags: clip.tags,
         addedAt: clip.addedAt,
         thumbnailUrl: resolvedThumbnailUrl,
@@ -992,7 +1024,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           url: resolved,
           title: clip.title,
           platform: SocialPlatform.detect(resolved).id,
-          categoryId: clip.categoryId,
+          // Relu, jamais repris de l'instantané : la classification peut
+          // s'être terminée depuis (cf. `_currentCategoryIdOf`).
+          categoryId: _currentCategoryIdOf(clip),
           tags: clip.tags,
           addedAt: clip.addedAt,
           thumbnailUrl: clip.thumbnailUrl,

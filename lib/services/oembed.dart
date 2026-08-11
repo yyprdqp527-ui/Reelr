@@ -1333,7 +1333,27 @@ class OEmbedService {
     return cleaned;
   }
 
+  /// Décode les entités HTML, en repassant tant que le texte change.
+  ///
+  /// Un seul passage ne suffit pas : LinkedIn sert des titres DOUBLEMENT
+  /// encodés. « & » y arrive sous la forme `&amp;amp;`, qu'un décodage
+  /// unique transforme en `&amp;` — visible tel quel par l'utilisateur.
+  /// Observé sur « INA mediapro &amp; mediaclip ».
+  ///
+  /// Trois passages au maximum : au-delà, on est soit sur du texte qui
+  /// contient légitimement « &amp; », soit sur une chaîne construite pour
+  /// boucler. Dans les deux cas, mieux vaut s'arrêter.
   static String _decodeHtmlEntities(String s) {
+    var out = s;
+    for (var i = 0; i < 3; i++) {
+      final next = _decodeHtmlEntitiesOnce(out);
+      if (next == out) break;
+      out = next;
+    }
+    return out;
+  }
+
+  static String _decodeHtmlEntitiesOnce(String s) {
     return s
         .replaceAll('&amp;', '&')
         .replaceAll('&quot;', '"')
