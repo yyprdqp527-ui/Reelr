@@ -653,6 +653,7 @@ class OEmbedService {
   ///   - tiktok.com/download-link/  (wrapper AppsFlyer TikTok)
   ///   - vm./vt.tiktok.com          (liens courts TikTok)
   ///   - tiktok.com/t/xxx           (idem, forme par chemin)
+  ///   - lnkd.in                    (liens courts LinkedIn)
   ///
   /// Le resultat sert a la deduplication (isDuplicate), mais aussi —
   /// et c'est essentiel — d'URL stockee pour le clip : dans
@@ -675,6 +676,12 @@ class OEmbedService {
         host.endsWith('reddit.com') && uri.pathSegments.contains('s');
     final isGoogleShareLink =
         host == 'share.google' || host.endsWith('.share.google');
+    // Lien court LinkedIn : chaque partage genere une URL lnkd.in
+    // differente pour la meme video (code de tracking unique par
+    // partage). Non resolu, deux partages du meme contenu produisaient
+    // deux clips distincts malgre le controle anti-doublon — signale en
+    // production par l'utilisatrice.
+    final isLinkedInShortLink = host == 'lnkd.in';
     // Liens courts TikTok : vm./vt.tiktok.com et tiktok.com/t/xxx.
     // Non resolus, ils cassaient le dedoublonnage : `_tiktokVideoId`
     // cherche un segment `video` dans le chemin, absent de ces formes.
@@ -690,6 +697,7 @@ class OEmbedService {
         !isRedditShareLink &&
         !isGoogleShareLink &&
         !isTikTokShortLink &&
+        !isLinkedInShortLink &&
         tiktokDownloadLinkId == null) {
       return uri;
     }
