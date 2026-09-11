@@ -1135,10 +1135,14 @@ class CategoryClassifier {
 
   /// Detection forte et sans ambiguite, utilisee pour classer un clip SANS
   /// appeler Claude : influenceur connu, marque connue, ou mot-cle a poids
-  /// eleve (>=3, les mots-cles calibres comme non ambigus). Retourne le nom
-  /// de categorie ou null si aucun signal fort -- dans ce cas on part sur
-  /// Claude comme avant.
-  static String? detectStrongMatch(String title, {String? channel}) {
+  /// eleve (par defaut >=3, les mots-cles calibres comme non ambigus).
+  /// [minScore] est parametrable : abaisse a 2 par
+  /// [ClipsState.classifyClipInBackground] pour simplement detecter un doute
+  /// (pas pour decider seul) avant d'appliquer aveuglement l'historique
+  /// d'une chaine deja apprise. Retourne le nom de categorie ou null si
+  /// aucun signal suffisant -- dans ce cas on part sur Claude comme avant.
+  static String? detectStrongMatch(String title,
+      {String? channel, int minScore = 3}) {
     if (channel != null &&
         channel.trim().isNotEmpty &&
         _isKnownNewsOutlet(channel)) {
@@ -1168,7 +1172,7 @@ class CategoryClassifier {
     });
     if (scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    if (best.value < 3) return null;
+    if (best.value < minScore) return null;
     return _suggestionFor(best.key)?.name;
   }
 }

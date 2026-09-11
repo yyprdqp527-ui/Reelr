@@ -430,16 +430,39 @@ class ClipsState extends ChangeNotifier {
             "titre. Claude n'a pas été appelé.";
       }
 
-      // 2) Chaine deja vue et apprise automatiquement
+      // 2) Chaine deja vue et apprise automatiquement -- SAUF si le titre
+      // de CETTE video porte un indice, meme faible, vers une AUTRE
+      // categorie precise. Sans ce garde-fou, un createur a contenu mixte
+      // (ex. tricot ET crochet) voit toutes ses videos forcees dans la
+      // categorie dominante de son historique, meme quand le titre dit
+      // clairement autre chose (observe en production : une video de
+      // crochet classee Tricot). Seuil abaisse a 2 (vs. 3 pour une
+      // correspondance forte autonome, cf. `detectStrongMatch`) : on ne
+      // decide pas seul avec un indice faible, on evite seulement
+      // d'ecraser l'evidence du titre avec l'historique de la chaine.
       if (catName == null && clip.channel != null && clip.channel!.isNotEmpty) {
-        catName = profile.learnedCategoryForChannel(clip.channel!);
-        if (catName != null) {
-          debugPrint('[classify] chaine connue "${clip.channel}" -> $catName (Claude saute)');
-          decisionSource = "couche 2 · chaîne apprise";
-          decisionReason = "La chaîne « ${clip.channel} » a déjà été classée "
-              "au moins 3 fois dans cette catégorie. Claude n'a pas été "
-              "appelé. Cet apprentissage vient des prédictions passées, pas "
-              "de tes corrections.";
+        final learned = profile.learnedCategoryForChannel(clip.channel!);
+        if (learned != null) {
+          final hint = CategoryClassifier.detectStrongMatch(
+              effectiveTitle,
+              minScore: 2);
+          final learnedCat = findBestCategoryMatch(learned);
+          final hintContradictsLearned = hint != null &&
+              learnedCat != null &&
+              hint.toLowerCase() != learnedCat.name.trim().toLowerCase();
+          if (!hintContradictsLearned) {
+            catName = learned;
+            debugPrint('[classify] chaine connue "${clip.channel}" -> $catName (Claude saute)');
+            decisionSource = "couche 2 · chaîne apprise";
+            decisionReason = "La chaîne « ${clip.channel} » a déjà été classée "
+                "au moins 3 fois dans cette catégorie. Claude n'a pas été "
+                "appelé. Cet apprentissage vient des prédictions passées, pas "
+                "de tes corrections.";
+          } else {
+            debugPrint('[classify] chaine connue "${clip.channel}" -> $learned, '
+                'mais le titre suggere "$hint" : appel de Claude par '
+                'prudence (chaine possiblement a contenu mixte).');
+          }
         }
       }
 
