@@ -1248,18 +1248,17 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Réordonne les clips d'une catégorie (drag & drop manuel).
-  /// [oldIndex] et [newIndex] sont les indices dans la liste triée par position.
+  /// Réordonne les clips d'une catégorie (drag & drop manuel), à partir de
+  /// la liste [currentOrder] telle qu'affichée à l'écran (déjà filtrée par
+  /// catégorie/sous-catégorie et triée). On repart de cette liste plutôt que
+  /// de la recalculer depuis toute la catégorie : [oldIndex]/[newIndex]
+  /// correspondent ainsi toujours à la vidéo réellement glissée, y compris
+  /// quand une sous-catégorie est sélectionnée (sinon un autre clip que
+  /// celui déplacé par l'utilisateur se retrouvait réordonné, d'où l'ordre
+  /// qui semblait « revenir en arrière »).
   Future<void> reorderClips(
-      String? categoryId, int oldIndex, int newIndex) async {
-    // Liste filtrée triée par position (tiebreaker : addedAt DESC)
-    final sorted = (categoryId == null
-            ? List<Clip>.from(_clips)
-            : _clips.where((c) => c.categoryId == categoryId).toList())
-        ..sort((a, b) {
-          final cmp = a.position.compareTo(b.position);
-          return cmp != 0 ? cmp : b.addedAt.compareTo(a.addedAt);
-        });
+      List<Clip> currentOrder, int oldIndex, int newIndex) async {
+    final sorted = List<Clip>.from(currentOrder);
 
     // newIndex est déjà ajusté par onReorderItem
     final moved = sorted.removeAt(oldIndex);

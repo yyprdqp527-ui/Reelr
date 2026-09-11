@@ -1066,7 +1066,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   static const String _reorderHintPrefKey = 'reorder_hint_seen';
 
   SortOrder _sortOrder = SortOrder.chronological;
-  bool _reorderMode = false;
   bool _gridView = false;
   final GlobalKey _firstClipMenuKey = GlobalKey();
   final GlobalKey _sharePlaylistKey = GlobalKey();
@@ -1080,37 +1079,22 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   String? _selectedSubcategoryId;
   String? _selectedSubSubcategoryId;
 
-  /// Active/désactive le mode réorganisation. Affiche l'aide de première
-  /// utilisation à l'entrée (une seule fois, mémorisée via SharedPreferences)
-  /// et un message discret "Ordre enregistré" à la sortie — l'ordre est en
-  /// réalité déjà persisté à chaque déplacement (voir [ClipsState.reorderClips]),
-  /// ce message ne fait que confirmer visuellement la sauvegarde.
-  Future<void> _toggleReorderMode(AppL10n l) async {
-    final enteringReorderMode = !_reorderMode;
-    setState(() => _reorderMode = enteringReorderMode);
-    if (!mounted) return;
-    if (enteringReorderMode) {
-      final prefs = await SharedPreferences.getInstance();
-      final alreadySeen = prefs.getBool(_reorderHintPrefKey) ?? false;
-      if (!alreadySeen && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l.t('reorder_hint')),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-        await prefs.setBool(_reorderHintPrefKey, true);
-      }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l.t('reorder_order_saved')),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    }
+  /// Affiche l'aide de première utilisation du tri manuel, une seule fois
+  /// (mémorisée via SharedPreferences) : les vidéos se réordonnent
+  /// directement au doigt, sans mode ni poignée dédiés — le nouvel ordre est
+  /// persisté à chaque déplacement (voir [ClipsState.reorderClips]).
+  Future<void> _maybeShowManualSortHint(AppL10n l) async {
+    final prefs = await SharedPreferences.getInstance();
+    final alreadySeen = prefs.getBool(_reorderHintPrefKey) ?? false;
+    if (alreadySeen || !mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l.t('reorder_hint')),
+        duration: const Duration(seconds: 3),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+    await prefs.setBool(_reorderHintPrefKey, true);
   }
 
   /// Génère le lien de playlist (voir [PlaylistLink]) et le partage via le
@@ -1250,11 +1234,15 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 tooltip: l.t('sort'),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14)),
-                onSelected: (order) => setState(() {
-                  _sortOrder = order;
-                  if (order != SortOrder.manual) _reorderMode = false;
-                  widget.state.setSortOrderFor(widget.categoryId, order);
-                }),
+                onSelected: (order) {
+                  setState(() {
+                    _sortOrder = order;
+                    widget.state.setSortOrderFor(widget.categoryId, order);
+                  });
+                  if (order == SortOrder.manual && clips.length >= 2) {
+                    unawaited(_maybeShowManualSortHint(l));
+                  }
+                },
                 itemBuilder: (_) => [
                   _sortItem(SortOrder.chronological,
                       Icons.access_time_rounded, l.t('sort_date_added')),
@@ -1264,30 +1252,6 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       SortOrder.manual, Icons.drag_handle_rounded, l.t('sort_manual')),
                 ],
               ),
-              // Bouton Reorder/Done — visible uniquement en mode Manuel et
-              // uniquement s'il y a au moins 2 vidéos à réordonner.
-              if (_sortOrder == SortOrder.manual && clips.length >= 2)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-                    child: TextButton.icon(
-                      onPressed: () => _toggleReorderMode(l),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.orange,
-                        padding: const EdgeInsets.symmetric(horizontal: 10),
-                        minimumSize: const Size(44, 44),
-                      ),
-                      icon: Icon(_reorderMode
-                          ? Icons.check_circle_rounded
-                          : Icons.reorder_rounded),
-                      label: Text(
-                        _reorderMode ? l.t('reorder_done') : l.t('reorder'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ),
               if (widget.categoryId != null && _selectedSubcategoryId == null) ...[
                 // Même aspect que les autres actions de cette barre (grille,
                 // manuel) : icône simple sans fond ni bordure — fonction
@@ -1349,12 +1313,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             : (widget.categoryId != null
                                 ? _CategoryEmptyState(l: l)
                                 : _EmptyState(l: l, state: widget.state)))
-                        : _reorderMode && clips.length >= 2
+                        : _sortOrder == SortOrder.manual && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
                                     16, 8, 16, 32),
                                 itemCount: clips.length,
-                                buildDefaultDragHandles: false,
+                                // Poignées par défaut : sur mobile, Flutter
+                                // enveloppe alors chaque tuile entière dans
+                                // un long-press-and-drag — l'utilisateur
+                                // réordonne directement au doigt, sans mode
+                                // ni poignée dédiés à afficher/masquer.
                                 proxyDecorator: (child, index, animation) =>
                                     AnimatedBuilder(
                                   animation: animation,
@@ -1379,65 +1347,28 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                   key: ValueKey(clips[i].id),
                                   padding:
                                       const EdgeInsets.only(bottom: 12),
-                                  child: Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        // En mode réorganisation, seule la
-                                        // poignée doit déclencher une action :
-                                        // un appui sur le reste de la carte
-                                        // ne doit pas ouvrir la vidéo.
-                                        child: AbsorbPointer(
-                                          absorbing: true,
-                                          child: ClipCard(
-                                              clip: clips[i],
-                                              state: widget.state,
-                                              currentCategoryId: widget.categoryId),
-                                        ),
-                                      ),
-                                      Semantics(
-                                        label: l.t('reorder'),
-                                        customSemanticsActions: {
-                                          if (i > 0)
-                                            CustomSemanticsAction(
-                                                label: l.t('reorder_move_up')): () =>
-                                                widget.state.reorderClips(
-                                                    widget.categoryId, i, i - 1),
-                                          if (i < clips.length - 1)
-                                            CustomSemanticsAction(
-                                                label: l.t('reorder_move_down')): () =>
-                                                widget.state.reorderClips(
-                                                    widget.categoryId, i, i + 1),
-                                        },
-                                        child: ReorderableDragStartListener(
-                                          index: i,
-                                          child: ConstrainedBox(
-                                            constraints: const BoxConstraints(
-                                                minWidth: 44, minHeight: 44),
-                                            child: Container(
-                                              alignment: Alignment.center,
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 10,
-                                                      vertical: 16),
-                                              child: Icon(
-                                                Icons.drag_handle_rounded,
-                                                color: Colors.grey
-                                                    .withValues(alpha: 0.6),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                  child: Semantics(
+                                    customSemanticsActions: {
+                                      if (i > 0)
+                                        CustomSemanticsAction(
+                                            label: l.t('reorder_move_up')): () =>
+                                            widget.state.reorderClips(
+                                                clips, i, i - 1),
+                                      if (i < clips.length - 1)
+                                        CustomSemanticsAction(
+                                            label: l.t('reorder_move_down')): () =>
+                                            widget.state.reorderClips(
+                                                clips, i, i + 1),
+                                    },
+                                    child: ClipCard(
+                                        clip: clips[i],
+                                        state: widget.state,
+                                        currentCategoryId: widget.categoryId),
                                   ),
                                 ),
                                 onReorderItem: (oldIndex, newIndex) =>
                                     widget.state.reorderClips(
-                                        widget.categoryId,
-                                        oldIndex,
-                                        newIndex),
+                                        clips, oldIndex, newIndex),
                               )
                             : _gridView
                                 ? GridView.builder(
