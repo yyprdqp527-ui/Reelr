@@ -3,8 +3,15 @@ import '../models/legal_content.dart';
 import 'legal_document_screen.dart';
 
 /// Shown when a free user reaches the saved-videos limit.
-class PaywallScreen extends StatelessWidget {
-  final VoidCallback onUpgrade;
+class PaywallScreen extends StatefulWidget {
+  /// Doit rester en vol tant que StoreKit n'a pas tranche : l'ecran affiche
+  /// un indicateur pendant toute la duree de ce Future.
+  final Future<void> Function() onUpgrade;
+
+  /// Restauration d'un abonnement deja paye (nouvel appareil, reinstallation).
+  /// Exige par la guideline Apple 3.1.1 sur l'ecran qui propose l'achat.
+  final Future<void> Function()? onRestore;
+
   final VoidCallback onClose;
   final String? priceText;
   final bool isLoading;
@@ -13,9 +20,37 @@ class PaywallScreen extends StatelessWidget {
     super.key,
     required this.onUpgrade,
     required this.onClose,
+    this.onRestore,
     this.priceText,
     this.isLoading = false,
   });
+
+  @override
+  State<PaywallScreen> createState() => _PaywallScreenState();
+}
+
+class _PaywallScreenState extends State<PaywallScreen> {
+  /// Achat ou restauration en cours. Sans cet etat, le tap sur « Passer a
+  /// Premium » ne produisait aucun retour visuel pendant les secondes ou
+  /// StoreKit prepare sa feuille de paiement : l'ecran paraissait mort et
+  /// l'utilisateur retapait, empilant des addPayment en double.
+  bool _busy = false;
+
+  /// Le bouton d'achat est inerte tant que le prix n'est pas charge ou
+  /// qu'une operation est en vol.
+  bool get _upgradeBlocked => widget.isLoading || _busy;
+
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    try {
+      await action();
+    } finally {
+      // L'ecran peut avoir ete ferme entre-temps (achat reussi : le paywall
+      // se retire tout seul), d'ou le garde-fou avant setState.
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   bool _isFr(BuildContext context) {
     return Localizations.localeOf(context).languageCode == 'fr';
@@ -49,6 +84,10 @@ class PaywallScreen extends StatelessWidget {
     return _isFr(context) ? 'Pas maintenant' : 'Not now';
   }
 
+  String _restoreLabel(BuildContext context) {
+    return _isFr(context) ? 'Restaurer mes achats' : 'Restore purchases';
+  }
+
   String _renewalLabel(BuildContext context) {
     return _isFr(context)
         ? 'Renouvellement annuel · Annulable à tout moment'
@@ -73,7 +112,7 @@ class PaywallScreen extends StatelessWidget {
               child: Padding(
                 padding: const EdgeInsets.only(top: 12, right: 12),
                 child: GestureDetector(
-                  onTap: onClose,
+                  onTap: widget.onClose,
                   child: Container(
                     width: 32,
                     height: 32,
@@ -175,7 +214,7 @@ class PaywallScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 32),
 
-                    if (priceText == null)
+                    if (widget.priceText == null)
                       Text(
                         _loadingPriceLabel(context),
                         style: TextStyle(
@@ -185,7 +224,7 @@ class PaywallScreen extends StatelessWidget {
                       )
                     else ...[
                       Text(
-                        priceText!,
+                        widget.priceText!,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 36,
@@ -217,7 +256,7 @@ class PaywallScreen extends StatelessWidget {
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: isLoading
+                            colors: _upgradeBlocked
                                 ? [
                                     const Color(0xFF5B4B7A),
                                     const Color(0xFF7A5B9A),
@@ -232,7 +271,9 @@ class PaywallScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: ElevatedButton(
-                          onPressed: isLoading ? null : onUpgrade,
+                          onPressed: _upgradeBlocked
+                              ? null
+                              : () => _run(widget.onUpgrade),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             disabledBackgroundColor: Colors.transparent,
@@ -242,7 +283,7 @@ class PaywallScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
-                          child: isLoading
+                          child: _upgradeBlocked
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
@@ -267,7 +308,7 @@ class PaywallScreen extends StatelessWidget {
                     const SizedBox(height: 10),
 
                     TextButton(
-                      onPressed: onClose,
+                      onPressed: widget.onClose,
                       child: Text(
                         _notNowLabel(context),
                         style: TextStyle(
@@ -276,6 +317,19 @@ class PaywallScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (widget.onRestore != null)
+                      TextButton(
+                        onPressed:
+                            _busy ? null : () => _run(widget.onRestore!),
+                        child: Text(
+                          _restoreLabel(context),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.45),
+                            fontSize: 13,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
                     Text(
                       _renewalLabel(context),
                       textAlign: TextAlign.center,

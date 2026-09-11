@@ -60,6 +60,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   int _lastCountdownWarningShownAt = 0;
   late final PurchaseService _purchaseService;
   bool _purchaseServiceReady = false;
+  /// Route du paywall actuellement affiche, pour pouvoir la refermer depuis
+  /// l'exterieur quand l'achat aboutit.
+  Route<void>? _paywallRoute;
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   StreamSubscription<List<SharedMediaFile>>? _shareSub;
   StreamSubscription<Uri>? _deepLinkSub;
@@ -130,7 +133,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     _initShareIntent();
     _initDeepLinks();
     _purchaseService = PurchaseService(
-      onPremiumUnlocked: () => setPremium(true),
+      onPremiumUnlocked: () {
+        setPremium(true);
+        _dismissPaywallIfOpen();
+      },
       // Retire l'accès Premium local si l'abonnement n'est plus retrouvé
       // côté store au démarrage (résilié, expiré, remboursé...) — avant cet
       // ajout, rien ne repassait jamais is_premium à false une fois activé.
@@ -555,19 +561,66 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// pour que l'achat ne soit pas caché derrière la limite de 50 clips
   /// (cf. rejet Apple 2.1(b) — IAP introuvable par le reviewer).
   void showPaywall() {
-    _navigatorKey.currentState?.push(
-      MaterialPageRoute(
-        builder: (_) => PaywallScreen(
-          priceText: _purchaseService.premiumProduct?.price,
-          isLoading:
-              !_purchaseServiceReady || _purchaseService.premiumProduct == null,
-          onUpgrade: () {
-            _purchaseService.buyPremium();
-          },
-          onClose: () => _navigatorKey.currentState?.pop(),
-        ),
+    final navigator = _navigatorKey.currentState;
+    if (navigator == null) return;
+    // Un seul paywall a la fois : deux ecrans identiques empiles obligeaient
+    // a fermer deux fois.
+    final existing = _paywallRoute;
+    if (existing != null && existing.isActive) return;
+
+    final route = MaterialPageRoute<void>(
+      builder: (_) => PaywallScreen(
+        priceText: _purchaseService.premiumProduct?.price,
+        isLoading:
+            !_purchaseServiceReady || _purchaseService.premiumProduct == null,
+        // On attend l'etat terminal cote StoreKit (achete, annule, erreur)
+        // avant de rendre la main : le paywall garde son indicateur pendant
+        // toute la preparation de la feuille de paiement, au lieu de rester
+        // visuellement inerte.
+        onUpgrade: () async {
+          final started = await _purchaseService.buyPremium();
+          if (started) {
+            await _purchaseService.waitUntilSettled();
+          }
+        },
+        onRestore: () async {
+          await _purchaseService.restorePurchases();
+          await _purchaseService.waitUntilSettled(
+            timeout: const Duration(seconds: 10),
+          );
+          if (!mounted || _isPremium) return;
+          final ctx = _navigatorKey.currentContext;
+          // Le lint exige que le garde-fou porte sur le BuildContext
+          // reellement utilise, pas sur le State qui l'a recupere.
+          if (ctx == null || !ctx.mounted) return;
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              content: Text(
+                _locale.languageCode == 'fr'
+                    ? 'Aucun abonnement à restaurer sur ce compte Apple.'
+                    : 'No subscription to restore on this Apple account.',
+              ),
+            ),
+          );
+        },
+        onClose: () => _navigatorKey.currentState?.pop(),
       ),
     );
+    _paywallRoute = route;
+    navigator.push(route).whenComplete(() {
+      if (identical(_paywallRoute, route)) _paywallRoute = null;
+    });
+  }
+
+  /// Retire le paywall des qu'un achat aboutit. Sans ca, l'utilisateur
+  /// payait, la feuille App Store se fermait, et il retombait sur le meme
+  /// ecran « Passer a Premium » inchange — donnant l'impression que rien ne
+  /// s'etait passe, avec le risque d'un second achat.
+  void _dismissPaywallIfOpen() {
+    final route = _paywallRoute;
+    if (route == null || !route.isActive) return;
+    _paywallRoute = null;
+    _navigatorKey.currentState?.removeRoute(route);
   }
 
   /// Expose l'achat premium pour les écrans (Paywall, Settings).

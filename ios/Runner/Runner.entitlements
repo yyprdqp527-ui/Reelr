@@ -6,9 +6,16 @@
 	<array>
 		<string>group.com.reelr.app.shared</string>
 	</array>
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:yyprdqp527-ui.github.io</string>
-	</array>
+	<!-- Universal Links retires le 2026-08-31 : l'entitlement etait inerte
+	     (aucun apple-app-site-association servi sur yyprdqp527-ui.github.io,
+	     racine du domaine en 404 faute de repo user-pages), et il bloquait
+	     l'export App Store. Le partage de playlist continue de fonctionner
+	     via playlist.html + le schema reelr:// (CFBundleURLSchemes).
+	     Pour le remettre : creer le repo yyprdqp527-ui.github.io, y servir
+	     /.well-known/apple-app-site-association avec l'appID
+	     YPQ8H3U5HX.com.reelr.app, verifier, puis restaurer :
+	       <key>com.apple.developer.associated-domains</key>
+	       <array><string>applinks:yyprdqp527-ui.github.io</string></array>
+	     et regenerer le profil "Reelr App Store". -->
 </dict>
 </plist>

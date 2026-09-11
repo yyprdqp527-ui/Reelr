@@ -23,6 +23,23 @@ class PurchaseService {
   ProductDetails? premiumProduct;
   bool isLoadingProduct = false;
 
+  /// Se complete quand l'operation en cours (achat ou restauration) atteint
+  /// un etat terminal cote StoreKit : achete, restaure, annule ou en erreur.
+  /// Permet a l'ecran appelant d'afficher un indicateur tant que rien n'est
+  /// tranche, au lieu de rendre la main immediatement apres addPayment et de
+  /// laisser l'utilisateur devant un bouton qui ne reagit pas.
+  Completer<void>? _settled;
+
+  /// Filet de securite : StoreKit peut ne jamais rien renvoyer (restauration
+  /// sans rien a restaurer, file de paiement muette). Sans ce minuteur, le
+  /// jalon resterait ouvert a vie et gelerait les achats suivants.
+  Timer? _watchdog;
+
+  /// Vrai entre l'appel a buyNonConsumable et l'etat terminal de cet achat.
+  /// Sert uniquement a ignorer les taps repetes : une restauration en cours
+  /// ne doit pas, elle, empecher un achat.
+  bool _purchaseInFlight = false;
+
   PurchaseService({
     required this.onPremiumUnlocked,
     required this.isFr,
@@ -72,6 +89,40 @@ class PurchaseService {
     }
   }
 
+  /// Ouvre un nouveau jalon d'attente, en liberant celui qui trainait.
+  Completer<void> _arm(Duration watchdog) {
+    _settle();
+    final fresh = Completer<void>();
+    _settled = fresh;
+    _watchdog = Timer(watchdog, _settle);
+    return fresh;
+  }
+
+  /// Marque l'operation en cours comme tranchee. Idempotent.
+  void _settle() {
+    _watchdog?.cancel();
+    _watchdog = null;
+    _purchaseInFlight = false;
+    final c = _settled;
+    if (c != null && !c.isCompleted) c.complete();
+  }
+
+  /// Attend que l'achat ou la restauration en cours atteigne un etat
+  /// terminal, avec un plafond de securite pour ne jamais laisser un
+  /// indicateur tourner indefiniment si StoreKit ne renvoie rien.
+  Future<void> waitUntilSettled({
+    Duration timeout = const Duration(seconds: 90),
+  }) async {
+    final c = _settled;
+    if (c == null || c.isCompleted) return;
+    try {
+      await c.future.timeout(timeout);
+    } on TimeoutException {
+      debugPrint('[purchase] waitUntilSettled: plafond atteint.');
+      _settle();
+    }
+  }
+
   Future<bool> buyPremium() async {
     if (!isAvailable) {
       onError?.call(isFr()
@@ -86,10 +137,21 @@ class PurchaseService {
           : 'Product unavailable right now. Please try again in a moment.');
       return false;
     }
+    // Un achat deja en vol : ne pas empiler un second addPayment dans la
+    // file StoreKit, qui le rejetterait avec une erreur trompeuse.
+    if (_purchaseInFlight) {
+      debugPrint('[purchase] Achat deja en cours — tap ignore.');
+      return true;
+    }
     final purchaseParam = PurchaseParam(productDetails: product);
+    final settled = _arm(const Duration(minutes: 3));
+    _purchaseInFlight = true;
     try {
-      return await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+      final started = await _iap.buyNonConsumable(purchaseParam: purchaseParam);
+      if (!started && identical(_settled, settled)) _settle();
+      return started;
     } catch (e) {
+      if (identical(_settled, settled)) _settle();
       debugPrint('[purchase] Exception lors de buyNonConsumable: $e');
       onError?.call(isFr()
           ? 'Achat impossible. Réessaie plus tard.'
@@ -105,9 +167,11 @@ class PurchaseService {
           : 'Purchases are not available on this device.');
       return;
     }
+    final settled = _arm(const Duration(seconds: 30));
     try {
       await _iap.restorePurchases();
     } catch (e) {
+      if (identical(_settled, settled)) _settle();
       debugPrint('[purchase] Exception lors de restorePurchases: $e');
       onError?.call(isFr()
           ? 'Restauration impossible. Réessaie plus tard.'
@@ -134,6 +198,12 @@ class PurchaseService {
     required bool currentlyPremium,
   }) async {
     if (!isAvailable) return;
+    // Rien a revoquer chez un utilisateur non Premium : inutile de lancer
+    // une restauration au demarrage. Elle occupait la file de paiement
+    // StoreKit pendant plusieurs secondes (restore + 6 s d'attente) et tout
+    // achat declenche dans cette fenetre restait bloque derriere elle —
+    // exactement le cas d'un utilisateur gratuit qui ouvre le paywall.
+    if (!currentlyPremium) return;
     var found = false;
     final sub = _iap.purchaseStream.listen((purchases) {
       for (final p in purchases) {
@@ -174,6 +244,7 @@ class PurchaseService {
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           debugPrint('[purchase] Achat confirmé (${purchase.status}).');
+          _settle();
           onPremiumUnlocked();
           if (purchase.pendingCompletePurchase) {
             _iap.completePurchase(purchase);
@@ -181,6 +252,7 @@ class PurchaseService {
           break;
         case PurchaseStatus.error:
           debugPrint('[purchase] Erreur d\'achat: ${purchase.error}');
+          _settle();
           onError?.call(isFr()
               ? 'L\'achat a échoué. Réessaie plus tard.'
               : 'The purchase failed. Please try again later.');
@@ -190,6 +262,7 @@ class PurchaseService {
           break;
         case PurchaseStatus.canceled:
           debugPrint('[purchase] Achat annulé par l\'utilisateur.');
+          _settle();
           if (purchase.pendingCompletePurchase) {
             _iap.completePurchase(purchase);
           }
@@ -199,6 +272,7 @@ class PurchaseService {
   }
 
   void dispose() {
+    _settle();
     _subscription?.cancel();
   }
 }
