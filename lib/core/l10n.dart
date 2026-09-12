@@ -242,7 +242,7 @@ class AppL10n {
 
   // Noms FR des catégories (par ID)
   static const Map<String, String> _categoryNamesFr = {
-    'cat_food':           'Food',
+    'cat_food':           'Recette',
     'cat_fitness':        'Fitness',
     'cat_gaming':         'Gaming',
     'cat_beauty':         'Beauté',
@@ -364,7 +364,123 @@ class AppL10n {
     'Cuisine': 'Cooking', 'Finance & Business': 'Finance & Business',
   };
 
+  /// Variantes connues qui ne sont ni le nom FR ni le nom EN "officiel"
+  /// d'une catégorie `cat_xxx`, mais désignent la même chose (anciennes
+  /// catégories créées à la main, anciennes versions de l'app, pluriels...).
+  /// Sert uniquement à la résolution vers l'ID canonique ci-dessous — jamais
+  /// affiché directement.
+  static const Map<String, List<String>> _extraSynonyms = {
+    'cat_food': ['food', 'recette', 'recettes', 'cuisine'],
+  };
+
+  /// Couleur/icône "officielles" de chaque catégorie standard `cat_xxx` —
+  /// source unique, reprise à l'identique de `ClipsState` (couleurs/icônes)
+  /// et de `CategoryVisuals` (les 3 entrées qui manquaient : tricotage,
+  /// crochet, moto). Utilisée à la fois pour créer une nouvelle catégorie
+  /// IA avec le bon rendu dès le départ, et pour réparer en base celles qui
+  /// étaient déjà tombées sur le violet/dossier par défaut à cause du même
+  /// bug (voir `DatabaseHelper._repairGenericCategoryVisuals`).
+  static const Map<String, Color> categoryColors = {
+    'cat_food': Color(0xFFFF6B6B), 'cat_fitness': Color(0xFF4ECDC4),
+    'cat_gaming': Color(0xFF74B9FF), 'cat_beauty': Color(0xFFFF85B3),
+    'cat_mode': Color(0xFFC77DFF), 'cat_travel': Color(0xFF81ECEC),
+    'cat_humour': Color(0xFFFFE66D), 'cat_musique': Color(0xFFFF7675),
+    'cat_wellness': Color(0xFFA8E6CF), 'cat_podcast': Color(0xFFB2BEC3),
+    'cat_famille': Color(0xFFFD79A8), 'cat_finance': Color(0xFF00B894),
+    'cat_actu': Color(0xFF90A4AE), 'cat_diy': Color(0xFFE17055),
+    'cat_deco': Color(0xFFFAB1A0), 'cat_auto': Color(0xFFFFB347),
+    'cat_culture': Color(0xFF8E44AD), 'cat_cinema': Color(0xFFEF9A9A),
+    'cat_growth': Color(0xFF27AE60), 'cat_pets': Color(0xFF16A085),
+    'cat_truecrime': Color(0xFFE57373), 'cat_astro': Color(0xFFCE93D8),
+    'cat_business': Color(0xFF26A69A), 'cat_societe': Color(0xFF78909C),
+    'cat_nature': Color(0xFF81C784), 'cat_sport': Color(0xFFFF5252),
+    'cat_sante': Color(0xFFFF8A65), 'cat_science': Color(0xFF4FC3F7),
+    'cat_bebe': Color(0xFFFFCC80), 'cat_tricot': Color(0xFFCE93D8),
+    'cat_doc': Color(0xFF90A4AE), 'cat_religion': Color(0xFFB39DDB),
+    'cat_immo': Color(0xFFBCAAA4), 'cat_manga': Color(0xFFFF8A80),
+    'cat_politique': Color(0xFF80CBC4), 'cat_crypto': Color(0xFFF7DC6F),
+    'cat_lang': Color(0xFF80DEEA), 'cat_histoire': Color(0xFFA5D6A7),
+    'cat_art': Color(0xFFE040FB), 'cat_photo': Color(0xFF4DD0E1),
+    'cat_outdoor': Color(0xFF69F0AE), 'cat_psycho': Color(0xFFFFAB91),
+    'cat_luxe': Color(0xFFFFD700), 'cat_entrepreneuriat': Color(0xFF4CAF50),
+    'cat_education': Color(0xFF29B6F6), 'cat_cosplay': Color(0xFFBA68C8),
+    'cat_dance': Color(0xFFFF4081), 'cat_comedy': Color(0xFFFFEB3B),
+    'cat_jardin': Color(0xFF8BC34A), 'cat_sport_extreme': Color(0xFFFF6D00),
+    'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
+    'cat_fail': Color(0xFFFF5722),
+    'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
+    // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
+    'cat_tricotage': Color(0xFFD4A5D9),
+    'cat_crochet': Color(0xFFC08FD0),
+    'cat_moto': Color(0xFF7FA0D8),
+  };
+
+  static const Map<String, IconData> categoryIcons = {
+    'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
+    'cat_gaming': Icons.sports_esports_rounded, 'cat_beauty': Icons.brush_rounded,
+    'cat_mode': Icons.style_rounded, 'cat_travel': Icons.flight_takeoff_rounded,
+    'cat_humour': Icons.sentiment_very_satisfied_rounded, 'cat_musique': Icons.music_note_rounded,
+    'cat_wellness': Icons.self_improvement_rounded, 'cat_podcast': Icons.mic_rounded,
+    'cat_famille': Icons.family_restroom_rounded, 'cat_finance': Icons.trending_up_rounded,
+    'cat_actu': Icons.newspaper_rounded, 'cat_diy': Icons.handyman_rounded,
+    'cat_deco': Icons.home_rounded, 'cat_auto': Icons.directions_car_rounded,
+    'cat_culture': Icons.theater_comedy_rounded, 'cat_cinema': Icons.movie_rounded,
+    'cat_growth': Icons.rocket_launch_rounded, 'cat_pets': Icons.pets_rounded,
+    'cat_truecrime': Icons.gavel_rounded, 'cat_astro': Icons.auto_awesome_rounded,
+    'cat_business': Icons.business_center_rounded, 'cat_societe': Icons.people_rounded,
+    'cat_nature': Icons.park_rounded, 'cat_sport': Icons.sports_soccer_rounded,
+    'cat_sante': Icons.favorite_rounded, 'cat_science': Icons.science_rounded,
+    'cat_bebe': Icons.child_care_rounded, 'cat_tricot': Icons.content_cut_rounded,
+    'cat_doc': Icons.video_library_rounded, 'cat_religion': Icons.church_rounded,
+    'cat_immo': Icons.apartment_rounded, 'cat_manga': Icons.auto_stories_rounded,
+    'cat_politique': Icons.account_balance_rounded, 'cat_crypto': Icons.currency_bitcoin_rounded,
+    'cat_lang': Icons.translate_rounded, 'cat_histoire': Icons.history_edu_rounded,
+    'cat_art': Icons.palette_rounded, 'cat_photo': Icons.camera_alt_rounded,
+    'cat_outdoor': Icons.terrain_rounded, 'cat_psycho': Icons.psychology_rounded,
+    'cat_luxe': Icons.diamond_rounded, 'cat_entrepreneuriat': Icons.lightbulb_rounded,
+    'cat_education': Icons.school_rounded, 'cat_cosplay': Icons.masks_rounded,
+    'cat_dance': Icons.music_video_rounded, 'cat_comedy': Icons.mic_external_on_rounded,
+    'cat_jardin': Icons.yard_rounded, 'cat_sport_extreme': Icons.paragliding_rounded,
+    'cat_nutrition': Icons.no_food_rounded, 'cat_vintage': Icons.watch_rounded,
+    'cat_fail': Icons.sentiment_very_dissatisfied_rounded,
+    'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
+    // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
+    'cat_tricotage': Icons.checkroom_outlined,
+    'cat_crochet': Icons.gesture_rounded,
+    'cat_moto': Icons.two_wheeler_rounded,
+  };
+
+  /// Résout un libellé brut de catégorie (renvoyé par Claude, saisi à la
+  /// main, ou hérité d'une ancienne version) vers l'ID canonique `cat_xxx`
+  /// correspondant, si connu — insensible à la casse/aux espaces.
+  ///
+  /// Permet de reconnaître qu'une catégorie nommée "Food" et une catégorie
+  /// nommée "Recette" désignent la même chose (l'IA répond toujours en
+  /// anglais, quelle que soit la langue de l'app), afin de les fusionner au
+  /// lieu d'en créer une par langue. Généralisable à toute autre paire
+  /// FR/EN du catalogue standard.
+  static String? canonicalCategoryId(String rawLabel) {
+    final normalized = rawLabel.trim().toLowerCase();
+    if (normalized.isEmpty) return null;
+    for (final entry in _categoryNamesEn.entries) {
+      if (entry.key.startsWith('cat_') && entry.value.toLowerCase() == normalized) {
+        return entry.key;
+      }
+    }
+    for (final entry in _categoryNamesFr.entries) {
+      if (entry.key.startsWith('cat_') && entry.value.toLowerCase() == normalized) {
+        return entry.key;
+      }
+    }
+    for (final entry in _extraSynonyms.entries) {
+      if (entry.value.contains(normalized)) return entry.key;
+    }
+    return null;
+  }
+
   String localizeCategory(String name) {
+    final canonicalId = canonicalCategoryId(name);
+    if (canonicalId != null) return localizeCategoryById(canonicalId);
     if (locale.languageCode == 'en') {
       return _categoryNamesEn[name] ?? _categoryNamesEn[name.toLowerCase()] ?? name;
     }

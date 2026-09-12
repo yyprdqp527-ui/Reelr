@@ -5,6 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 import '../models/category.dart';
 import '../models/clip.dart';
+import '../core/l10n.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -20,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 13, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 15, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 13, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 15, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -157,7 +158,112 @@ class DatabaseHelper {
       // Les clips existants restent a NULL, sans refetch.
       await db.execute('ALTER TABLE clips ADD COLUMN description TEXT');
     }
+    if (oldVersion < 14) {
+      // Fusionne les categories qui designent la meme chose dans deux
+      // langues differentes (typiquement "Food" cree par l'IA a cote d'une
+      // "Recette" plus ancienne : Claude repond toujours dans la langue
+      // fixee par son prompt, pas dans celle de l'app -> voir
+      // `AppL10n.canonicalCategoryId`). Generalise a tout le catalogue
+      // standard, pas seulement a Food/Recette.
+      await _mergeLanguageDuplicateCategories(db);
+    }
+    if (oldVersion < 15) {
+      // Meme bug racine que la fusion ci-dessus, cote visuel cette fois :
+      // avant le correctif, une categorie creee par l'IA ne retrouvait
+      // jamais sa couleur/icone officielle (la cle de recherche etait le
+      // libelle brut de Claude, ex. "Crochet", alors que les tables de
+      // correspondance sont indexees par ID `cat_xxx`) et retombait
+      // systematiquement sur le violet + dossier generique. Le correctif
+      // empeche que ça se reproduise pour les nouvelles categories, mais ne
+      // repare pas retroactivement celles deja enregistrees ainsi — d'ou
+      // cette passe unique.
+      await _repairGenericCategoryVisuals(db);
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
+  }
+
+  /// Redonne sa couleur/icone officielle a toute categorie existante encore
+  /// bloquee sur le violet/dossier generique (`0xFF7C3AED` +
+  /// `Icons.folder_rounded`), quand son ID ou son nom correspond a une
+  /// categorie standard reconnue. Ne touche a rien d'autre : une categorie
+  /// personnalisee que l'utilisateur a lui-meme mise en violet/dossier
+  /// n'a aucune raison de correspondre en plus a un nom standard, donc ne
+  /// sera jamais modifiee par erreur.
+  Future<void> _repairGenericCategoryVisuals(Database db) async {
+    const genericColor = 0xFF7C3AED; // Color(0xFF7C3AED).toARGB32()
+    final genericIcon = Icons.folder_rounded.codePoint;
+    final rows = await db.query('categories',
+        where: 'color = ? AND icon = ?',
+        whereArgs: [genericColor, genericIcon]);
+    for (final row in rows) {
+      final id = row['id'] as String;
+      final name = (row['name'] as String?) ?? '';
+      final canonicalId =
+          id.startsWith('cat_') ? id : AppL10n.canonicalCategoryId(name);
+      if (canonicalId == null) continue;
+      final color = AppL10n.categoryColors[canonicalId];
+      final icon = AppL10n.categoryIcons[canonicalId];
+      if (color == null || icon == null) continue;
+      await db.update(
+        'categories',
+        {'color': color.toARGB32(), 'icon': icon.codePoint},
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+  }
+
+  /// Regroupe les categories existantes par ID canonique `cat_xxx` (deduit
+  /// de l'ID lui-meme s'il est deja canonique, sinon du nom affiche via
+  /// `AppL10n.canonicalCategoryId`). Pour chaque groupe de 2+ categories
+  /// designant la meme chose, garde celle qui a le plus de clips (a egalite,
+  /// celle dont l'ID est deja canonique), lui rattache les clips et
+  /// sous-categories des autres, puis supprime les doublons. Ignore toute
+  /// categorie qui ne correspond a aucun nom standard reconnu : les
+  /// categories entierement personnalisees de l'utilisateur restent
+  /// intactes, jamais fusionnees entre elles.
+  Future<void> _mergeLanguageDuplicateCategories(Database db) async {
+    final rows = await db.query('categories');
+    final groups = <String, List<Map<String, Object?>>>{};
+    for (final row in rows) {
+      final id = row['id'] as String;
+      final name = (row['name'] as String?) ?? '';
+      final canonicalId =
+          id.startsWith('cat_') ? id : AppL10n.canonicalCategoryId(name);
+      if (canonicalId == null) continue;
+      groups.putIfAbsent(canonicalId, () => []).add(row);
+    }
+    for (final group in groups.values) {
+      if (group.length < 2) continue;
+      var winner = group.first;
+      var winnerCount = Sqflite.firstIntValue(await db.rawQuery(
+              'SELECT COUNT(*) FROM clips WHERE categoryId = ?',
+              [winner['id']])) ??
+          0;
+      for (final cat in group.skip(1)) {
+        final count = Sqflite.firstIntValue(await db.rawQuery(
+                'SELECT COUNT(*) FROM clips WHERE categoryId = ?',
+                [cat['id']])) ??
+            0;
+        final catIsCanonical = (cat['id'] as String).startsWith('cat_');
+        final winnerIsCanonical = (winner['id'] as String).startsWith('cat_');
+        final better = count > winnerCount ||
+            (count == winnerCount && catIsCanonical && !winnerIsCanonical);
+        if (better) {
+          winner = cat;
+          winnerCount = count;
+        }
+      }
+      for (final loser in group) {
+        final loserId = loser['id'] as String;
+        if (loserId == winner['id']) continue;
+        await db.update('clips', {'categoryId': winner['id']},
+            where: 'categoryId = ?', whereArgs: [loserId]);
+        await db.update('subcategories', {'categoryId': winner['id']},
+            where: 'categoryId = ?', whereArgs: [loserId]);
+        await db.delete('categories', where: 'id = ?', whereArgs: [loserId]);
+      }
+    }
   }
 
   // ignore: unused_element

@@ -54,6 +54,7 @@ class CategoryVisuals {
     // de `ClipsState._catIcons`, pour garantir la correspondance titre ↔
     // pictogramme quelle que soit l'icône réellement persistée en base.
     'Food': Icons.restaurant_rounded,
+    'Recette': Icons.restaurant_rounded,
     'Fitness': Icons.fitness_center_rounded,
     'Mode': Icons.style_rounded,
     'Fashion': Icons.style_rounded,
@@ -141,6 +142,7 @@ class CategoryVisuals {
     'Actualités': Color(0xFFA8B7C8),
     'News': Color(0xFFA8B7C8),
     'Food': Color(0xFFFFB088),
+    'Recette': Color(0xFFFFB088),
     'Histoire': Color(0xFF9EDDA7),
     'History': Color(0xFF9EDDA7),
     'Société': Color(0xFF9DAFC2),
@@ -238,6 +240,7 @@ class CategoryVisuals {
     'Actualités': Color(0xFF203654),
     'News': Color(0xFF203654),
     'Food': Color(0xFF5C2A00),
+    'Recette': Color(0xFF5C2A00),
     'Histoire': Color(0xFF204F2C),
     'History': Color(0xFF204F2C),
     'Société': Color(0xFF1C2E42),

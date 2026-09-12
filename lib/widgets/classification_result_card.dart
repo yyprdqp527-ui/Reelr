@@ -75,6 +75,9 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
     'Wellness': 'Bien-être',
     'Growth': 'Développement perso',
     'Pets & Nature': 'Animaux & Nature',
+    // Meme doublon que le catalogue standard (voir AppL10n.canonicalCategoryId) :
+    // l'IA repond toujours "Food" en anglais, meme cote francais.
+    'Food': 'Recette',
   };
 
   String _categoryLabel(String cat, bool isFr) {

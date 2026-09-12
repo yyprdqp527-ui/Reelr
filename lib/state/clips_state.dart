@@ -5,6 +5,7 @@ import '../models/clip.dart';
 import '../services/classifier.dart';
 import '../models/classification_result.dart';
 import '../services/database.dart';
+import '../core/l10n.dart';
 import 'dart:async';
 import '../services/oembed.dart';
 import '../services/profile_service.dart';
@@ -384,6 +385,22 @@ class ClipsState extends ChangeNotifier {
     for (final cat in _categories) {
       if (cat.name.trim().toLowerCase() == normalized) return cat;
     }
+    // 2bis. Meme categorie standard dans l'autre langue (ex. "Food" /
+    // "Recette") : l'IA repond toujours dans la langue fixee par son
+    // prompt, indifferemment de la langue de l'app. Sans cette etape, une
+    // categorie existante nommee "Recette" n'etait jamais retrouvee quand
+    // Claude renvoyait "Food", et une seconde categorie naissait pour la
+    // meme chose. Generalise a tout le catalogue standard `cat_xxx`, pas
+    // seulement a Food/Recette.
+    final canonicalId = AppL10n.canonicalCategoryId(name);
+    if (canonicalId != null) {
+      for (final cat in _categories) {
+        if (cat.id == canonicalId ||
+            AppL10n.canonicalCategoryId(cat.name) == canonicalId) {
+          return cat;
+        }
+      }
+    }
     // 3. Match partiel par nom
     for (final cat in _categories) {
       final cName = cat.name.trim().toLowerCase();
@@ -614,66 +631,6 @@ class ClipsState extends ChangeNotifier {
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
-        const catColors = <String, Color>{
-          'cat_food': Color(0xFFFF6B6B), 'cat_fitness': Color(0xFF4ECDC4),
-          'cat_gaming': Color(0xFF74B9FF), 'cat_beauty': Color(0xFFFF85B3),
-          'cat_mode': Color(0xFFC77DFF), 'cat_travel': Color(0xFF81ECEC),
-          'cat_humour': Color(0xFFFFE66D), 'cat_musique': Color(0xFFFF7675),
-          'cat_wellness': Color(0xFFA8E6CF), 'cat_podcast': Color(0xFFB2BEC3),
-          'cat_famille': Color(0xFFFD79A8), 'cat_finance': Color(0xFF00B894),
-          'cat_actu': Color(0xFF90A4AE), 'cat_diy': Color(0xFFE17055),
-          'cat_deco': Color(0xFFFAB1A0), 'cat_auto': Color(0xFFFFB347),
-          'cat_culture': Color(0xFF8E44AD), 'cat_cinema': Color(0xFFEF9A9A),
-          'cat_growth': Color(0xFF27AE60), 'cat_pets': Color(0xFF16A085),
-          'cat_truecrime': Color(0xFFE57373), 'cat_astro': Color(0xFFCE93D8),
-          'cat_business': Color(0xFF26A69A), 'cat_societe': Color(0xFF78909C),
-          'cat_nature': Color(0xFF81C784), 'cat_sport': Color(0xFFFF5252),
-          'cat_sante': Color(0xFFFF8A65), 'cat_science': Color(0xFF4FC3F7),
-          'cat_bebe': Color(0xFFFFCC80), 'cat_tricot': Color(0xFFCE93D8),
-          'cat_doc': Color(0xFF90A4AE), 'cat_religion': Color(0xFFB39DDB),
-          'cat_immo': Color(0xFFBCAAA4), 'cat_manga': Color(0xFFFF8A80),
-          'cat_politique': Color(0xFF80CBC4), 'cat_crypto': Color(0xFFF7DC6F),
-          'cat_lang': Color(0xFF80DEEA), 'cat_histoire': Color(0xFFA5D6A7),
-          'cat_art': Color(0xFFE040FB), 'cat_photo': Color(0xFF4DD0E1),
-          'cat_outdoor': Color(0xFF69F0AE), 'cat_psycho': Color(0xFFFFAB91),
-          'cat_luxe': Color(0xFFFFD700), 'cat_entrepreneuriat': Color(0xFF4CAF50),
-          'cat_education': Color(0xFF29B6F6), 'cat_cosplay': Color(0xFFBA68C8),
-          'cat_dance': Color(0xFFFF4081), 'cat_comedy': Color(0xFFFFEB3B),
-          'cat_jardin': Color(0xFF8BC34A), 'cat_sport_extreme': Color(0xFFFF6D00),
-          'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
-          'cat_fail': Color(0xFFFF5722),
-          'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
-        };
-        const catIcons = <String, IconData>{
-          'cat_food': Icons.restaurant_rounded, 'cat_fitness': Icons.fitness_center_rounded,
-          'cat_gaming': Icons.sports_esports_rounded, 'cat_beauty': Icons.brush_rounded,
-          'cat_mode': Icons.style_rounded, 'cat_travel': Icons.flight_takeoff_rounded,
-          'cat_humour': Icons.sentiment_very_satisfied_rounded, 'cat_musique': Icons.music_note_rounded,
-          'cat_wellness': Icons.self_improvement_rounded, 'cat_podcast': Icons.mic_rounded,
-          'cat_famille': Icons.family_restroom_rounded, 'cat_finance': Icons.trending_up_rounded,
-          'cat_actu': Icons.newspaper_rounded, 'cat_diy': Icons.handyman_rounded,
-          'cat_deco': Icons.home_rounded, 'cat_auto': Icons.directions_car_rounded,
-          'cat_culture': Icons.theater_comedy_rounded, 'cat_cinema': Icons.movie_rounded,
-          'cat_growth': Icons.rocket_launch_rounded, 'cat_pets': Icons.pets_rounded,
-          'cat_truecrime': Icons.gavel_rounded, 'cat_astro': Icons.auto_awesome_rounded,
-          'cat_business': Icons.business_center_rounded, 'cat_societe': Icons.people_rounded,
-          'cat_nature': Icons.park_rounded, 'cat_sport': Icons.sports_soccer_rounded,
-          'cat_sante': Icons.favorite_rounded, 'cat_science': Icons.science_rounded,
-          'cat_bebe': Icons.child_care_rounded, 'cat_tricot': Icons.content_cut_rounded,
-          'cat_doc': Icons.video_library_rounded, 'cat_religion': Icons.church_rounded,
-          'cat_immo': Icons.apartment_rounded, 'cat_manga': Icons.auto_stories_rounded,
-          'cat_politique': Icons.account_balance_rounded, 'cat_crypto': Icons.currency_bitcoin_rounded,
-          'cat_lang': Icons.translate_rounded, 'cat_histoire': Icons.history_edu_rounded,
-          'cat_art': Icons.palette_rounded, 'cat_photo': Icons.camera_alt_rounded,
-          'cat_outdoor': Icons.terrain_rounded, 'cat_psycho': Icons.psychology_rounded,
-          'cat_luxe': Icons.diamond_rounded, 'cat_entrepreneuriat': Icons.lightbulb_rounded,
-          'cat_education': Icons.school_rounded, 'cat_cosplay': Icons.masks_rounded,
-          'cat_dance': Icons.music_video_rounded, 'cat_comedy': Icons.mic_external_on_rounded,
-          'cat_jardin': Icons.yard_rounded, 'cat_sport_extreme': Icons.paragliding_rounded,
-          'cat_nutrition': Icons.no_food_rounded, 'cat_vintage': Icons.watch_rounded,
-          'cat_fail': Icons.sentiment_very_dissatisfied_rounded,
-          'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
-        };
         const catNames = <String, String>{
           'cat_food': 'Food', 'cat_fitness': 'Fitness',
           'cat_gaming': 'Gaming', 'cat_beauty': 'Beauté',
@@ -704,12 +661,28 @@ class ClipsState extends ChangeNotifier {
           'cat_fail': 'Fails',
           'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
         };
-        final isCatId = catName.startsWith('cat_');
+        // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
+        // jamais un ID `cat_xxx` litteral : l'ancien test
+        // `catName.startsWith('cat_')` etait donc toujours faux, et CHAQUE
+        // nouvelle categorie IA partait avec un ID `ai_<timestamp>` et les
+        // couleurs/icones par defaut, sans jamais rejoindre le catalogue
+        // standard localise ci-dessus. On resout maintenant le libelle vers
+        // son ID canonique (FR ou EN) quand il est reconnu, pour que Food et
+        // Recette (ou toute autre paire FR/EN du catalogue) restent une
+        // seule et meme categorie, quelle que soit la langue dans laquelle
+        // Claude a repondu.
+        final canonicalId = AppL10n.canonicalCategoryId(catName);
+        final resolvedKey = canonicalId ?? catName;
+        final isCatId = canonicalId != null;
         final newCat = ClipCategory(
-          id: isCatId ? catName : 'ai_${DateTime.now().millisecondsSinceEpoch}',
-          name: catNames[catName] ?? catName,
-          color: catColors[catName] ?? const Color(0xFF7C3AED),
-          icon: catIcons[catName] ?? Icons.folder_rounded,
+          id: isCatId ? resolvedKey : 'ai_${DateTime.now().millisecondsSinceEpoch}',
+          name: catNames[resolvedKey] ?? catName,
+          // Couleur/icone : source unique dans AppL10n (voir sa doc), pour
+          // ne plus jamais diverger de ce que `DatabaseHelper` utilise pour
+          // reparer les categories existantes tombees sur le violet/dossier
+          // par defaut.
+          color: AppL10n.categoryColors[resolvedKey] ?? const Color(0xFF7C3AED),
+          icon: AppL10n.categoryIcons[resolvedKey] ?? Icons.folder_rounded,
         );
         matchedCat = await addCategory(newCat);
       }
