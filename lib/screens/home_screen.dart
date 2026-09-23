@@ -603,6 +603,27 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     });
   }
 
+  /// Nombre de vignettes de la mosaique de la tuile « Tout ».
+  static const int _allTileMosaicSize = 4;
+
+  /// Les vignettes des videos les plus recemment enregistrees, pour la
+  /// mosaique de la tuile « Tout ». Liste vide si moins de 4 disponibles.
+  List<({String clipId, String url})> _allTileMosaic() {
+    final withThumb = widget.state.allClips
+        .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+        .toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    if (withThumb.length < _allTileMosaicSize) return const [];
+    return withThumb
+        .take(_allTileMosaicSize)
+        .map((c) => (
+              clipId: c.id,
+              url: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl) ??
+                  c.thumbnailUrl!,
+            ))
+        .toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = widget.l;
@@ -663,6 +684,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                 count: widget.state.totalCount,
                 isPending: widget.state.hasPendingClassification,
                 isAllTile: true,
+                mosaicThumbs: _allTileMosaic(),
                 onTap: () => widget.onOpenCategory(context, null, l.t('all')),
               );
             }
@@ -743,6 +765,10 @@ class _CategoryTile extends StatefulWidget {
 
   /// Id du clip dont la miniature illustre la tuile (stockage permanent).
   final String? thumbnailClipId;
+
+  /// Mosaique 2x2 (tuile « Tout »). Utilisee a la place de [thumbnailUrl]
+  /// quand elle contient exactement 4 vignettes.
+  final List<({String clipId, String url})> mosaicThumbs;
   final bool showBadge;
   final bool isPending;
   final bool isAllTile;
@@ -757,6 +783,7 @@ class _CategoryTile extends StatefulWidget {
     this.isAdd = false,
     this.thumbnailUrl,
     this.thumbnailClipId,
+    this.mosaicThumbs = const [],
     this.showBadge = false,
     this.isPending = false,
     this.isAllTile = false,
@@ -838,11 +865,18 @@ class _CategoryTileState extends State<_CategoryTile> {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(22),
-            child: widget.thumbnailUrl != null
+            child: (widget.thumbnailUrl != null ||
+                    widget.mosaicThumbs.length == 4)
                 // ── Mode thumbnail : pas de BackdropFilter ──
                 ? Stack(
                     fit: StackFit.expand,
                     children: [
+                      if (widget.mosaicThumbs.length == 4)
+                        _ThumbnailMosaic(
+                          thumbs: widget.mosaicThumbs,
+                          fallbackColor: tintColor.withValues(alpha: 0.12),
+                        )
+                      else
                       ResilientThumbnail(
                         key: ValueKey('cat_thumb_${widget.name}'),
                         url: widget.thumbnailUrl,
@@ -886,6 +920,13 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ),
                         ),
                       ),
+                      // Classement en cours : meme loader qu'en mode glass.
+                      // La tuile « Tout » passe desormais en mode image
+                      // (mosaique) et perdait son loader.
+                      if (widget.isPending)
+                        const Positioned.fill(
+                          child: Center(child: ReelrLoader(size: 32)),
+                        ),
                       if (!widget.isPending) ...[
                         Positioned(
                           left: 14, right: 8, bottom: 8,
@@ -1046,6 +1087,63 @@ class _CategoryTileState extends State<_CategoryTile> {
   }
 }
 
+
+/// Grille 2x2 de vignettes, separees par un filet fin.
+class _ThumbnailMosaic extends StatelessWidget {
+  final List<({String clipId, String url})> thumbs;
+  final Color fallbackColor;
+
+  const _ThumbnailMosaic({required this.thumbs, required this.fallbackColor});
+
+  /// Filet entre les cases : tres fin et clair. Un filet sombre, place
+  /// pile a mi-hauteur, se confondait avec le debut du degrade sombre du
+  /// bas de la tuile et se lisait comme une bande noire.
+  static const double _gap = 1.0;
+
+  Widget _cell(int i) {
+    final t = thumbs[i];
+    // SizedBox.expand : dans une Row, la hauteur transmise a la case est
+    // lache. Sans lui, l'image prenait sa hauteur naturelle (16:9) et se
+    // centrait, laissant une bande vide au milieu de la tuile au lieu de
+    // remplir la case (BoxFit.cover n'agit que dans une boite imposee).
+    return Expanded(
+      child: SizedBox.expand(
+        child: ResilientThumbnail(
+        key: ValueKey('all_mosaic_${i}_${t.clipId}'),
+        url: t.url,
+        cacheKeyId: t.clipId,
+        persistId: t.clipId,
+        platformId: 'all_tile_mosaic',
+        fit: BoxFit.cover,
+        fallbackBuilder: (_) => ColoredBox(color: fallbackColor),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      // Couleur des filets entre les cases.
+      color: const Color(0x33FFFFFF),
+      child: Column(
+        children: [
+          Expanded(
+            child: Row(
+              children: [_cell(0), const SizedBox(width: _gap), _cell(1)],
+            ),
+          ),
+          const SizedBox(height: _gap),
+          Expanded(
+            child: Row(
+              children: [_cell(2), const SizedBox(width: _gap), _cell(3)],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 // ─────────────────────────────────────────────
 // CATEGORY DETAIL SCREEN
