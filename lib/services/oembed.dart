@@ -44,7 +44,9 @@ class SocialPlatform {
       return _platforms['pinterest']!;
     } else if (_hostMatches(host, lower, const ['linkedin.com'])) {
       return _platforms['linkedin']!;
-    } else if (_hostMatches(host, lower, const ['music.apple.com'])) {
+    } else if (_hostMatches(host, lower,
+        const ['music.apple.com', 'itunes.apple.com', 'apple.co'])) {
+      // apple.co : lien court genere par l'app Musique lors d'un partage.
       return _platforms['applemusic']!;
     } else if (_hostMatches(
         host, lower, const ['open.spotify.com', 'spotify.link'])) {
