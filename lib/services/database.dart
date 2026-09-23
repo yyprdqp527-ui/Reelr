@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 15, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 16, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 15, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 16, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -179,6 +179,13 @@ class DatabaseHelper {
       // cette passe unique.
       await _repairGenericCategoryVisuals(db);
     }
+    if (oldVersion < 16) {
+      // Nouvelle passe de fusion avec la comparaison elargie (accents,
+      // pluriels, synonymes stricts) : « Beaute » + « Beauté »,
+      // « Workout » + « Fitness », « Actu » + « Actualités »... ainsi que
+      // deux categories personnelles au nom identique a l'accent pres.
+      await _mergeLanguageDuplicateCategories(db);
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -230,8 +237,13 @@ class DatabaseHelper {
       final name = (row['name'] as String?) ?? '';
       final canonicalId =
           id.startsWith('cat_') ? id : AppL10n.canonicalCategoryId(name);
-      if (canonicalId == null) continue;
-      groups.putIfAbsent(canonicalId, () => []).add(row);
+      // Categorie personnelle : regroupee seulement avec une autre au nom
+      // IDENTIQUE a l'accent, la casse et au pluriel pres. Deux categories
+      // personnelles differentes ne sont jamais fusionnees.
+      final key = canonicalId ??
+          'custom:${AppL10n.normalizeCategoryLabel(name)}';
+      if (key == 'custom:') continue;
+      groups.putIfAbsent(key, () => []).add(row);
     }
     for (final group in groups.values) {
       if (group.length < 2) continue;

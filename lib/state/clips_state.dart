@@ -382,9 +382,11 @@ class ClipsState extends ChangeNotifier {
     for (final cat in _categories) {
       if (cat.id == name.trim()) return cat;
     }
-    // 2. Match exact par nom
+    // 2. Match exact par nom, insensible aux accents, a la casse et au
+    // pluriel simple (« Beaute » = « Beauté »).
+    final comparable = AppL10n.normalizeCategoryLabel(name);
     for (final cat in _categories) {
-      if (cat.name.trim().toLowerCase() == normalized) return cat;
+      if (AppL10n.normalizeCategoryLabel(cat.name) == comparable) return cat;
     }
     // 2bis. Meme categorie standard dans l'autre langue (ex. "Food" /
     // "Recette") : l'IA repond toujours dans la langue fixee par son
@@ -886,9 +888,19 @@ class ClipsState extends ChangeNotifier {
   /// Insert idempotent par nom (case-insensitive). Renvoie la cat\u00e9gorie
   /// utilis\u00e9e (existante ou nouvellement cr\u00e9\u00e9e).
   Future<ClipCategory> addCategory(ClipCategory category) async {
-    final target = category.name.toLowerCase().trim();
+    // Idempotent : une categorie equivalente existante est renvoyee au lieu
+    // d'en creer une seconde. Equivalente = meme nom a l'accent, la casse
+    // et au pluriel pres, ou meme categorie standard (« Food » et
+    // « Recette », « Workout » et « Fitness »).
+    final target = AppL10n.normalizeCategoryLabel(category.name);
+    final targetCanonical = AppL10n.canonicalCategoryId(category.name);
     for (final c in _categories) {
-      if (c.name.toLowerCase().trim() == target) return c;
+      if (AppL10n.normalizeCategoryLabel(c.name) == target) return c;
+      if (targetCanonical != null &&
+          (c.id == targetCanonical ||
+              AppL10n.canonicalCategoryId(c.name) == targetCanonical)) {
+        return c;
+      }
     }
     await DatabaseHelper.instance.insertCategory(category);
     _categories.add(category);

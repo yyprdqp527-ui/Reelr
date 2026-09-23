@@ -369,9 +369,59 @@ class AppL10n {
   /// catégories créées à la main, anciennes versions de l'app, pluriels...).
   /// Sert uniquement à la résolution vers l'ID canonique ci-dessous — jamais
   /// affiché directement.
+  ///
+  /// REGLE : uniquement des equivalents stricts. Jamais des categories
+  /// voisines que le classement separe expres (Sport/Fitness,
+  /// Nutrition/Food, Couture/Tricot, Sante/Bien-etre) : un synonyme de
+  /// trop fusionnerait deux tuiles voulues. Toute ajout doit passer
+  /// test/category_dedup_test.dart.
+  ///
+  /// Accents, casse et pluriel simple sont geres par
+  /// [normalizeCategoryLabel] : inutile de les lister ici.
   static const Map<String, List<String>> _extraSynonyms = {
-    'cat_food': ['food', 'recette', 'recettes', 'cuisine'],
+    'cat_food': ['food', 'recette', 'cuisine', 'cooking', 'recipe'],
+    'cat_fitness': ['workout', 'muscu', 'musculation', 'gym'],
+    'cat_actu': ['actu', 'info', 'infos', 'news', 'actualite'],
+    'cat_beauty': ['maquillage', 'makeup', 'make up', 'beauty', 'skincare'],
+    'cat_travel': ['voyage', 'travel'],
+    'cat_humour': ['humor', 'humour', 'comedie', 'comedy'],
+    'cat_wellness': ['bien etre', 'wellness', 'wellbeing'],
+    'cat_musique': ['music', 'musique'],
+    'cat_gaming': ['gaming', 'jeu video', 'jeux video', 'video game'],
+    'cat_deco': ['deco', 'decoration', 'home decor'],
+    'cat_pets': ['animaux', 'animal', 'pets', 'animaux de compagnie'],
   };
+
+  /// Forme de comparaison d'un nom de categorie : minuscules, sans
+  /// accents, tirets / « & » / « _ » ramenes a des espaces, espaces
+  /// multiples reduits, pluriel simple retire (s ou x final des mots de
+  /// plus de 3 lettres). Sert uniquement a comparer, jamais a afficher.
+  static String normalizeCategoryLabel(String raw) {
+    const accents = {
+      'à': 'a', 'â': 'a', 'ä': 'a', 'á': 'a', 'ã': 'a', 'å': 'a',
+      'ç': 'c', 'é': 'e', 'è': 'e', 'ê': 'e', 'ë': 'e',
+      'í': 'i', 'ì': 'i', 'î': 'i', 'ï': 'i', 'ñ': 'n',
+      'ó': 'o', 'ò': 'o', 'ô': 'o', 'ö': 'o', 'õ': 'o',
+      'ú': 'u', 'ù': 'u', 'û': 'u', 'ü': 'u', 'ý': 'y', 'ÿ': 'y',
+      'œ': 'oe', 'æ': 'ae',
+    };
+    final buf = StringBuffer();
+    for (final ch in raw.trim().toLowerCase().split('')) {
+      if (ch == '-' || ch == '_' || ch == '&' || ch == '/' || ch == "'") {
+        buf.write(' ');
+      } else {
+        buf.write(accents[ch] ?? ch);
+      }
+    }
+    return buf
+        .toString()
+        .split(RegExp(r'\s+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w.length > 3 && (w.endsWith('s') || w.endsWith('x'))
+            ? w.substring(0, w.length - 1)
+            : w)
+        .join(' ');
+  }
 
   /// Couleur/icône "officielles" de chaque catégorie standard `cat_xxx` —
   /// source unique, reprise à l'identique de `ClipsState` (couleurs/icônes)
@@ -460,20 +510,29 @@ class AppL10n {
   /// lieu d'en créer une par langue. Généralisable à toute autre paire
   /// FR/EN du catalogue standard.
   static String? canonicalCategoryId(String rawLabel) {
-    final normalized = rawLabel.trim().toLowerCase();
+    final normalized = normalizeCategoryLabel(rawLabel);
     if (normalized.isEmpty) return null;
+    // Un identifiant standard passe tel quel (« cat_food »).
+    if (_categoryNamesFr.containsKey(rawLabel.trim()) &&
+        rawLabel.trim().startsWith('cat_')) {
+      return rawLabel.trim();
+    }
     for (final entry in _categoryNamesEn.entries) {
-      if (entry.key.startsWith('cat_') && entry.value.toLowerCase() == normalized) {
+      if (entry.key.startsWith('cat_') &&
+          normalizeCategoryLabel(entry.value) == normalized) {
         return entry.key;
       }
     }
     for (final entry in _categoryNamesFr.entries) {
-      if (entry.key.startsWith('cat_') && entry.value.toLowerCase() == normalized) {
+      if (entry.key.startsWith('cat_') &&
+          normalizeCategoryLabel(entry.value) == normalized) {
         return entry.key;
       }
     }
     for (final entry in _extraSynonyms.entries) {
-      if (entry.value.contains(normalized)) return entry.key;
+      if (entry.value.any((s) => normalizeCategoryLabel(s) == normalized)) {
+        return entry.key;
+      }
     }
     return null;
   }
