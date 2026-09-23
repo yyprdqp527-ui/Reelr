@@ -3115,7 +3115,7 @@ class ClipCard extends StatelessWidget {
             ? box.localToGlobal(Offset.zero) & box.size
             : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
         Share.share(
-          '${clip.title}\n${clip.url}',
+          _shareText(clip),
           sharePositionOrigin: origin,
         );
         return;
@@ -4500,4 +4500,34 @@ class _EditClipSheetState extends State<EditClipSheet> {
       ),
     );
   }
+}
+
+
+/// Texte envoye quand on partage un clip (SMS, WhatsApp...).
+///
+/// Le titre d'un clip Instagram, TikTok ou Pinterest est souvent la
+/// legende COMPLETE de la publication (recette entiere, liste de hashtags,
+/// plusieurs langues) : elle etait envoyee telle quelle et produisait des
+/// messages interminables. On n'envoie plus que la premiere ligne, coupee
+/// proprement a ~90 caracteres, suivie du lien. L'apercu riche (image,
+/// titre) est de toute facon construit par l'app de messagerie a partir du
+/// lien. Titre sans interet (« Instagram », « Reddit »...) : lien seul.
+String _shareText(Clip clip) {
+  const maxLength = 90;
+  final firstLine = clip.title
+      .split('\n')
+      .map((l) => l.trim())
+      .firstWhere((l) => l.isNotEmpty, orElse: () => '');
+  if (firstLine.isEmpty || OEmbedService.isPlaceholderTitle(firstLine)) {
+    return clip.url;
+  }
+  var title = firstLine;
+  // Par caracteres visibles (emoji compris), pour ne jamais couper un
+  // emoji en deux.
+  if (title.characters.length > maxLength) {
+    final cut = title.characters.take(maxLength).toString();
+    final lastSpace = cut.lastIndexOf(' ');
+    title = '${(lastSpace > 40 ? cut.substring(0, lastSpace) : cut).trimRight()}…';
+  }
+  return '$title\n${clip.url}';
 }
