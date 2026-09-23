@@ -832,10 +832,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     var thumbnailUrl = currentThumb;
     final image = preview.image;
     if (!hasThumb && image != null) {
+      // iOS : image deja telechargee, enregistree directement.
       if (await ThumbnailStore.instance.saveBytes(clip.id, image)) {
         thumbnailUrl = ThumbnailStore.localUrlFor(clip.id);
         debugPrint('[linkpreview] vignette enregistree: ${clip.url}');
       }
+    } else if (!hasThumb && preview.imageUrl != null) {
+      // Android : adresse de l'image ; le pre-cache de _hydrateClip la
+      // telecharge et la copie dans le stockage permanent.
+      thumbnailUrl = preview.imageUrl;
+      debugPrint('[linkpreview] vignette trouvee: ${preview.imageUrl}');
     }
     final previewTitle = preview.title?.trim() ?? '';
     final String title;

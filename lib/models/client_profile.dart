@@ -36,6 +36,7 @@ class CategoryCorrection {
 const Set<String> genericPlatformChannelNames = {
   'youtube', 'tiktok', 'instagram', 'x', 'x / twitter', 'twitter',
   'facebook', 'twitch', 'vimeo', 'reddit', 'pinterest', 'linkedin',
+  'apple music', 'spotify',
   'autre', 'other',
 };
 

@@ -44,6 +44,11 @@ class SocialPlatform {
       return _platforms['pinterest']!;
     } else if (_hostMatches(host, lower, const ['linkedin.com'])) {
       return _platforms['linkedin']!;
+    } else if (_hostMatches(host, lower, const ['music.apple.com'])) {
+      return _platforms['applemusic']!;
+    } else if (_hostMatches(
+        host, lower, const ['open.spotify.com', 'spotify.link'])) {
+      return _platforms['spotify']!;
     }
     return _platforms['other']!;
   }
@@ -139,6 +144,18 @@ class SocialPlatform {
       name: 'LinkedIn',
       icon: Icons.work_rounded,
       color: Color(0xFF0A66C2),
+    ),
+    'applemusic': const SocialPlatform(
+      id: 'applemusic',
+      name: 'Apple Music',
+      icon: Icons.library_music_rounded,
+      color: Color(0xFFFA243C),
+    ),
+    'spotify': const SocialPlatform(
+      id: 'spotify',
+      name: 'Spotify',
+      icon: Icons.graphic_eq_rounded,
+      color: Color(0xFF1DB954),
     ),
     'other': const SocialPlatform(
       id: 'other',
@@ -808,6 +825,8 @@ class OEmbedService {
     'facebook watch',
     'watch',
     'reddit - dive into anything',
+    'reddit - the heart of the internet',
+    'log into facebook', 'log in to facebook', 'instagram - login',
     'reddit',
     'pinterest',
     'video',
@@ -820,6 +839,7 @@ class OEmbedService {
     // Les autres noms de plateformes sont ajoutes par symetrie, le meme
     // scenario pouvant se produire partout.
     'twitch', 'vimeo', 'youtube', 'linkedin', 'twitter',
+    'apple music', 'spotify',
   };
 
   /// Images generiques servies par une plateforme quand elle n'a pas de
