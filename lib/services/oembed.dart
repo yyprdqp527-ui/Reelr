@@ -1180,7 +1180,12 @@ class OEmbedService {
       final rawDescription = _extractMetaContent(body, property: 'og:description') ??
           _extractMetaContent(body, name: 'twitter:description') ??
           _extractMetaContent(body, name: 'description');
-      final ogDescription = platformId == 'pinterest' ? rawDescription : null;
+      // Pinterest prefixe desormais sa description d'une date de
+      // publication (« Aug 29, 2026 — … », « 6 jul 2026 — … ») : sans
+      // interet sur une carte, et du bruit pour le classement.
+      final ogDescription = platformId == 'pinterest' && rawDescription != null
+          ? rawDescription.replaceFirst(_leadingDatePrefix, '')
+          : null;
       final title = (ogDescription != null && ogDescription.trim().isNotEmpty)
           ? ogDescription
           : ogTitle;
@@ -1244,6 +1249,13 @@ class OEmbedService {
       return null;
     }
   }
+
+  /// Date en tete de texte suivie d'un tiret : « 29 Jul 2026 — »,
+  /// « Aug 29, 2026 — », « 6 jul. 2026 - ».
+  static final RegExp _leadingDatePrefix = RegExp(
+    r'^\s*(?:\d{1,2}\s+\p{L}+\.?\s+\d{4}|\p{L}+\.?\s+\d{1,2},?\s+\d{4})\s*[—–-]\s*',
+    unicode: true,
+  );
 
   static String? _extractMetaContent(
     String html, {

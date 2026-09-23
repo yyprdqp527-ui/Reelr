@@ -40,6 +40,9 @@ class CategoryClassifier {
   static const Map<String, List<String>> _keywords = {
     'food': [
       'recette', 'recettes', 'recipe', 'recipes', 'cuisiner', 'cooking', 'cook',
+      // « cuisine » manquait : seul « cuisiner » y etait, et la
+      // correspondance se fait au mot entier. Voir _weights.
+      'cuisine', 'cuisson', 'culinaire', 'gastronomie', 'gastronomique',
       'food', 'meal', 'dish', 'chef', 'restaurant', 'repas', 'plat', 'manger',
       'boulangerie', 'patisserie', 'pâtisserie', 'dessert', 'gateau', 'gâteau',
       'baking', 'pasta', 'pizza', 'soupe', 'soup', 'salade', 'salad',
@@ -231,6 +234,11 @@ class CategoryClassifier {
       'maisons du monde', 'leroy merlin', 'home tour', 'room tour',
       'before after deco', 'avant apres deco', 'renovation interieure',
       'rénovation intérieure', 'cuisine renovation', 'salle de bain',
+      // La cuisine-PIECE, pour qu'elle ne bascule pas en Food depuis que
+      // « cuisine » y compte double.
+      'renovation cuisine', 'rénovation cuisine', 'cuisine renovee',
+      'cuisine rénovée', 'cuisine equipee', 'cuisine équipée',
+      'cuisine ikea', 'plan de travail', 'credence', 'crédence',
       'chambre deco', 'salon deco', 'architecture interieure',
     ],
     'immo': [
@@ -819,6 +827,14 @@ class CategoryClassifier {
   /// Permet aux buckets spécialisés de l'emporter sur les buckets génériques
   /// lorsque le titre est ambigu (ex. "NASA" dans un titre tech vs. science).
   static const Map<String, int> _weights = {
+    // Cuisine : poids 2 pour que, seul dans un titre, il suffise au
+    // garde-fou de la couche 2 (seuil 2) a contredire une chaine apprise
+    // dans une autre categorie. Il ne suffit pas seul a court-circuiter
+    // Claude (seuil 3) : « cuisine » designe aussi la piece.
+    'cuisine': 2,
+    'renovation cuisine': 3, 'rénovation cuisine': 3,
+    'cuisine renovee': 3, 'cuisine rénovée': 3,
+    'cuisine equipee': 3, 'cuisine équipée': 3, 'cuisine ikea': 3,
     // True Crime — très spécifiques
     'true crime': 4, 'serial killer': 4, 'tueur en série': 4, 'tueur en serie': 4,
     'cold case': 3, 'fait divers': 3, 'affaire criminelle': 3,
@@ -1708,9 +1724,11 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         buf.writeln(
             '- Influenceurs suivis : ${profile.knownInfluencers.join(', ')}');
       }
-      if (profile.dominantLifestyle != null) {
-        buf.writeln('- Style de vie détecté : ${profile.dominantLifestyle}');
-      }
+      // RETIRE : « Style de vie détecté ». La valeur vient du champ
+      // style_de_vie des propres reponses de Claude, sans validation
+      // humaine : meme boucle fermee que les categories dominantes
+      // ci-dessus. Un profil devenu « healthy » tirait les videos de
+      // cuisine vers Bien-etre.
       final lastCorrections =
           profile.corrections.reversed.take(3).toList();
       if (lastCorrections.isNotEmpty) {
