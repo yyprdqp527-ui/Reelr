@@ -1,4 +1,5 @@
 import Flutter
+import LinkPresentation
 import UIKit
 
 @main
@@ -90,6 +91,25 @@ import UIKit
     }
     // Retain channel instances so handlers remain active across engine lifecycles.
     silentShareChannels.append(channel)
+
+    // Apercu de lien natif (LinkPresentation) : secours pour les pages
+    // que l'extraction HTTP de l'app ne sait pas lire (Reddit, pubs...).
+    let previewChannel = FlutterMethodChannel(
+      name: "reelr/link_preview",
+      binaryMessenger: binaryMessenger
+    )
+    previewChannel.setMethodCallHandler { call, result in
+      guard call.method == "fetch" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let raw = call.arguments as? String, let url = URL(string: raw) else {
+        result(nil)
+        return
+      }
+      LinkPreviewFetcher.fetch(url: url) { payload in result(payload) }
+    }
+    silentShareChannels.append(previewChannel)
   }
 
   private func drainPendingUrls() -> [String] {
@@ -111,5 +131,54 @@ import UIKit
     guard let defaults = UserDefaults(suiteName: groupId) else { return }
     defaults.set(languageCode, forKey: "locale")
     defaults.synchronize()
+  }
+}
+
+/// Recupere titre et image d'une page via LinkPresentation (iOS 13+),
+/// comme les apercus de liens d'iMessage.
+enum LinkPreviewFetcher {
+  static func fetch(url: URL, completion: @escaping ([String: Any]?) -> Void) {
+    DispatchQueue.main.async {
+      let provider = LPMetadataProvider()
+      provider.timeout = 15
+      provider.startFetchingMetadata(for: url) { metadata, error in
+        guard let metadata = metadata, error == nil else {
+          DispatchQueue.main.async { completion(nil) }
+          return
+        }
+        var payload: [String: Any] = [:]
+        if let title = metadata.title { payload["title"] = title }
+        guard let imageProvider = metadata.imageProvider,
+              imageProvider.canLoadObject(ofClass: UIImage.self) else {
+          DispatchQueue.main.async { completion(payload.isEmpty ? nil : payload) }
+          return
+        }
+        imageProvider.loadObject(ofClass: UIImage.self) { object, _ in
+          var data: Data?
+          if let image = object as? UIImage {
+            data = LinkPreviewFetcher.resized(image, maxSide: 720).jpegData(compressionQuality: 0.85)
+          }
+          DispatchQueue.main.async {
+            if let data = data {
+              payload["image"] = FlutterStandardTypedData(bytes: data)
+            }
+            completion(payload.isEmpty ? nil : payload)
+          }
+        }
+      }
+    }
+  }
+
+  static func resized(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+    let size = image.size
+    let longest = max(size.width, size.height)
+    guard longest > maxSide, longest > 0 else { return image }
+    let scale = maxSide / longest
+    let target = CGSize(width: size.width * scale, height: size.height * scale)
+    let format = UIGraphicsImageRendererFormat.default()
+    format.scale = 1
+    return UIGraphicsImageRenderer(size: target, format: format).image { _ in
+      image.draw(in: CGRect(origin: .zero, size: target))
+    }
   }
 }

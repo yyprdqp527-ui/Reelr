@@ -60,6 +60,16 @@ class ThumbnailStore {
     }
   }
 
+  /// Schema de l'URL interne donnee aux clips dont la vignette n'existe
+  /// QUE dans ce stockage (obtenue par l'apercu de lien iOS, sans URL
+  /// distante). Elle sert de marqueur « une vignette existe » partout ou
+  /// le code attend une URL non vide.
+  static const String localScheme = 'reelr-local';
+
+  static String localUrlFor(String clipId) => '$localScheme://$clipId';
+
+  static bool isLocalUrl(String url) => url.startsWith('$localScheme://');
+
   static String _safeName(String clipId) =>
       clipId.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
 

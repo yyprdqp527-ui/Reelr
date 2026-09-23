@@ -18,6 +18,8 @@ import 'screens/onboarding_screen.dart';
 import 'screens/playlist_import_screen.dart';
 import 'services/thumbnail_cache.dart';
 import 'services/thumbnail_store.dart';
+import 'services/classifier.dart' show VideoData;
+import 'services/link_preview.dart';
 import 'services/oembed.dart';
 import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
@@ -784,9 +786,67 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// (nom du createur, nom de plateforme) ne compte pas : c'est cette
   /// distinction qui permet a `_hydrateAndClassify` de ne pas payer une
   /// classification sur un signal qui n'en est pas un.
+  /// Complete les metadonnees avec l'apercu de lien natif d'iOS
+  /// (LinkPresentation, le moteur des apercus d'iMessage) quand
+  /// l'extraction n'a trouve ni vignette ni vrai titre.
+  ///
+  /// Cas vises : Reddit (page anti-bot : titre « Reddit », aucune image)
+  /// et les pages de vente / publicites dont l'image n'est pas lisible par
+  /// une simple requete HTTP. L'image est ecrite directement dans le
+  /// stockage permanent ; le clip recoit l'URL interne `reelr-local://<id>`.
+  Future<VideoData?> _completeWithLinkPreview(
+    Clip clip,
+    VideoData? meta,
+  ) async {
+    final currentThumb = meta?.thumbnailUrl;
+    final hasThumb = currentThumb != null && currentThumb.isNotEmpty;
+    final metaTitle = meta?.title ?? '';
+    final hasTitle = !OEmbedService.isPlaceholderTitle(metaTitle);
+    if (hasThumb && hasTitle) return meta;
+
+    final preview = await LinkPreviewService.fetch(clip.url);
+    if (preview == null) return meta;
+
+    var thumbnailUrl = currentThumb;
+    final image = preview.image;
+    if (!hasThumb && image != null) {
+      if (await ThumbnailStore.instance.saveBytes(clip.id, image)) {
+        thumbnailUrl = ThumbnailStore.localUrlFor(clip.id);
+        debugPrint('[linkpreview] vignette enregistree: ${clip.url}');
+      }
+    }
+    final previewTitle = preview.title?.trim() ?? '';
+    final String title;
+    if (hasTitle) {
+      title = metaTitle;
+    } else if (!OEmbedService.isPlaceholderTitle(previewTitle)) {
+      title = previewTitle;
+    } else {
+      title = metaTitle;
+    }
+    if (thumbnailUrl == currentThumb && title == metaTitle) {
+      return meta;
+    }
+    return VideoData(
+      title: title,
+      channel: meta?.channel,
+      description: meta?.description,
+      tags: meta?.tags ?? const [],
+      views: meta?.views,
+      duration: meta?.duration,
+      publishedAt: meta?.publishedAt,
+      platform: meta?.platform ?? clip.platform,
+      thumbnailUrl: thumbnailUrl,
+      transcriptExcerpt: meta?.transcriptExcerpt,
+    );
+  }
+
   Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
-    final meta = await OEmbedService.fetchMetadata(clip.url);
+    final meta = await _completeWithLinkPreview(
+      clip,
+      await OEmbedService.fetchMetadata(clip.url),
+    );
     if (meta == null) {
       // Cette sortie etait muette : un `starting for` sans `done`, et rien
       // pour dire pourquoi. C'est ce silence qui rendait les diagnostics
@@ -908,6 +968,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     String? clipId,
     bool retry = true,
   }) async {
+    // URL interne : l'image est deja (ou n'est plus) dans le stockage
+    // permanent, il n'y a rien a telecharger.
+    if (ThumbnailStore.isLocalUrl(url)) {
+      return clipId != null && await ThumbnailStore.instance.has(clipId);
+    }
     final host = Uri.tryParse(url)?.host ?? url;
     final delays = retry ? _precacheRetryDelays : const <Duration>[];
     for (var attempt = 0; ; attempt++) {

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../config/secrets.dart';
 import 'classifier.dart';
+import 'thumbnail_store.dart';
 
 class SocialPlatform {
   final String id;
@@ -175,6 +176,11 @@ class OEmbedService {
   }
 
   static String? bestThumbnailUrl(String url, String? storedThumbUrl) {
+    // Vignette qui n'existe que dans le stockage permanent : ni proxy ni
+    // reconstruction, l'URL interne est lue telle quelle.
+    if (storedThumbUrl != null && ThumbnailStore.isLocalUrl(storedThumbUrl)) {
+      return storedThumbUrl;
+    }
     final lower = url.toLowerCase();
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
       final id = _youtubeVideoIdFromUrl(url);
@@ -192,11 +198,16 @@ class OEmbedService {
         storedThumbUrl.isNotEmpty) {
       return _proxiedThumbnailUrl(storedThumbUrl);
     }
-    // Reddit et Pinterest: protections anti-hotlink cote CDN qui peuvent
-    // bloquer un chargement direct depuis l'app. Le Worker proxy
-    // retelecharge l'image avec des en-tetes (User-Agent, Referer)
-    // adaptes, ce qui peut contourner une partie de ces blocages.
-    if ((lower.contains('reddit.com') || lower.contains('pinterest.')) &&
+    // Reddit : protections anti-hotlink cote CDN qui peuvent bloquer un
+    // chargement direct depuis l'app. Le Worker proxy retelecharge l'image
+    // avec des en-tetes (User-Agent, Referer) adaptes.
+    //
+    // Pinterest n'y passe plus : les images i.pinimg.com sont publiques,
+    // sans jeton ni expiration, et se chargent directement. Le proxy ne
+    // faisait qu'ajouter un point de panne — le Worker deploye sur
+    // room79 ne connait pas la route /thumb et repondait 405, si bien
+    // qu'AUCUNE vignette Pinterest ne s'affichait.
+    if (lower.contains('reddit.com') &&
         storedThumbUrl != null &&
         storedThumbUrl.isNotEmpty) {
       return _proxiedThumbnailUrl(storedThumbUrl);
@@ -1180,7 +1191,19 @@ class OEmbedService {
       final channel = _extractMetaContent(body, property: 'og:site_name');
 
       var cleanedTitle = (title ?? '').trim();
-      var cleanedThumb = _sanitizeMediaUrl(thumb);
+      // og:image relative (« //cdn.shopify.com/... », « /files/x.jpg ») :
+      // frequent sur les pages de vente. Resolue contre l'URL de la page
+      // au lieu d'etre rejetee faute de schema.
+      String? absoluteThumb = thumb;
+      if (thumb != null) {
+        final t = _decodeHtmlEntities(thumb.trim());
+        if (t.isNotEmpty && !t.toLowerCase().startsWith('http')) {
+          try {
+            absoluteThumb = uri.resolve(t).toString();
+          } catch (_) {}
+        }
+      }
+      var cleanedThumb = _sanitizeMediaUrl(absoluteThumb);
       // Un logo de plateforme n'est pas une miniature (cf.
       // _genericImageMarkers) : mieux vaut aucune vignette, le clip reste
       // alors eligible a la passe de reparation.

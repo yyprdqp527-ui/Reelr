@@ -220,6 +220,11 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
       );
     }
 
+    // URL interne sans fichier : rien a telecharger.
+    if (ThumbnailStore.isLocalUrl(url)) {
+      return widget.fallbackBuilder(context);
+    }
+
     // Priorité 2 : aucune miniature locale -> tentative réseau.
     // Le fallback générique n'est utilisé que si cette tentative échoue
     // réellement (403/404/HTML/expiration/timeout).
