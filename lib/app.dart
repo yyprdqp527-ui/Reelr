@@ -17,6 +17,7 @@ import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/playlist_import_screen.dart';
 import 'services/thumbnail_cache.dart';
+import 'services/thumbnail_store.dart';
 import 'services/oembed.dart';
 import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
@@ -127,8 +128,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         WidgetsBinding.instance.platformDispatcher.locale.languageCode;
     _locale = Locale(['fr', 'en'].contains(deviceLang) ? deviceLang : 'en');
     final prefsFuture = _loadPrefs();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _drainSilentShareInbox();
+    // La boite de partage n'est videe qu'une fois les preferences lues :
+    // avant, `_lifetimeClipsAdded` vaut 0 et `_isPremium` false. Les clips
+    // ajoutes dans cette fenetre etaient ensuite effaces du compteur a vie
+    // par `_loadPrefs`, qui ecrase la valeur en memoire.
+    prefsFuture.then((_) {
+      if (mounted) _drainSilentShareInbox();
     });
     _initShareIntent();
     _initDeepLinks();
@@ -172,6 +177,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       debugPrint("[lifecycle] resumed");
       _drainSilentShareInbox();
+      if (_prefsLoaded) _scheduleThumbnailRepair();
     }
   }
 
@@ -455,7 +461,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       );
       await widget.state.addClip(clip);
       registerClipAdded();
-      unawaited(_hydrateAndClassify(clip));
+      _enqueueHydration(clip);
       return true;
     } finally {
       _ingestingUrls.remove(normalized);
@@ -657,6 +663,63 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         uri.host.isNotEmpty;
   }
 
+  // ─────────────────────────────────────────────
+  // FILE D'ATTENTE DES EXTRACTIONS
+  // ─────────────────────────────────────────────
+
+  /// Extractions simultanees au maximum.
+  ///
+  /// Un utilisateur qui partage quinze videos depuis TikTok sans ouvrir
+  /// Reelr les retrouve toutes dans la boite de partage a la prochaine
+  /// ouverture. Sans file, quinze extractions partaient en meme temps :
+  /// TikTok et Instagram repondaient par des pages anti-bot, et les clips
+  /// restaient sans vignette. Un partage isole n'attend pas : la file est
+  /// vide, il demarre aussitot.
+  static const int _maxConcurrentHydrations = 2;
+
+  /// Pause apres chaque extraction, avant de liberer sa place.
+  static const Duration _hydrationSpacing = Duration(milliseconds: 800);
+
+  final List<Clip> _hydrationQueue = [];
+
+  /// Clips dont l'extraction est en attente ou en cours (file ou
+  /// reparation). La reparation les ignore pour ne pas les doubler.
+  final Set<String> _hydratingClipIds = {};
+
+  int _activeHydrations = 0;
+
+  void _enqueueHydration(Clip clip) {
+    if (!_hydratingClipIds.add(clip.id)) return;
+    _hydrationQueue.add(clip);
+    _pumpHydrationQueue();
+  }
+
+  void _pumpHydrationQueue() {
+    while (_activeHydrations < _maxConcurrentHydrations &&
+        _hydrationQueue.isNotEmpty) {
+      final queued = _hydrationQueue.removeAt(0);
+      _activeHydrations++;
+      unawaited(_runQueuedHydration(queued));
+    }
+  }
+
+  Future<void> _runQueuedHydration(Clip queued) async {
+    try {
+      // Relu dans l'etat : le clip a pu etre modifie ou supprime pendant
+      // son attente dans la file.
+      final current =
+          widget.state.allClips.where((c) => c.id == queued.id).firstOrNull;
+      if (current != null && mounted) await _hydrateAndClassify(current);
+    } catch (e) {
+      debugPrint('[hydrate] erreur dans la file (${queued.id}): $e');
+    } finally {
+      await Future<void>.delayed(_hydrationSpacing);
+      _activeHydrations--;
+      _hydratingClipIds.remove(queued.id);
+      if (mounted) _pumpHydrationQueue();
+    }
+  }
+
   Future<void> _hydrateAndClassify(Clip clip) async {
     final hasRealTitle = await _hydrateClip(clip);
     final updated =
@@ -789,7 +852,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final effectiveThumbnailUrl =
         OEmbedService.bestThumbnailUrl(clip.url, resolvedThumbnailUrl);
     if (effectiveThumbnailUrl != null && effectiveThumbnailUrl.isNotEmpty) {
-      unawaited(_precacheThumbnail(effectiveThumbnailUrl));
+      unawaited(_precacheThumbnail(effectiveThumbnailUrl, clipId: clip.id));
     }
     await widget.state.updateClip(
       Clip(
@@ -831,30 +894,52 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   ///
   /// Échec final silencieux : ResilientThumbnail retentera au réseau à
   /// l'affichage, et retombera sur le logo de plateforme si besoin.
-  Future<void> _precacheThumbnail(String url) async {
+  ///
+  /// Si [clipId] est fourni, l'image est aussi copiee dans le stockage
+  /// permanent (ThumbnailStore) : c'est cette copie, et non le cache
+  /// purgeable, qui garantit que la carte gardera sa miniature une fois
+  /// l'URL signee expiree.
+  ///
+  /// Renvoie `true` si l'image a ete telechargee (et, avec [clipId],
+  /// conservee dans le stockage permanent). [retry] a false pour un essai
+  /// unique, utilise par la reparation qui sait re-extraire en cas d'echec.
+  Future<bool> _precacheThumbnail(
+    String url, {
+    String? clipId,
+    bool retry = true,
+  }) async {
     final host = Uri.tryParse(url)?.host ?? url;
+    final delays = retry ? _precacheRetryDelays : const <Duration>[];
     for (var attempt = 0; ; attempt++) {
       try {
-        await ThumbnailCache.instance.downloadFile(
+        final info = await ThumbnailCache.instance.downloadFile(
           url,
           authHeaders: ThumbnailCache.headersFor(url),
         );
         debugPrint('[precache] vignette mise en cache: $host');
-        return;
+        if (clipId != null) {
+          final saved =
+              await ThumbnailStore.instance.saveFromFile(clipId, info.file);
+          debugPrint(
+            '[precache] copie permanente ${saved ? "ok" : "refusee"}: $host',
+          );
+          return saved;
+        }
+        return true;
       } catch (e) {
-        if (attempt >= _precacheRetryDelays.length) {
+        if (attempt >= delays.length) {
           debugPrint(
             '[precache] échec définitif ($host) après ${attempt + 1} '
             'tentative(s): $e',
           );
-          return;
+          return false;
         }
         debugPrint(
           '[precache] tentative ${attempt + 1} échouée ($host), '
-          'nouvel essai dans ${_precacheRetryDelays[attempt].inSeconds}s: $e',
+          'nouvel essai dans ${delays[attempt].inSeconds}s: $e',
         );
-        await Future<void>.delayed(_precacheRetryDelays[attempt]);
-        if (!mounted) return;
+        await Future<void>.delayed(delays[attempt]);
+        if (!mounted) return false;
       }
     }
   }
@@ -874,32 +959,91 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// 5. Le rythme n'a jamais ete en cause.
   static const int _thumbnailRepairBatchSize = 12;
 
+  /// Plafond global de clips examines par passe. Plus large que celui des
+  /// re-extractions : la plupart des reparations ne sont qu'un simple
+  /// telechargement, rapide et sans risque anti-bot.
+  static const int _thumbnailRepairMaxPerPass = 60;
+
   /// Pause entre deux reparations : simple politesse reseau, pas une
   /// protection contre une limitation de debit (cf. ci-dessus).
   static const Duration _thumbnailRepairSpacing = Duration(seconds: 2);
 
-  /// Au-dela de ce nombre d'echecs, un clip n'est plus retente. Sans ce
-  /// plafond, les clips definitivement inextricables (Reddit, Facebook
-  /// Reels) relanceraient une extraction inutile a chaque ouverture.
+  /// Nombre de tentatives rapprochees (une par lancement). Au-dela, un
+  /// clip n'est plus abandonne : il est retente de plus en plus rarement
+  /// (cf. `_thumbnailRepairBackoff`). L'ancien plafond definitif
+  /// condamnait a vie au logo generique un clip qui avait echoue trois
+  /// fois de suite, par exemple pendant une coupure reseau ou un blocage
+  /// passager de la plateforme.
   static const int _thumbnailRepairMaxAttempts = 3;
 
+  /// Delai minimal entre deux tentatives une fois les tentatives
+  /// rapprochees epuisees : 1 jour, puis 7 jours, puis 30 jours
+  /// indefiniment. Au pire une extraction par mois et par clip
+  /// inextricable (Reddit...), ce qui reste negligeable.
+  static const List<Duration> _thumbnailRepairBackoff = [
+    Duration(days: 1),
+    Duration(days: 7),
+    Duration(days: 30),
+  ];
+
   static const String _thumbnailRepairPrefsKey = 'thumbnail_repair_attempts';
+
+  /// Horodatage (ms) de la derniere tentative, par clip.
+  static const String _thumbnailRepairLastPrefsKey = 'thumbnail_repair_last';
+
+  bool _isRepairDue(
+    String clipId,
+    Map<String, int> attempts,
+    Map<String, int> lastAttempts,
+    DateTime now,
+  ) {
+    final count = attempts[clipId] ?? 0;
+    if (count < _thumbnailRepairMaxAttempts) return true;
+    final over = count - _thumbnailRepairMaxAttempts;
+    final delay = over < _thumbnailRepairBackoff.length
+        ? _thumbnailRepairBackoff[over]
+        : _thumbnailRepairBackoff.last;
+    // Clips deja au plafond avant cette version : pas d'horodatage, donc
+    // epoch 0, donc immediatement eligibles. C'est voulu : ils avaient ete
+    // abandonnes a tort.
+    final last = DateTime.fromMillisecondsSinceEpoch(lastAttempts[clipId] ?? 0);
+    return now.difference(last) >= delay;
+  }
 
   /// Delai avant de lancer la passe : laisse le premier rendu et le
   /// chargement des clips se terminer sans concurrence reseau.
   static const Duration _thumbnailRepairStartDelay = Duration(seconds: 4);
 
-  /// Une seule passe par session, meme si _loadPrefs est rappele.
-  bool _thumbnailRepairStarted = false;
+  /// Intervalle minimal entre deux passes. La passe tournait une seule
+  /// fois par demarrage a froid : une app simplement remise au premier
+  /// plan (le cas le plus courant sur iPhone) ne reparait jamais rien.
+  static const Duration _thumbnailRepairMinInterval = Duration(minutes: 15);
 
+  bool _thumbnailRepairRunning = false;
+  DateTime? _lastThumbnailRepairAt;
+
+  /// Lance une passe au demarrage et a chaque retour au premier plan,
+  /// au plus toutes les 15 minutes, jamais deux a la fois.
   void _scheduleThumbnailRepair() {
-    if (_thumbnailRepairStarted) return;
-    _thumbnailRepairStarted = true;
+    if (_thumbnailRepairRunning) return;
+    final last = _lastThumbnailRepairAt;
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < _thumbnailRepairMinInterval) {
+      return;
+    }
+    _thumbnailRepairRunning = true;
+    _lastThumbnailRepairAt = now;
     Future<void>.delayed(_thumbnailRepairStartDelay, () async {
-      if (!mounted) return;
-      await _purgeContentlessClips();
-      if (!mounted) return;
-      unawaited(_repairMissingThumbnails());
+      try {
+        if (!mounted) return;
+        await _purgeContentlessClips();
+        if (!mounted) return;
+        await _repairMissingThumbnails();
+      } catch (e) {
+        debugPrint('[repair] passe interrompue: $e');
+      } finally {
+        _thumbnailRepairRunning = false;
+      }
     });
   }
 
@@ -965,13 +1109,27 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (!_onboardingDone) return;
     final prefs = await SharedPreferences.getInstance();
     final attempts = _readRepairAttempts(prefs);
+    final lastAttempts =
+        _readRepairAttempts(prefs, key: _thumbnailRepairLastPrefsKey);
+
+    // Menage du stockage permanent : fichiers de clips supprimes et
+    // ecritures interrompues. Jamais sur une liste vide, qui peut
+    // signifier une base pas (ou mal) chargee et non « aucun clip ».
+    final liveIds = widget.state.allClips.map((c) => c.id).toSet();
+    if (liveIds.isNotEmpty) {
+      final removed = await ThumbnailStore.instance.pruneOrphans(liveIds);
+      if (removed > 0) {
+        debugPrint('[thumbstore] $removed fichier(s) orphelin(s) supprime(s)');
+      }
+    }
+    if (!mounted) return;
 
     final needing = await _clipsNeedingRepair();
     if (!mounted) return;
 
+    final now = DateTime.now();
     final candidates = needing
-        .where((c) =>
-            (attempts[c.id] ?? 0) < _thumbnailRepairMaxAttempts)
+        .where((c) => _isRepairDue(c.id, attempts, lastAttempts, now))
         .toList()
       // Les clips les plus recents d'abord : ce sont ceux que
       // l'utilisateur regarde, et ceux dont les jetons CDN ont encore
@@ -984,34 +1142,50 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       return;
     }
 
-    final batch = candidates.take(_thumbnailRepairBatchSize).toList();
+    final batch = candidates.take(_thumbnailRepairMaxPerPass).toList();
     debugPrint(
       '[repair] ${candidates.length} clip(s) a reparer, '
-      '${batch.length} traite(s) sur cette session',
+      'jusqu\'a ${batch.length} examine(s) sur cette passe',
     );
 
+    var extractions = 0;
     for (final clip in batch) {
       if (!mounted) return;
+      if (extractions >= _thumbnailRepairBatchSize) break;
+      if (_hydratingClipIds.contains(clip.id)) continue;
       attempts[clip.id] = (attempts[clip.id] ?? 0) + 1;
+      lastAttempts[clip.id] = DateTime.now().millisecondsSinceEpoch;
       await prefs.setString(_thumbnailRepairPrefsKey, jsonEncode(attempts));
+      await prefs.setString(
+          _thumbnailRepairLastPrefsKey, jsonEncode(lastAttempts));
+      var extracted = true;
+      _hydratingClipIds.add(clip.id);
       try {
-        await _repairOneThumbnail(clip);
+        extracted = await _repairOneThumbnail(clip);
       } catch (e) {
         debugPrint('[repair] echec ${clip.id}: $e');
+      } finally {
+        _hydratingClipIds.remove(clip.id);
       }
       if (!mounted) return;
-      // Respiration entre deux clips : evite la rafale de requetes qui
-      // faisait basculer TikTok en mode anti-bot.
-      await Future<void>.delayed(_thumbnailRepairSpacing);
+      if (extracted) {
+        extractions++;
+        // Respiration entre deux extractions : evite la rafale de
+        // requetes qui faisait basculer TikTok en mode anti-bot.
+        await Future<void>.delayed(_thumbnailRepairSpacing);
+      }
     }
 
     if (!mounted) return;
     await _pruneRepairAttempts(prefs, attempts);
   }
 
-  /// Delai de grace avant de juger une vignette morte : en deca, le
-  /// pre-cache declenche au partage peut simplement ne pas avoir fini.
-  static const Duration _deadThumbnailGracePeriod = Duration(hours: 1);
+  /// Delai de grace avant de juger une vignette manquante. Court depuis
+  /// que les extractions en cours sont suivies (`_hydratingClipIds`) et
+  /// que la reparation commence par un simple telechargement : une heure
+  /// laissait mourir l'URL des clips dont le pre-cache avait ete
+  /// interrompu par une mise en arriere-plan.
+  static const Duration _deadThumbnailGracePeriod = Duration(minutes: 2);
 
   /// Tous les clips qui meritent une re-extraction : ceux sans vignette,
   /// et ceux dont la vignette est morte.
@@ -1023,8 +1197,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<List<Clip>> _clipsNeedingRepair() async {
     final seen = <String>{};
     final result = <Clip>[];
+    final now = DateTime.now();
     void add(Clip c) {
       if (OEmbedService.isContentlessUrl(c.url)) return;
+      // Extraction deja en cours (partage tout juste recu) : ne pas la
+      // doubler ni consommer une tentative de reparation pour rien.
+      if (_hydratingClipIds.contains(c.id)) return;
+      if (now.difference(c.addedAt) < _deadThumbnailGracePeriod) return;
       if (seen.add(c.id)) result.add(c);
     }
 
@@ -1050,24 +1229,43 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// signal que celui utilise par ResilientThumbnail a l'affichage, donc
   /// « pas de fichier en cache » veut bien dire « la carte montre le
   /// logo generique ».
+  ///
+  /// Depuis l'ajout de ThumbnailStore, cette passe sert aussi de
+  /// migration : une miniature encore presente dans le cache disque est
+  /// copiee dans le stockage permanent, et la carte est sauvee avant que
+  /// le cache ne soit purge.
   Future<List<Clip>> _clipsWithDeadThumbnail() async {
     final now = DateTime.now();
     final dead = <Clip>[];
+    var adopted = 0;
     for (final clip in widget.state.allClips) {
       final stored = clip.thumbnailUrl;
       if (stored == null || stored.isEmpty) continue;
-      if (now.difference(clip.addedAt) < _deadThumbnailGracePeriod) continue;
+      // Copie permanente presente : la carte s'affiche, rien a faire.
+      if (await ThumbnailStore.instance.has(clip.id)) continue;
       final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
       if (displayed == null || displayed.isEmpty) continue;
-      // Une URL non signee ne perime pas : si elle echoue, la reextraire
-      // donnerait le meme resultat. On ne retente que les perissables.
-      if (!OEmbedService.isExpiringThumbnailUrl(displayed)) continue;
       try {
         final file = await ThumbnailCache.instance.getFileFromCache(displayed);
-        if (file == null) dead.add(clip);
+        if (file != null) {
+          if (await ThumbnailStore.instance.saveFromFile(clip.id, file.file)) {
+            adopted++;
+          }
+          continue;
+        }
       } catch (_) {
         // Cache illisible : on s'abstient plutot que de tout retenter.
+        continue;
       }
+      if (now.difference(clip.addedAt) < _deadThumbnailGracePeriod) continue;
+      // Toutes les URLs sont retenues, signees ou non : la reparation
+      // commence par un simple telechargement et ne re-extrait qu'en cas
+      // d'echec. Une URL non signee jamais affichee obtient ainsi sa
+      // copie permanente sans attendre que l'utilisateur fasse defiler.
+      dead.add(clip);
+    }
+    if (adopted > 0) {
+      debugPrint('[thumbstore] $adopted miniature(s) copiee(s) depuis le cache');
     }
     if (dead.isNotEmpty) {
       debugPrint('[repair] ${dead.length} vignette(s) morte(s) detectee(s)');
@@ -1076,7 +1274,25 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   }
 
   /// Repare un clip : re-resolution de l'URL puis re-extraction.
-  Future<void> _repairOneThumbnail(Clip clip) async {
+  ///
+  /// Renvoie `true` si une re-extraction a eu lieu (couteuse, a espacer),
+  /// `false` si un simple telechargement a suffi.
+  Future<bool> _repairOneThumbnail(Clip clip) async {
+    // 0. L'URL connue est peut-etre encore valide : c'est le cas des clips
+    //    dont le pre-cache a ete interrompu (app mise en arriere-plan
+    //    juste apres l'ouverture). Un telechargement suffit alors.
+    final stored = clip.thumbnailUrl;
+    if (stored != null && stored.isNotEmpty) {
+      final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
+      if (displayed != null &&
+          displayed.isNotEmpty &&
+          await _precacheThumbnail(displayed, clipId: clip.id, retry: false)) {
+        debugPrint('[repair] vignette recuperee sans extraction: ${clip.id}');
+        return false;
+      }
+      if (!mounted) return false;
+    }
+
     var target = clip;
 
     // 1. Re-resoudre l'URL si c'est un lien court connu. `dedupUrl`
@@ -1108,12 +1324,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
     // 2. Re-extraire les metadonnees. `_hydrateClip` se charge de la mise
     //    a jour du clip et du pre-cache de la vignette.
-    if (!mounted) return;
+    if (!mounted) return true;
     await _hydrateClip(target);
+    return true;
   }
 
-  Map<String, int> _readRepairAttempts(SharedPreferences prefs) {
-    final raw = prefs.getString(_thumbnailRepairPrefsKey);
+  Map<String, int> _readRepairAttempts(
+    SharedPreferences prefs, {
+    String key = _thumbnailRepairPrefsKey,
+  }) {
+    final raw = prefs.getString(key);
     if (raw == null || raw.isEmpty) return <String, int>{};
     try {
       final decoded = jsonDecode(raw);
@@ -1146,6 +1366,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       await prefs.remove(_thumbnailRepairPrefsKey);
     } else {
       await prefs.setString(_thumbnailRepairPrefsKey, jsonEncode(attempts));
+    }
+    final lastAttempts =
+        _readRepairAttempts(prefs, key: _thumbnailRepairLastPrefsKey)
+          ..removeWhere((id, _) => !stillNeeding.contains(id));
+    if (lastAttempts.isEmpty) {
+      await prefs.remove(_thumbnailRepairLastPrefsKey);
+    } else {
+      await prefs.setString(
+          _thumbnailRepairLastPrefsKey, jsonEncode(lastAttempts));
     }
   }
 

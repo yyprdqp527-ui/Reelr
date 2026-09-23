@@ -670,6 +670,14 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
             final cat = visibleCats[catIndex];
             final catClips = widget.state.clipsForCategory(cat.id);
             final localizedName = l.localizeCategoryDisplay(cat.id, cat.name);
+            // Clip dont la miniature illustre la tuile : le premier, dans
+            // l'ordre de la categorie, qui possede une vignette.
+            final thumbClip = catClips.isEmpty
+                ? null
+                : sortClipsByOrder(catClips, widget.state.sortOrderFor(cat.id))
+                    .where((c) =>
+                        c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                    .firstOrNull;
             final tile = _CategoryTile(
               name: localizedName,
               color: cat.color,
@@ -679,19 +687,11 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                 widget.state.markCategoryViewed(cat.id);
                 widget.onOpenCategory(context, cat.id, localizedName);
               },
-              thumbnailUrl: catClips.isEmpty
+              thumbnailUrl: thumbClip == null
                   ? null
-                  : () {
-                      final order = widget.state.sortOrderFor(cat.id);
-                      final sorted = sortClipsByOrder(catClips, order);
-                      return sorted
-                          .where((c) =>
-                              c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
-                          .map((c) => OEmbedService.bestThumbnailUrl(
-                              c.url, c.thumbnailUrl))
-                          .whereType<String>()
-                          .firstOrNull;
-                    }(),
+                  : OEmbedService.bestThumbnailUrl(
+                      thumbClip.url, thumbClip.thumbnailUrl),
+              thumbnailClipId: thumbClip?.id,
               showBadge:
                   widget.state.newlyClassifiedCategoryIds.contains(cat.id),
             );
@@ -740,6 +740,9 @@ class _CategoryTile extends StatefulWidget {
   final bool isAdd;
 
   final String? thumbnailUrl;
+
+  /// Id du clip dont la miniature illustre la tuile (stockage permanent).
+  final String? thumbnailClipId;
   final bool showBadge;
   final bool isPending;
   final bool isAllTile;
@@ -753,6 +756,7 @@ class _CategoryTile extends StatefulWidget {
     this.icon,
     this.isAdd = false,
     this.thumbnailUrl,
+    this.thumbnailClipId,
     this.showBadge = false,
     this.isPending = false,
     this.isAllTile = false,
@@ -843,6 +847,7 @@ class _CategoryTileState extends State<_CategoryTile> {
                         key: ValueKey('cat_thumb_${widget.name}'),
                         url: widget.thumbnailUrl,
                         cacheKeyId: widget.name,
+                        persistId: widget.thumbnailClipId,
                         platformId: 'category_tile',
                         fit: BoxFit.cover,
                         fallbackBuilder: (_) => Container(
@@ -1412,6 +1417,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                       url: OEmbedService.bestThumbnailUrl(
                                                           c.url, c.thumbnailUrl),
                                                       cacheKeyId: c.id,
+                                                      persistId: c.id,
                                                       platformId: c.platform,
                                                       fit: BoxFit.cover,
                                                       fallbackBuilder: (_) => Container(
@@ -2621,6 +2627,7 @@ class _ThumbnailBanner extends StatelessWidget {
                 key: ValueKey('card_thumb_$clipId'),
                 url: thumbUrl,
                 cacheKeyId: clipId,
+                persistId: clipId,
                 platformId: platform.id,
                 fit: BoxFit.cover,
                 // Loader

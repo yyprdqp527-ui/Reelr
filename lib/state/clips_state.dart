@@ -8,6 +8,7 @@ import '../services/database.dart';
 import '../core/l10n.dart';
 import 'dart:async';
 import '../services/oembed.dart';
+import '../services/thumbnail_store.dart';
 import '../services/profile_service.dart';
 
 /// Table de correspondance accent → lettre de base, utilisée par
@@ -879,6 +880,7 @@ class ClipsState extends ChangeNotifier {
     await DatabaseHelper.instance.deleteClip(id);
     _clips.removeWhere((c) => c.id == id);
     notifyListeners();
+    unawaited(ThumbnailStore.instance.delete(id));
   }
 
   /// Insert idempotent par nom (case-insensitive). Renvoie la cat\u00e9gorie
