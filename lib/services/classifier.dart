@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'net.dart';
 
 import '../config/secrets.dart';
 import '../models/category.dart';
@@ -1615,7 +1615,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
       ],
     });
 
-    final response = await http.post(
+    final response = await Net.client.post(
       Uri.parse(_apiUrl),
       headers: {
         'x-reelr-secret': Secrets.appSharedSecret,
@@ -1650,7 +1650,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
             {'role': 'user', 'content': userText},
           ],
         });
-        final retryResponse = await http.post(
+        final retryResponse = await Net.client.post(
           Uri.parse(_apiUrl),
           headers: {
             'x-reelr-secret': Secrets.appSharedSecret,

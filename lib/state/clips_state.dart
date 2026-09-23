@@ -1119,14 +1119,18 @@ class ClipsState extends ChangeNotifier {
         for (final entry in sortedEntries) entry.key: entry.value,
       };
 
+      // Seuls le schema et l'hote sont insensibles a la casse. Le
+      // chemin et la query ne le sont pas : abaisser toute l'URL faisait
+      // passer deux liens courts differents (codes base62) pour un
+      // doublon, et le second partage etait refuse a tort.
       return Uri(
         scheme: uri.scheme.toLowerCase(),
         host: normalizedHost,
         path: normalizedPath.isEmpty ? '' : '/$normalizedPath',
         queryParameters: sortedParams.isEmpty ? null : sortedParams,
-      ).toString().toLowerCase();
+      ).toString();
     } catch (_) {
-      return url.trim().toLowerCase();
+      return url.trim();
     }
   }
 
@@ -1166,6 +1170,52 @@ class ClipsState extends ChangeNotifier {
       }
     }
 
+    // Reddit : l'identifiant du post suit « comments ». Le share_id,
+    // different a chaque partage, faisait rater le doublon.
+    if (host == 'reddit.com' || host.endsWith('.reddit.com')) {
+      final index = segments.indexOf('comments');
+      if (index != -1 && index + 1 < segments.length) {
+        return 'reddit:${segments[index + 1].toLowerCase()}';
+      }
+    }
+    if (host == 'redd.it' && segments.isNotEmpty) {
+      return 'reddit:${segments.first.toLowerCase()}';
+    }
+
+    // Facebook : reel/<id>, watch?v=<id>, <page>/videos/<id>.
+    if (host == 'facebook.com' ||
+        host == 'm.facebook.com' ||
+        host == 'web.facebook.com') {
+      final fbId = _facebookVideoId(uri, segments);
+      if (fbId != null && fbId.isNotEmpty) return 'facebook:$fbId';
+    }
+
+    // Twitch : clips.twitch.tv/<slug> == twitch.tv/<chaine>/clip/<slug>.
+    if (host == 'clips.twitch.tv' && segments.isNotEmpty) {
+      return 'twitch-clip:${segments.first}';
+    }
+    if (host == 'twitch.tv' || host == 'm.twitch.tv') {
+      final clipIndex = segments.indexOf('clip');
+      if (clipIndex != -1 && clipIndex + 1 < segments.length) {
+        return 'twitch-clip:${segments[clipIndex + 1]}';
+      }
+      final videoIndex = segments.indexOf('videos');
+      if (videoIndex != -1 && videoIndex + 1 < segments.length) {
+        return 'twitch-video:${segments[videoIndex + 1]}';
+      }
+    }
+
+    // X / Twitter : meme publication sur les deux domaines.
+    if (host == 'x.com' ||
+        host == 'twitter.com' ||
+        host == 'mobile.twitter.com' ||
+        host == 'mobile.x.com') {
+      final index = segments.indexOf('status');
+      if (index != -1 && index + 1 < segments.length) {
+        return 'x:${segments[index + 1]}';
+      }
+    }
+
     return null;
   }
 
@@ -1175,9 +1225,11 @@ class ClipsState extends ChangeNotifier {
     }
 
     final segments = uri.pathSegments;
-    if (segments.contains('shorts')) {
-      final index = segments.indexOf('shorts');
-      if (index + 1 < segments.length) return segments[index + 1];
+    for (final marker in const ['shorts', 'live']) {
+      final index = segments.indexOf(marker);
+      if (index != -1 && index + 1 < segments.length) {
+        return segments[index + 1];
+      }
     }
     if (segments.contains('embed')) {
       final index = segments.indexOf('embed');
@@ -1195,7 +1247,24 @@ class ClipsState extends ChangeNotifier {
   }
 
   static String? _instagramMediaCode(List<String> segments) {
-    for (final marker in const ['reel', 'p']) {
+    // `share` exclu : /share/reel/<code> porte un code aleatoire propre
+    // au partage, resolu en amont par redirection.
+    if (segments.isNotEmpty && segments.first == 'share') return null;
+    for (final marker in const ['reel', 'reels', 'p', 'tv']) {
+      final index = segments.indexOf(marker);
+      if (index != -1 && index + 1 < segments.length) {
+        return segments[index + 1];
+      }
+    }
+    return null;
+  }
+
+  static String? _facebookVideoId(Uri uri, List<String> segments) {
+    // Liens de partage (/share/r/<code>) : code aleatoire, resolu en amont.
+    if (segments.isNotEmpty && segments.first == 'share') return null;
+    final v = uri.queryParameters['v'];
+    if (v != null && v.isNotEmpty) return v;
+    for (final marker in const ['reel', 'videos']) {
       final index = segments.indexOf(marker);
       if (index != -1 && index + 1 < segments.length) {
         return segments[index + 1];

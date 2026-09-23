@@ -711,7 +711,24 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       // son attente dans la file.
       final current =
           widget.state.allClips.where((c) => c.id == queued.id).firstOrNull;
-      if (current != null && mounted) await _hydrateAndClassify(current);
+      // La place dans la file n'est tenue que pendant l'EXTRACTION
+      // (requetes vers les plateformes, la ou la rafale declenche
+      // l'anti-bot). La classification continue ensuite hors file : elle
+      // a son propre limiteur (_ClassifyLimiter). Avant, chaque place
+      // restait prise ~3,5 s de plus pendant l'appel a Claude, et le
+      // lot suivant attendait pour rien.
+      if (current != null && mounted) {
+        final hydrated = Completer<void>();
+        unawaited(
+          _hydrateAndClassify(current, hydrated: hydrated)
+              .catchError((Object e) {
+            debugPrint('[hydrate] erreur (${current.id}): $e');
+          }).whenComplete(() {
+            if (!hydrated.isCompleted) hydrated.complete();
+          }),
+        );
+        await hydrated.future;
+      }
     } catch (e) {
       debugPrint('[hydrate] erreur dans la file (${queued.id}): $e');
     } finally {
@@ -722,8 +739,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _hydrateAndClassify(Clip clip) async {
+  Future<void> _hydrateAndClassify(
+    Clip clip, {
+    Completer<void>? hydrated,
+  }) async {
     final hasRealTitle = await _hydrateClip(clip);
+    // Extraction terminee : la file d'attente peut lancer la suivante.
+    if (hydrated != null && !hydrated.isCompleted) hydrated.complete();
     final updated =
         widget.state.allClips.where((c) => c.id == clip.id).firstOrNull ?? clip;
     // Ne pas payer un appel de classification pour rien : quand

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io' show HttpClient;
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'net.dart';
 
 import '../config/secrets.dart';
 import 'classifier.dart';
@@ -296,7 +296,7 @@ class OEmbedService {
   static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
     try {
       final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(videoUri.toString())}&format=json';
-      final response = await http
+      final response = await Net.client
           .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
@@ -362,7 +362,7 @@ class OEmbedService {
     });
 
     try {
-      final response = await http
+      final response = await Net.client
           .get(requestUri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
       // Ces trois sorties etaient muettes : un 403 ou un 429 de TikTok
@@ -429,7 +429,7 @@ class OEmbedService {
     });
 
     try {
-      final response = await http
+      final response = await Net.client
           .get(requestUri, headers: {'Accept': 'application/json'})
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) return null;
@@ -478,7 +478,7 @@ class OEmbedService {
         : Uri.https('api.twitch.tv', '/helix/videos', {'id': videoId!});
 
     try {
-      final response = await http.get(
+      final response = await Net.client.get(
         requestUri,
         headers: {
           'Accept': 'application/json',
@@ -693,6 +693,14 @@ class OEmbedService {
     // deux clips distincts malgre le controle anti-doublon — signale en
     // production par l'utilisatrice.
     final isLinkedInShortLink = host == 'lnkd.in';
+    // Liens de partage Facebook et Instagram : code aleatoire a chaque
+    // partage (/share/r/.., /share/v/.., /share/reel/.., fb.watch/..).
+    // Non resolus, deux partages de la meme video creaient deux clips.
+    final firstSegment =
+        uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
+    final isMetaShareLink = host == 'fb.watch' ||
+        ((host.endsWith('facebook.com') || host.endsWith('instagram.com')) &&
+            firstSegment == 'share');
     // Liens courts TikTok : vm./vt.tiktok.com et tiktok.com/t/xxx.
     // Non resolus, ils cassaient le dedoublonnage : `_tiktokVideoId`
     // cherche un segment `video` dans le chemin, absent de ces formes.
@@ -709,6 +717,7 @@ class OEmbedService {
         !isGoogleShareLink &&
         !isTikTokShortLink &&
         !isLinkedInShortLink &&
+        !isMetaShareLink &&
         tiktokDownloadLinkId == null) {
       return uri;
     }
@@ -744,6 +753,15 @@ class OEmbedService {
         // valeur casserait la detection de plateforme et l'ouverture du
         // lien : on prefere conserver l'URL d'origine.
         final scheme = resolved.scheme.toLowerCase();
+        // Page de connexion (Facebook, Instagram sans session) : ce n'est
+        // pas le contenu, on garde l'URL partagee.
+        final landsOnLogin = resolved.pathSegments.any((s) =>
+            s == 'login' || s == 'login.php' || s == 'checkpoint');
+        if (landsOnLogin) {
+          debugPrint('[shortlink] ${uri.host} -> page de connexion, '
+              'URL partagee conservee');
+          return uri;
+        }
         if ((scheme == 'http' || scheme == 'https') &&
             resolved.host.isNotEmpty) {
           final canonical = _canonicalPinterestPinUrl(resolved);
@@ -1037,7 +1055,7 @@ class OEmbedService {
       var path = resolvedUri.path;
       if (!path.endsWith('/')) path = '$path/';
       final jsonUri = Uri.https('www.reddit.com', '$path.json');
-      final response = await http.get(
+      final response = await Net.client.get(
         jsonUri,
         headers: {
           'User-Agent': _redditBrowserUserAgent,
@@ -1148,7 +1166,7 @@ class OEmbedService {
       final needsRealisticHeaders = platformId == 'pinterest' ||
           platformId == 'reddit' ||
           platformId == 'tiktok';
-      final response = await http.get(
+      final response = await Net.client.get(
         uri,
         headers: needsRealisticHeaders
             ? {

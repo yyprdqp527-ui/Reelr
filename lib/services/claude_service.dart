@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
+import 'net.dart';
 import '../config/secrets.dart';
 
 class ClaudeService {
@@ -15,7 +15,7 @@ class ClaudeService {
     try {
       final catList = categoryNames.isEmpty ? 'aucune' : categoryNames.join(', ');
       final platformLine = platform != null ? 'Plateforme : "$platform"\n' : '';
-      final response = await http.post(
+      final response = await Net.client.post(
         Uri.parse(_url),
         headers: {
           'Content-Type': 'application/json',
