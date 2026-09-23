@@ -70,7 +70,45 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
   @override
   void initState() {
     super.initState();
-    _checkCache();
+    if (!_adoptKnownStoredFile()) _checkCache();
+  }
+
+  /// Vignette deja connue de l'index en memoire : affichee des la premiere
+  /// image, sans passer par l'etat de chargement.
+  bool _adoptKnownStoredFile() {
+    final persistId = widget.persistId;
+    if (persistId == null) return false;
+    final known = ThumbnailStore.instance.knownFileFor(persistId);
+    if (known == null) return false;
+    _storedFile = known;
+    _checkingCache = false;
+    return true;
+  }
+
+  /// Image locale decodee a la taille d'affichage (et non en pleine
+  /// resolution). Le facteur 1.8 sur la hauteur couvre le pire cas du
+  /// recadrage `cover` : une image 16:9 dans une case carree.
+  Widget _localImage(File file, ImageErrorWidgetBuilder onError) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dpr = MediaQuery.devicePixelRatioOf(context);
+        final w = constraints.maxWidth;
+        final h = constraints.maxHeight;
+        int? cacheWidth;
+        if (w.isFinite && h.isFinite && w > 0) {
+          cacheWidth = ((w > h * 1.8 ? w : h * 1.8) * dpr).ceil();
+        } else if (w.isFinite && w > 0) {
+          cacheWidth = (w * dpr).ceil();
+        }
+        return Image.file(
+          file,
+          fit: widget.fit,
+          cacheWidth: cacheWidth,
+          gaplessPlayback: true,
+          errorBuilder: onError,
+        );
+      },
+    );
   }
 
   @override
@@ -83,7 +121,7 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
       _cachedFile = null;
       _checkingCache = true;
       _persistScheduled = false;
-      _checkCache();
+      if (!_adoptKnownStoredFile()) _checkCache();
     }
   }
 
@@ -182,10 +220,9 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
 
     if (_storedFile != null) {
       final file = _storedFile!;
-      return Image.file(
+      return _localImage(
         file,
-        fit: widget.fit,
-        errorBuilder: (_, _, _) {
+        (_, _, _) {
           // Fichier corrompu : on le supprime pour que la passe de
           // réparation puisse le remplacer au prochain lancement.
           _log('miniature permanente illisible -> suppression + fallback');
@@ -210,10 +247,9 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
     // Priorité 1 : une miniature déjà présente dans le cache disque est
     // affichée depuis le disque, jamais depuis le réseau.
     if (_cachedFile != null) {
-      return Image.file(
+      return _localImage(
         _cachedFile!.file,
-        fit: widget.fit,
-        errorBuilder: (_, _, _) {
+        (_, _, _) {
           _log('fichier en cache illisible -> fallback');
           return widget.fallbackBuilder(context);
         },

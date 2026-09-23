@@ -41,6 +41,33 @@ class ThumbnailStore {
 
   Future<Directory?>? _dirFuture;
 
+  /// Index en memoire : nom de fichier (id du clip nettoye) -> fichier.
+  /// Permet une reponse SYNCHRONE a « ce clip a-t-il une vignette ? ».
+  final Map<String, File> _known = {};
+
+  /// Construit l'index en lisant le dossier une fois. A appeler au
+  /// demarrage, avant le premier affichage. Sans lui, tout fonctionne
+  /// quand meme : l'index se remplit au fil des lectures.
+  Future<void> warmUp() async {
+    final dir = await _directory();
+    if (dir == null) return;
+    try {
+      await for (final entity in dir.list()) {
+        if (entity is! File) continue;
+        final base = p.basename(entity.path);
+        if (!base.endsWith(_extension)) continue;
+        _known[base.substring(0, base.length - _extension.length)] = entity;
+      }
+      debugPrint('[thumbstore] index: ${_known.length} miniature(s)');
+    } catch (e) {
+      debugPrint('[thumbstore] index impossible: $e');
+    }
+  }
+
+  /// Fichier de la miniature de [clipId] si l'index le connait. Synchrone,
+  /// sans acces disque : utilisable dans `initState`.
+  File? knownFileFor(String clipId) => _known[_safeName(clipId)];
+
   Future<Directory?> _directory() {
     if (kIsWeb) return Future<Directory?>.value(null);
     return _dirFuture ??= _initDirectory();
@@ -79,10 +106,15 @@ class ThumbnailStore {
   Future<File?> fileFor(String clipId) async {
     final dir = await _directory();
     if (dir == null) return null;
-    final file = File(p.join(dir.path, '${_safeName(clipId)}$_extension'));
+    final name = _safeName(clipId);
+    final file = File(p.join(dir.path, '$name$_extension'));
     try {
-      if (await file.exists() && await file.length() > 0) return file;
+      if (await file.exists() && await file.length() > 0) {
+        _known[name] = file;
+        return file;
+      }
     } catch (_) {}
+    _known.remove(name);
     return null;
   }
 
@@ -104,7 +136,8 @@ class ThumbnailStore {
     ));
     try {
       await tmp.writeAsBytes(bytes, flush: true);
-      await tmp.rename(p.join(dir.path, '$name$_extension'));
+      final saved = await tmp.rename(p.join(dir.path, '$name$_extension'));
+      _known[name] = saved;
       return true;
     } catch (e) {
       debugPrint('[thumbstore] ecriture impossible clip=$clipId: $e');
@@ -142,6 +175,7 @@ class ThumbnailStore {
   /// illisible qu'il faut laisser a la passe de reparation).
   Future<void> delete(String clipId) async {
     final file = await fileFor(clipId);
+    _known.remove(_safeName(clipId));
     if (file == null) return;
     try {
       await file.delete();
@@ -162,6 +196,9 @@ class ThumbnailStore {
         final keep = base.endsWith(_extension) &&
             live.contains(base.substring(0, base.length - _extension.length));
         if (keep) continue;
+        if (base.endsWith(_extension)) {
+          _known.remove(base.substring(0, base.length - _extension.length));
+        }
         try {
           await entity.delete();
           removed++;
