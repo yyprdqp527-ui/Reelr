@@ -67,6 +67,32 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
   bool _persistScheduled = false;
   int _generation = 0;
 
+  /// Adresses dont le chargement vient d'echouer, pour toute l'app. Une
+  /// image en echec n'est pas gardee par le cache d'images Flutter : chaque
+  /// redessin de la carte relancait le telechargement (capture /screenshot
+  /// en 502) ou le decodage (fichier de cache illisible), des dizaines de
+  /// fois en quelques secondes. Pendant [_failureCooldown], le fallback
+  /// s'affiche sans nouvel essai ; la passe de reparation de ThumbnailStore
+  /// reste chargee des vrais nouveaux essais.
+  static final Map<String, DateTime> _recentFailures = {};
+  static const Duration _failureCooldown = Duration(minutes: 2);
+
+  static bool _failedRecently(String url) {
+    final at = _recentFailures[url];
+    if (at == null) return false;
+    if (DateTime.now().difference(at) < _failureCooldown) return true;
+    _recentFailures.remove(url);
+    return false;
+  }
+
+  /// Memorise l'echec. Renvoie true la premiere fois seulement, pour ne
+  /// journaliser (et ne nettoyer) qu'une fois.
+  static bool _recordFailure(String url) {
+    if (_failedRecently(url)) return false;
+    _recentFailures[url] = DateTime.now();
+    return true;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -184,6 +210,8 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
       _checkingCache = false;
     });
     if (info != null) {
+      // Telechargee entre-temps (pre-cache, reparation) : l'echec est oublie.
+      _recentFailures.remove(url);
       _log('miniature trouvée dans le cache disque -> affichage local');
       // Le cache est purgeable : on en garde une copie permanente.
       if (persistId != null) {
@@ -244,13 +272,22 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
       return widget.fallbackBuilder(context);
     }
 
+    // Echec tout recent : fallback direct, sans nouvel essai.
+    if (_failedRecently(url)) {
+      return widget.fallbackBuilder(context);
+    }
+
     // Priorité 1 : une miniature déjà présente dans le cache disque est
     // affichée depuis le disque, jamais depuis le réseau.
     if (_cachedFile != null) {
       return _localImage(
         _cachedFile!.file,
         (_, _, _) {
-          _log('fichier en cache illisible -> fallback');
+          if (_recordFailure(url)) {
+            _log('fichier en cache illisible -> retire du cache + fallback');
+            // Fichier abime : retire pour etre retelecharge au prochain essai.
+            ThumbnailCache.instance.removeFile(url);
+          }
           return widget.fallbackBuilder(context);
         },
       );
@@ -273,11 +310,15 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
           ? (ctx, _) => widget.loadingBuilder!(ctx)
           : null,
       imageBuilder: (ctx, imageProvider) {
+        _recentFailures.remove(url);
         _persistAfterNetworkSuccess(url);
         return Image(image: imageProvider, fit: widget.fit);
       },
       errorWidget: (_, _, error) {
-        _log('échec réseau (${_sanitizeForLog(url)}): $error -> fallback');
+        if (_recordFailure(url)) {
+          _log('échec réseau (${_sanitizeForLog(url)}): $error -> fallback '
+              '(pas de nouvel essai avant 2 min)');
+        }
         return widget.fallbackBuilder(context);
       },
     );
