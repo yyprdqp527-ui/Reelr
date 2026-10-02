@@ -61,4 +61,34 @@ void main() {
         'https://www.exemple.com/article/');
     different('https://bit.ly/aBcD', 'https://bit.ly/AbCd');
   });
+
+  test('Booking : dates, suivi et langue ignores', () {
+    same('https://www.booking.com/hotel/fr/marriott-s-village-d-lle-de-france.fr.html?aid=304142&nad_id=a&srpvid=1',
+        'https://www.booking.com/hotel/fr/marriott-s-village-d-lle-de-france.fr.html?aid=1&nad_id=b&checkin=2026-10-03');
+    same('https://www.booking.com/hotel/fr/x.fr.html',
+        'https://www.booking.com/hotel/fr/x.en-gb.html');
+    different('https://www.booking.com/hotel/fr/x.fr.html',
+        'https://www.booking.com/hotel/fr/y.fr.html');
+  });
+
+  test('Recherche Google : seule la requete compte', () {
+    same('https://www.google.com/search?q=haaland&ie=UTF-8&client=safari#sv=abc',
+        'https://www.google.fr/search?q=Haaland&ved=xyz&sxsrf=1');
+    different('https://www.google.com/search?q=haaland',
+        'https://www.google.com/search?q=mbappe');
+  });
+
+  test('Publicite : gclid, gbraid, gad_source, srsltid retires', () {
+    same('https://boutique.ol.fr/fr/m.html?utm_source=g&gclid=1&gbraid=2&gad_source=1&gad_campaignid=3',
+        'https://boutique.ol.fr/fr/m.html');
+    same('https://www2.hm.com/fr_fr/index.html?srsltid=AU7gw4',
+        'https://www2.hm.com/fr_fr/index.html');
+    different('https://www2.hm.com/fr_fr/x.html?productId=1',
+        'https://www2.hm.com/fr_fr/x.html?productId=2');
+  });
+
+  test('Google Images : meme page, parametres differents', () {
+    same('https://www.google.com/imgres?imgurl=a&imgrefurl=https://www.goal.com/fr/news/x&kgs=1',
+        'https://www.google.com/imgres?imgurl=a&imgrefurl=https://www.goal.com/fr/news/x&kgs=2');
+  });
 }
