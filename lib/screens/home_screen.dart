@@ -3824,7 +3824,14 @@ class _AddClipSheetState extends State<AddClipSheet> {
       addedAt: DateTime.now(),
       thumbnailUrl: _thumbnailUrl,
     );
-    await widget.state.addClip(clip);
+    if (!await widget.state.addClip(clip)) {
+      if (mounted) {
+        setState(() => _urlError = lang == 'fr'
+            ? 'Ce lien est déjà dans votre liste.'
+            : 'This link is already in your list.');
+      }
+      return;
+    }
     app?.registerClipAdded();
     if (mounted) Navigator.pop(context);
   }
