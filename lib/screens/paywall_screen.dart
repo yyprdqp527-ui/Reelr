@@ -16,6 +16,10 @@ class PaywallScreen extends StatefulWidget {
   final String? priceText;
   final bool isLoading;
 
+  /// Liens partages gardes en attente par la limite gratuite. Affiches
+  /// sur l'ecran pour que l'utilisatrice sache qu'ils ne sont pas perdus.
+  final int heldCount;
+
   const PaywallScreen({
     super.key,
     required this.onUpgrade,
@@ -23,6 +27,7 @@ class PaywallScreen extends StatefulWidget {
     this.onRestore,
     this.priceText,
     this.isLoading = false,
+    this.heldCount = 0,
   });
 
   @override
@@ -64,6 +69,18 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return _isFr(context)
         ? 'Tu as sauvegardé 50 vidéos au total — même celles que tu as supprimées comptent. Passe à Premium pour continuer sans limite.'
         : "You've saved 50 videos in total — deleted ones still count. Upgrade to keep bookmarking without limits.";
+  }
+
+  String _heldLine(BuildContext context) {
+    final n = widget.heldCount;
+    if (_isFr(context)) {
+      return n == 1
+          ? '1 lien t’attend. Il sera ajouté dès ton passage à Premium.'
+          : '$n liens t’attendent. Ils seront ajoutés dès ton passage à Premium.';
+    }
+    return n == 1
+        ? "1 link is waiting for you. It'll be added as soon as you upgrade."
+        : "$n links are waiting for you. They'll be added as soon as you upgrade.";
   }
 
   String _pricePeriod(BuildContext context) {
@@ -195,6 +212,39 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         height: 1.5,
                       ),
                     ),
+                    if (widget.heldCount > 0) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF7C3AED)
+                              .withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: const Color(0xFFA855F7)
+                                .withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.inbox_rounded,
+                                size: 20, color: Color(0xFFA855F7)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _heldLine(context),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  height: 1.4,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 28),
 
                     _FeatureRow(
