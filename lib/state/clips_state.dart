@@ -677,6 +677,7 @@ class ClipsState extends ChangeNotifier {
           'cat_nutrition': 'Nutrition', 'cat_vintage': 'Vintage',
           'cat_fail': 'Fails',
           'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
+          'cat_shopping': 'Shopping',
         };
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
         // jamais un ID `cat_xxx` litteral : l'ancien test
