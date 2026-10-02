@@ -212,18 +212,20 @@ enum SafariPreviewStore {
     return path.range(of: pattern, options: .regularExpression) != nil
   }
 
-  /// Premiere image qui repond vraiment (HEAD, 5 s max chacune), dans
-  /// l'ordre des candidats. Rappel sur le fil principal.
+  /// Premiere image qui n'est pas morte (HEAD, 3 s max chacune), dans
+  /// l'ordre des candidats. Seuls 404 et 410 ecartent une image : beaucoup
+  /// de CDN refusent HEAD (403, 405) alors que l'image s'affiche tres bien.
+  /// Rappel sur le fil principal.
   static func firstReachable(_ candidates: [String], completion: @escaping (String?) -> Void) {
     guard let first = candidates.first, let url = URL(string: first) else {
       DispatchQueue.main.async { completion(nil) }
       return
     }
-    var request = URLRequest(url: url, timeoutInterval: 5)
+    var request = URLRequest(url: url, timeoutInterval: 3)
     request.httpMethod = "HEAD"
     URLSession.shared.dataTask(with: request) { _, response, error in
       let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-      if error == nil && (200..<400).contains(code) {
+      if error == nil && code != 404 && code != 410 {
         DispatchQueue.main.async { completion(first) }
       } else {
         firstReachable(Array(candidates.dropFirst()), completion: completion)
