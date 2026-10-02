@@ -55,6 +55,7 @@ const Map<String, String> kCategoryNames = {
   'cat_jardin': 'Jardinage', 'cat_sport_extreme': 'Extrême',
   'cat_nutrition': 'Nutrition', 'cat_vintage': 'Vintage', 'cat_fail': 'Fails',
   'cat_tech': 'Tech', 'cat_vibes': 'Vibes',
+  'cat_shopping': 'Shopping',
 };
 
 /// Nom affiche (minuscule) -> identifiant. Construit a partir de la table
