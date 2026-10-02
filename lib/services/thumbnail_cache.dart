@@ -53,7 +53,8 @@ class ThumbnailCache {
   /// pre-cache (downloadFile) ne puissent pas diverger.
   static Map<String, String>? headersFor(String url) {
     if (!url.contains('workers.dev/thumb') &&
-        !url.contains('workers.dev/screenshot')) {
+        !url.contains('workers.dev/screenshot') &&
+        !url.contains('workers.dev/favicon')) {
       return null;
     }
     return {'x-reelr-secret': Secrets.appSharedSecret};
