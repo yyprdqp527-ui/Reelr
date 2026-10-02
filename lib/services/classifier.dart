@@ -1472,7 +1472,8 @@ cat_immo            → achat/vente/investissement immobilier, visites de biens 
 cat_jardin          → jardinage, potager, plantes d'extérieur
 cat_nature          → écologie, environnement, biodiversité au sens large. Diff. cat_jardin : jardin = pratique personnelle, nature = sujet environnemental large.
 cat_pets            → animaux de compagnie, chiens, chats, vétérinaire
-cat_auto            → voitures, motos, mécanique, conduite
+cat_auto            → voitures, mécanique auto, conduite, essais de voitures. Diff. cat_moto : tout ce qui a deux roues motorisées va dans cat_moto.
+cat_moto            → motos, scooters, balades et road trips à moto, mécanique et équipement moto, motocross. Diff. cat_auto : deux-roues motorisés uniquement. Diff. cat_sport_extreme : figures freestyle et prise de risque spectaculaire vont dans cat_sport_extreme.
 cat_culture         → culture générale, littérature, philosophie
 cat_histoire        → faits et récits historiques passés. Diff. cat_culture : histoire = événements du passé, culture = réflexion actuelle.
 cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré.
