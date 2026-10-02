@@ -1464,6 +1464,7 @@ cat_tricotage       → tricot aux aiguilles, laine.
 cat_crochet         → crochet, amigurumi, macramé.
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
 cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
+cat_tech            → high-tech, électronique, informatique, smartphones, ordinateurs, audio (écouteurs, enceintes), gadgets, applis. Diff. cat_photo : photo = technique et matériel de prise de vue ; tech = tout autre appareil ou produit électronique.
 cat_cosplay         → cosplay, costumes de personnages, geek culture
 cat_manga           → anime, manga, culture japonaise animée. Diff. cat_cosplay : manga = œuvres, cosplay = déguisement inspiré d'œuvres.
 cat_deco            → décoration intérieure, home tour, aménagement
