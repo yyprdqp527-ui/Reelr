@@ -1436,6 +1436,7 @@ cat_beauty          → maquillage, skincare, makeup, soins du visage. Règle : 
 cat_mode            → vêtements, fashion, style, outfit, haul mode. Règle : ce qu'on PORTE.
 cat_luxe            → produits/lifestyle haut de gamme, marques de luxe, montres, sacs de luxe. Diff. cat_mode : luxe = univers très haut de gamme mis en avant comme sujet.
 cat_vintage         → mode ou objets rétro/seconde main d'époque (friperie, brocante). Diff. cat_mode : provenance ancienne/rétro, pas tendance actuelle.
+cat_shopping        → magasins et enseignes (page d'accueil, catalogue, promotions de la semaine), bons plans, codes promo, hauls d'achats multi-produits, sites marchands généralistes (Temu, Shein, Aliexpress). Diff. : un produit PRÉCIS va dans la catégorie de son usage (écouteurs → cat_tech, meuble → cat_deco, chocolat → cat_food, vêtement → cat_mode).
 cat_travel          → voyage, découverte de destinations, tourisme, road trip
 cat_outdoor         → activités en pleine nature sans notion de destination touristique (randonnée, camping, survie). Diff. cat_travel : travel = destination/pays ; outdoor = activité elle-même.
 cat_humour          → humour, prank, sketch, situations comiques, mdr
