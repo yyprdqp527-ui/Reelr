@@ -461,7 +461,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         addedAt: DateTime.now(),
         thumbnailUrl: OEmbedService.bestThumbnailUrl(dedupUrl, null),
       );
-      await widget.state.addClip(clip);
+      if (!await widget.state.addClip(clip)) return false;
       registerClipAdded();
       _enqueueHydration(clip);
       return true;
@@ -892,15 +892,43 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
   }
 
+  /// Page de resultats Google (google.fr/search?q=...) : le titre lu vaut
+  /// « Google Search », sans la requete, et Claude classait au hasard
+  /// (Yoann Gourcuff en Tech, « walibi » laisse a trier). Le titre
+  /// devient la requete elle-meme.
+  VideoData? _withSearchQueryTitle(Clip clip, VideoData? meta) {
+    if (meta == null) return meta;
+    final uri = Uri.tryParse(clip.url);
+    if (uri == null || uri.path != '/search') return meta;
+    final host = uri.host.toLowerCase();
+    if (!RegExp(r'(^|\.)google\.[a-z.]+$').hasMatch(host)) return meta;
+    final query = uri.queryParameters['q']?.trim() ?? '';
+    if (query.isEmpty) return meta;
+    debugPrint('[hydrate] recherche Google, titre = requete: $query');
+    return VideoData(
+      title: query,
+      channel: meta.channel,
+      description: meta.description,
+      tags: meta.tags,
+      views: meta.views,
+      duration: meta.duration,
+      publishedAt: meta.publishedAt,
+      platform: meta.platform,
+      thumbnailUrl: meta.thumbnailUrl,
+      transcriptExcerpt: meta.transcriptExcerpt,
+    );
+  }
+
   Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
-    final meta = _completeWithScreenshot(
+    final rawMeta = _completeWithScreenshot(
       clip,
       await _completeWithLinkPreview(
         clip,
         await OEmbedService.fetchMetadata(clip.url),
       ),
     );
+    final meta = _withSearchQueryTitle(clip, rawMeta);
     if (meta == null) {
       // Cette sortie etait muette : un `starting for` sans `done`, et rien
       // pour dire pourquoi. C'est ce silence qui rendait les diagnostics
