@@ -1685,7 +1685,21 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
   }
 
   static String _buildUserText(VideoData video, ClientProfile? profile) {
-    final buf = StringBuffer()..writeln('MÉTADONNÉES VIDÉO :');
+    // Lien web hors plateformes connues (article, fiche, page produit) :
+    // presente comme une video, il faisait chercher a Claude une video
+    // inexistante et faisait chuter sa confiance (Wikipedia « Belgique »
+    // a 35, des ecouteurs Amazon a 25). Les videos ne sont pas concernees :
+    // leur texte reste strictement identique.
+    final isWebPage = video.platform == 'other';
+    final buf = StringBuffer()
+      ..writeln(isWebPage ? 'MÉTADONNÉES PAGE WEB :' : 'MÉTADONNÉES VIDÉO :');
+    if (isWebPage) {
+      buf.writeln('Type: page web (article, fiche, page produit...), pas une '
+          'vidéo. Classe-la selon son SUJET, ou pour un produit selon son '
+          'USAGE. Ignore le nom du site et le rayon ou fil d\'Ariane ajoutés '
+          'au titre (ex. « Amazon.fr: Cuisine et Maison » ne dit rien du '
+          'produit).');
+    }
     buf.writeln('Titre: ${video.title}');
     if (video.channel != null) buf.writeln('Chaîne: ${video.channel}');
     if (video.description != null && video.description!.isNotEmpty) {
