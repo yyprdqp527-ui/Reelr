@@ -1005,7 +1005,13 @@ class OEmbedService {
 
     // Page d'accueil : aucun segment utile, et aucun parametre portant un
     // identifiant de contenu (youtube.com/?v=abc reste exploitable).
-    if (segments.isEmpty) return !_hasContentQuery(uri);
+    if (segments.isEmpty) {
+      // Site quelconque (hors plateformes connues) : sa page d'accueil est
+      // un lien legitime (journal, boutique, restaurant...). La regle ne
+      // vaut que pour les reseaux sociaux, ou l'accueil n'est qu'un flux.
+      if (SocialPlatform.detect(url).id == 'other') return false;
+      return !_hasContentQuery(uri);
+    }
 
     final host = uri.host.toLowerCase();
     final first = segments.first.toLowerCase();
