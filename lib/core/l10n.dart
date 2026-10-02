@@ -261,6 +261,8 @@ class AppL10n {
     'cat_deco':           'Déco',
     'cat_auto':           'Auto',
     'cat_moto':           'Moto',
+    'cat_shopping':       'Shopping',
+    'cat_tech':           'Tech',
     'cat_culture':        'Culture',
     'cat_cinema':         'Cinéma',
     'cat_growth':         'Dév. Personnel',
@@ -321,6 +323,8 @@ class AppL10n {
     'cat_deco':           'Decor',
     'cat_auto':           'Cars',
     'cat_moto':           'Bikes',
+    'cat_shopping':       'Shopping',
+    'cat_tech':           'Tech',
     'cat_culture':        'Culture',
     'cat_cinema':         'Films',
     'cat_growth':         'Self Growth',
@@ -390,6 +394,7 @@ class AppL10n {
     'cat_gaming': ['gaming', 'jeu video', 'jeux video', 'video game'],
     'cat_deco': ['deco', 'decoration', 'home decor'],
     'cat_pets': ['animaux', 'animal', 'pets', 'animaux de compagnie'],
+    'cat_shopping': ['bons plans', 'bon plan', 'achats', 'deals', 'promos'],
   };
 
   /// Forme de comparaison d'un nom de categorie : minuscules, sans
@@ -463,6 +468,7 @@ class AppL10n {
     'cat_tricotage': Color(0xFFD4A5D9),
     'cat_crochet': Color(0xFFC08FD0),
     'cat_moto': Color(0xFF7FA0D8),
+    'cat_shopping': Color(0xFFF48FB1),
   };
 
   static const Map<String, IconData> categoryIcons = {
@@ -498,6 +504,7 @@ class AppL10n {
     'cat_tricotage': Icons.checkroom_outlined,
     'cat_crochet': Icons.gesture_rounded,
     'cat_moto': Icons.two_wheeler_rounded,
+    'cat_shopping': Icons.shopping_bag_rounded,
   };
 
   /// Résout un libellé brut de catégorie (renvoyé par Claude, saisi à la
