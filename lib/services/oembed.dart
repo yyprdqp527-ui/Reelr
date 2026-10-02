@@ -915,6 +915,37 @@ class OEmbedService {
 
   /// Vrai si [title] est vide ou n'est qu'un titre de coquille (cf.
   /// [_placeholderTitles]) : dans les deux cas, aucune information utile.
+  /// Titre lisible tire du chemin de [url], ou null. Dernier recours pour
+  /// un lien web dont la page n'a rien renvoye (anti-robot) :
+  /// fnac.com/a23256587/Rebecca-Yarros-Fourth-wing-titre-a-venir donne
+  /// « Rebecca Yarros Fourth wing titre a venir ». Le segment retenu est
+  /// celui qui porte le plus de mots ; les identifiants (a23256587,
+  /// 26Q62X45A1CD) et les nombres sont ignores. Au moins deux mots exiges.
+  static String? titleFromUrlPath(String url) {
+    final uri = Uri.tryParse(url.trim());
+    if (uri == null) return null;
+    List<String> best = const [];
+    for (final raw in uri.pathSegments) {
+      var segment = raw;
+      try {
+        segment = Uri.decodeComponent(segment);
+      } catch (_) {}
+      segment = segment.replaceFirst(
+          RegExp(r'\.(html?|php|aspx?|jsp)$', caseSensitive: false), '');
+      final words = segment
+          .split(RegExp(r'[-_+.\s]+'))
+          .where((w) =>
+              w.isNotEmpty &&
+              RegExp(r'[A-Za-zÀ-ÿ]').hasMatch(w) &&
+              !RegExp(r'\d').hasMatch(w))
+          .toList();
+      if (words.length > best.length) best = words;
+    }
+    if (best.length < 2) return null;
+    final title = best.join(' ');
+    return title[0].toUpperCase() + title.substring(1);
+  }
+
   static bool isPlaceholderTitle(String? title) {
     final t = title?.trim().toLowerCase();
     if (t == null || t.isEmpty) return true;
