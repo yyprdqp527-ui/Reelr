@@ -1,6 +1,9 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import '../config/secrets.dart';
+import '../services/thumbnail_cache.dart';
+
 /// Favicon du site d'origine d'un lien, utilise pour les plateformes qui n'ont
 /// pas de logo PNG dedie dans assets/icons/ (sites inconnus, X, Vimeo,
 /// Spotify, Apple Music...).
@@ -25,7 +28,11 @@ class SiteLogo extends StatelessWidget {
   static String? faviconUrlFor(String url) {
     final host = Uri.tryParse(url.trim())?.host ?? '';
     if (host.isEmpty) return null;
-    return 'https://www.google.com/s2/favicons?domain=$host&sz=128';
+    final google = 'https://www.google.com/s2/favicons?domain=$host&sz=128';
+    // Passe par la route /thumb du Worker Cloudflare : Google ne voit
+    // jamais l'adresse IP de l'utilisateur, seulement celle de Cloudflare.
+    final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
+    return '$proxyBase/thumb?url=${Uri.encodeComponent(google)}';
   }
 
   @override
@@ -36,6 +43,8 @@ class SiteLogo extends StatelessWidget {
       borderRadius: BorderRadius.circular(size * 0.2),
       child: CachedNetworkImage(
         imageUrl: faviconUrl,
+        cacheManager: ThumbnailCache.instance,
+        httpHeaders: ThumbnailCache.headersFor(faviconUrl),
         width: size,
         height: size,
         fit: BoxFit.contain,
