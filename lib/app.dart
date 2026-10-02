@@ -908,7 +908,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     return VideoData(
       title: query,
       channel: meta.channel,
-      description: meta.description,
+      // Un nom seul (« haaland ») laissait Claude sans repere (confiance 5).
+      // Lui dire que c'est une recherche l'invite a identifier le sujet.
+      description: 'Recherche Google de « $query ». Le sujet est ce qui est '
+          'recherché : une personne, une équipe, un lieu, une marque ou un '
+          'thème. Identifie-le pour choisir la catégorie.',
       tags: meta.tags,
       views: meta.views,
       duration: meta.duration,
