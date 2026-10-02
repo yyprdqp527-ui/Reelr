@@ -22,8 +22,10 @@ ReelrPreprocess.prototype = {
       meta('meta[name="twitter:image:src"]') ||
       meta('link[rel="image_src"]');
 
-    // Pas d'image declaree : la plus grande image visible de la page.
-    if (!image) {
+    // Plus grande image visible de la page : secours si l'image declaree
+    // est absente, morte (404) ou n'est qu'un logo.
+    var largest = '';
+    {
       var best = '';
       var bestArea = 0;
       var imgs = document.images;
@@ -38,7 +40,7 @@ ReelrPreprocess.prototype = {
           best = src;
         }
       }
-      image = best;
+      largest = best;
     }
 
     var title =
@@ -49,7 +51,8 @@ ReelrPreprocess.prototype = {
     args.completionFunction({
       url: document.URL,
       title: title,
-      image: absolute(image)
+      image: absolute(image || largest),
+      image2: absolute(largest)
     });
   }
 };
