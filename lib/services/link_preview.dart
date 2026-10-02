@@ -30,7 +30,7 @@ class LinkPreviewService {
     try {
       final raw = await _channel
           .invokeMethod<Map<Object?, Object?>>('fetch', url)
-          .timeout(const Duration(seconds: 20));
+          .timeout(const Duration(seconds: 25));
       if (raw == null) {
         debugPrint('[linkpreview] rien trouve: $url');
         return null;
