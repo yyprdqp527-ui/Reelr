@@ -338,11 +338,32 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> addClip(Clip clip) async {
-    await DatabaseHelper.instance.insertClip(clip);
-    _clips.insert(0, clip);
+  /// Adresses normalisees en cours d'enregistrement : ferme la fenetre
+  /// entre la verification et l'insertion (deux partages simultanes du
+  /// meme lien, double appui sur Enregistrer).
+  final Set<String> _addingUrls = {};
+
+  /// Enregistre [clip]. Renvoie false, sans rien ecrire, si un clip de
+  /// meme adresse normalisee existe deja ou est en cours d'ajout. Dernier
+  /// rempart commun a toutes les voies d'ajout (partage, boite de
+  /// partage, formulaire, import de playlist).
+  Future<bool> addClip(Clip clip) async {
+    final key = _normalizeUrl(clip.url);
+    if (_addingUrls.contains(key) ||
+        _clips.any((c) => _normalizeUrl(c.url) == key)) {
+      debugPrint('[dedup] doublon refuse : ${clip.url}');
+      return false;
+    }
+    _addingUrls.add(key);
+    try {
+      await DatabaseHelper.instance.insertClip(clip);
+      _clips.insert(0, clip);
+    } finally {
+      _addingUrls.remove(key);
+    }
     notifyListeners();
     if (clip.categoryId == null) _schedulePendingClassificationRefresh(clip);
+    return true;
   }
 
   /// Durée pendant laquelle un clip sans catégorie est considéré « en
@@ -459,6 +480,25 @@ class ClipsState extends ChangeNotifier {
         decisionSource = "couche 1 · mots-clés locaux";
         decisionReason = "Marque, influenceur ou mot-clé fort reconnu dans le "
             "titre. Claude n'a pas été appelé.";
+      }
+
+      // 1 bis) Site de reservation de voyage (Booking, Airbnb, Expedia,
+      // Hotels.com, Trivago, Tripadvisor) : toujours Voyage. Claude
+      // hesitait selon le nom de l'hotel (« Suites FL » parti en Immo,
+      // « B&B Hotel » en Voyage).
+      if (catName == null && isWebLink) {
+        final host = Uri.tryParse(clip.url)?.host.toLowerCase() ?? '';
+        final isTravelBooking = RegExp(
+          r'(^|\.)(booking\.com|hotels\.com|airbnb\.[a-z.]+|'
+          r'expedia\.[a-z.]+|trivago\.[a-z.]+|tripadvisor\.[a-z.]+)$',
+        ).hasMatch(host);
+        if (isTravelBooking) {
+          catName = 'cat_travel';
+          debugPrint('[classify] site de reservation $host -> Voyage (Claude saute)');
+          decisionSource = "couche 1 bis · site de réservation";
+          decisionReason = "Lien d'un site de réservation de voyage "
+              "($host). Claude n'a pas été appelé.";
+        }
       }
 
       // 2) Chaine deja vue et apprise automatiquement -- SAUF si le titre
@@ -1119,6 +1159,34 @@ class ClipsState extends ChangeNotifier {
   static String _normalizeUrl(String url) {
     try {
       final uri = Uri.parse(url.trim());
+      // Google Images (google.*/imgres) : la page reelle est dans
+      // imgrefurl ; les autres parametres (kgs, vet...) changent a
+      // chaque partage du meme resultat.
+      if (uri.path == '/imgres' &&
+          RegExp(r'(^|\.)google\.[a-z.]+$')
+              .hasMatch(uri.host.toLowerCase())) {
+        final page = uri.queryParameters['imgrefurl'] ?? '';
+        if (page.startsWith('http')) return _normalizeUrl(page);
+      }
+      final lowerHost = uri.host.toLowerCase();
+      // Recherche Google : seule la requete compte (ved, sxsrf, client,
+      // #sv... changent a chaque recherche).
+      if (uri.path == '/search' &&
+          RegExp(r'(^|\.)google\.[a-z.]+$').hasMatch(lowerHost)) {
+        final q = (uri.queryParameters['q'] ?? '').trim().toLowerCase();
+        if (q.isNotEmpty) return 'google-search:$q';
+      }
+      // Sites de reservation : l'etablissement est dans le chemin ; les
+      // parametres (dates, voyageurs, nad_*, srpvid, label...) changent a
+      // chaque recherche. Booking : la langue (.fr.html, .en-gb.html)
+      // est retiree.
+      if (RegExp(r'(^|\.)(booking\.com|hotels\.com|airbnb\.[a-z.]+|'
+              r'expedia\.[a-z.]+|trivago\.[a-z.]+|tripadvisor\.[a-z.]+)$')
+          .hasMatch(lowerHost)) {
+        var path = uri.pathSegments.where((s) => s.isNotEmpty).join('/');
+        path = path.replaceFirst(RegExp(r'\.[a-z]{2}(-[a-z]{2})?\.html$'), '.html');
+        return 'travel:${lowerHost.replaceFirst(RegExp(r'^www\.'), '')}/$path';
+      }
       final canonical = _canonicalVideoUrl(uri);
       if (canonical != null) return canonical;
 
@@ -1138,6 +1206,24 @@ class ClipsState extends ChangeNotifier {
               '_r',
               '_t',
               'u_code',
+              // Publicite et suivi (Google Ads, Bing, Mailchimp, Shopping)
+              'gbraid',
+              'wbraid',
+              'gad_source',
+              'gad_campaignid',
+              'msclkid',
+              'srsltid',
+              'mc_cid',
+              'mc_eid',
+              'yclid',
+              'dclid',
+              'ttclid',
+              'twclid',
+              'li_fat_id',
+              '_ga',
+              '_gl',
+              's_kwcid',
+              'ef_id',
             }.contains(key));
 
       final normalizedHost =
