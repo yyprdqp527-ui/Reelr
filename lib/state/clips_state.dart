@@ -894,9 +894,13 @@ class ClipsState extends ChangeNotifier {
   }
 
   Future<void> removeClip(String id) async {
-    await DatabaseHelper.instance.deleteClip(id);
+    // Retrait de la liste en memoire AVANT d'attendre la base : une carte
+    // supprimee par glissement (Dismissible) doit disparaitre de l'arbre
+    // immediatement, sinon un redessin pendant l'attente leve « A dismissed
+    // Dismissible widget is still part of the tree ».
     _clips.removeWhere((c) => c.id == id);
     notifyListeners();
+    await DatabaseHelper.instance.deleteClip(id);
     unawaited(ThumbnailStore.instance.delete(id));
   }
 
