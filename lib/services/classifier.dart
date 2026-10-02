@@ -1541,6 +1541,14 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     Ex : "femmes infanticides : le tabou" → cat_truecrime.
     Ex : "révélations dans l'affaire Jubillar" → cat_truecrime.
 
+11. Un lieu de sortie se classe selon ce qu'on y fait, jamais en
+    cat_travel ni cat_business. Restaurant, brasserie, bistrot, bar à vin,
+    carte ou menu d'un établissement → cat_food. Club, discothèque, salle
+    de concert, programmation de soirées, billetterie d'un DJ ou d'un
+    concert → cat_musique. cat_travel = hébergement ou destination.
+    Ex : "OGAM / Restaurant Traditionnel / LYON" → cat_food.
+    Ex : "Evenements Archive - AZAR Club" → cat_musique.
+
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
 STYLES DE VIE (celui qui colle à l'ambiance générale du créateur/contenu) :
