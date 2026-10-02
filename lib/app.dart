@@ -919,13 +919,29 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
   }
 
+  /// Lien web dont la page n'a rien renvoye, meme a l'apercu natif (site
+  /// anti-robot, ex. fiche produit Fnac) : le titre est tire de l'adresse.
+  /// Le clip a alors un nom, Claude a de quoi le classer, et la capture
+  /// d'ecran est tentee pour la vignette. Les videos des plateformes
+  /// connues ne sont pas concernees.
+  VideoData? _completeWithUrlTitle(Clip clip, VideoData? meta) {
+    if (meta != null || clip.platform != 'other') return meta;
+    final title = OEmbedService.titleFromUrlPath(clip.url);
+    if (title == null) return null;
+    debugPrint('[hydrate] aucune metadonnee, titre tire de l\'adresse : $title');
+    return VideoData(title: title, platform: clip.platform);
+  }
+
   Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
     final rawMeta = _completeWithScreenshot(
       clip,
-      await _completeWithLinkPreview(
+      _completeWithUrlTitle(
         clip,
-        await OEmbedService.fetchMetadata(clip.url),
+        await _completeWithLinkPreview(
+          clip,
+          await OEmbedService.fetchMetadata(clip.url),
+        ),
       ),
     );
     final meta = _withSearchQueryTitle(clip, rawMeta);
