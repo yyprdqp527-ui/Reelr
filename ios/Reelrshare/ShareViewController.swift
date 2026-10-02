@@ -226,8 +226,15 @@ class ShareViewController: UIViewController {
             didLoadSafariPreview = true
             plistProvider.loadItem(forTypeIdentifier: propertyListType, options: nil) { [weak self] data, _ in
                 DispatchQueue.main.async {
-                    self?.storeSafariPreview(from: data)
-                    self?.handleSharedURL()
+                    // Adresse de la page donnee par le script : le flux
+                    // generique ne doit jamais choisir une autre adresse
+                    // du dictionnaire (image, image2...).
+                    if let pageURL = self?.safariPageURL(from: data) {
+                        self?.storeSafariPreview(from: data)
+                        self?.storeSilentlyIfValid(urlString: pageURL)
+                    } else {
+                        self?.handleSharedURL()
+                    }
                 }
             }
             return
@@ -278,6 +285,18 @@ class ShareViewController: UIViewController {
         closeExtension()
     }
 
+    /// Adresse de la page fournie par ReelrPreprocess.js, ou nil si les
+    /// donnees ne viennent pas du script Safari.
+    private func safariPageURL(from data: NSSecureCoding?) -> String? {
+        guard
+            let dict = data as? NSDictionary,
+            let results = dict[NSExtensionJavaScriptPreprocessingResultsKey] as? [String: Any],
+            let pageURL = results["url"] as? String,
+            !pageURL.isEmpty
+        else { return nil }
+        return pageURL
+    }
+
     /// Range l'apercu lu dans Safari (titre, adresse de l'image) dans le
     /// groupe d'apps, sous l'adresse normalisee de la page. L'app le
     /// reprend dans son secours « apercu de lien ».
@@ -290,11 +309,12 @@ class ShareViewController: UIViewController {
         else { return }
         let image = (results["image"] as? String) ?? ""
         let title = (results["title"] as? String) ?? ""
+        let image2 = (results["image2"] as? String) ?? ""
         guard !image.isEmpty || !title.isEmpty,
               let defaults = UserDefaults(suiteName: appGroupId)
         else { return }
         var previews = defaults.dictionary(forKey: safariPreviewsKey) as? [String: [String: String]] ?? [:]
-        previews[normalizeURL(pageURL)] = ["title": title, "image": image]
+        previews[normalizeURL(pageURL)] = ["title": title, "image": image, "image2": image2]
         while previews.count > 50, let anyKey = previews.keys.first {
             previews.removeValue(forKey: anyKey)
         }
