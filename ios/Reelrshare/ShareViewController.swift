@@ -13,6 +13,8 @@ class ShareViewController: UIViewController {
     private let silentShareInboxKey = "ReelrSilentInboxUrls"
     private let inboxPlopSound: SystemSoundID = 1104
     private var didComplete = false
+    private let safariPreviewsKey = "ReelrSafariPreviews"
+    private var didLoadSafariPreview = false
     private var feedbackWrapper: UIView?
     private var feedbackCard: UIVisualEffectView?
     private var feedbackIcon: UIImageView?
@@ -215,6 +217,22 @@ class ShareViewController: UIViewController {
         let textTypeAlt = UTType.text.identifier
         let propertyListType = UTType.propertyList.identifier
 
+        // Safari : image et titre lus dans la page par ReelrPreprocess.js.
+        // Ranges avant le flux habituel, qui reprend ensuite tel quel.
+        if !didLoadSafariPreview,
+           let plistProvider = attachments.first(where: {
+               $0.hasItemConformingToTypeIdentifier(propertyListType)
+           }) {
+            didLoadSafariPreview = true
+            plistProvider.loadItem(forTypeIdentifier: propertyListType, options: nil) { [weak self] data, _ in
+                DispatchQueue.main.async {
+                    self?.storeSafariPreview(from: data)
+                    self?.handleSharedURL()
+                }
+            }
+            return
+        }
+
         // Try public.url first (YouTube, Safari, etc.)
         for provider in attachments {
             if provider.hasItemConformingToTypeIdentifier(urlType) {
@@ -258,6 +276,30 @@ class ShareViewController: UIViewController {
         }
 
         closeExtension()
+    }
+
+    /// Range l'apercu lu dans Safari (titre, adresse de l'image) dans le
+    /// groupe d'apps, sous l'adresse normalisee de la page. L'app le
+    /// reprend dans son secours « apercu de lien ».
+    private func storeSafariPreview(from data: NSSecureCoding?) {
+        guard
+            let dict = data as? NSDictionary,
+            let results = dict[NSExtensionJavaScriptPreprocessingResultsKey] as? [String: Any],
+            let pageURL = results["url"] as? String,
+            !pageURL.isEmpty
+        else { return }
+        let image = (results["image"] as? String) ?? ""
+        let title = (results["title"] as? String) ?? ""
+        guard !image.isEmpty || !title.isEmpty,
+              let defaults = UserDefaults(suiteName: appGroupId)
+        else { return }
+        var previews = defaults.dictionary(forKey: safariPreviewsKey) as? [String: [String: String]] ?? [:]
+        previews[normalizeURL(pageURL)] = ["title": title, "image": image]
+        while previews.count > 50, let anyKey = previews.keys.first {
+            previews.removeValue(forKey: anyKey)
+        }
+        defaults.set(previews, forKey: safariPreviewsKey)
+        defaults.synchronize()
     }
 
     private func extractURLString(from data: NSSecureCoding?) -> String? {
