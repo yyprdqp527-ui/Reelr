@@ -303,7 +303,22 @@ class OEmbedService {
 
     // Plateformes HTTP non couvertes (ex: Facebook): fallback OpenGraph.
     if (uri != null) {
-      return _fetchOpenGraphMetadata(uri, platformId: SocialPlatform.detect(trimmed).id);
+      final platformId = SocialPlatform.detect(trimmed).id;
+      final og = await _fetchOpenGraphMetadata(uri, platformId: platformId);
+      // Site quelconque sans image, ou qui bloque la requete (fiches hotel
+      // Booking) : second essai en se presentant comme un robot d'apercu
+      // de liens, que ces sites laissent passer pour les vignettes des
+      // messageries. Verifie a la main sur Booking le 2026-10-02.
+      // Les plateformes connues ne sont pas concernees.
+      if (platformId == 'other' && (og == null || og.thumbnailUrl == null)) {
+        final retry = await _fetchOpenGraphMetadata(uri,
+            platformId: platformId, previewBotUserAgent: true);
+        if (retry != null && (og == null || retry.thumbnailUrl != null)) {
+          debugPrint('[oembed] robot d\'apercu : metadonnees recuperees pour ${uri.host}');
+          return retry;
+        }
+      }
+      return og;
     }
 
     return VideoData(
@@ -1176,6 +1191,7 @@ class OEmbedService {
   static Future<VideoData?> _fetchOpenGraphMetadata(
     Uri originalUri, {
     required String platformId,
+    bool previewBotUserAgent = false,
   }) async {
     final uri = _desktopVariantForScraping(originalUri);
     if (uri != originalUri) {
@@ -1196,7 +1212,12 @@ class OEmbedService {
           platformId == 'tiktok';
       final response = await Net.client.get(
         uri,
-        headers: needsRealisticHeaders
+        headers: previewBotUserAgent
+            ? const {
+                'User-Agent': 'facebookexternalhit/1.1',
+                'Accept': 'text/html,application/xhtml+xml',
+              }
+            : needsRealisticHeaders
             ? {
                 'User-Agent':
                     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) '
