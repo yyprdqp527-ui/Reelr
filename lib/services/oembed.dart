@@ -1516,6 +1516,28 @@ class OEmbedService {
     return out;
   }
 
+  /// Entites HTML nommees courantes (accents, guillemets, symboles).
+  /// Une entite inconnue est laissee telle quelle.
+  static const Map<String, String> _namedHtmlEntities = {
+    'eacute': 'é', 'egrave': 'è', 'ecirc': 'ê', 'euml': 'ë',
+    'agrave': 'à', 'aacute': 'á', 'acirc': 'â', 'auml': 'ä',
+    'atilde': 'ã', 'aring': 'å', 'ccedil': 'ç', 'icirc': 'î',
+    'iuml': 'ï', 'iacute': 'í', 'igrave': 'ì', 'ocirc': 'ô',
+    'ouml': 'ö', 'oacute': 'ó', 'ograve': 'ò', 'otilde': 'õ',
+    'ucirc': 'û', 'ugrave': 'ù', 'uuml': 'ü', 'uacute': 'ú',
+    'yuml': 'ÿ', 'ntilde': 'ñ', 'oelig': 'œ', 'aelig': 'æ',
+    'szlig': 'ß', 'Eacute': 'É', 'Egrave': 'È', 'Ecirc': 'Ê',
+    'Euml': 'Ë', 'Agrave': 'À', 'Aacute': 'Á', 'Acirc': 'Â',
+    'Auml': 'Ä', 'Ccedil': 'Ç', 'Icirc': 'Î', 'Iuml': 'Ï',
+    'Ocirc': 'Ô', 'Ouml': 'Ö', 'Ucirc': 'Û', 'Ugrave': 'Ù',
+    'Uuml': 'Ü', 'Ntilde': 'Ñ', 'OElig': 'Œ', 'AElig': 'Æ',
+    'rsquo': '’', 'lsquo': '‘', 'rdquo': '”', 'ldquo': '“',
+    'laquo': '«', 'raquo': '»', 'hellip': '…', 'ndash': '–',
+    'mdash': '—', 'euro': '€', 'copy': '©', 'reg': '®',
+    'trade': '™', 'deg': '°', 'middot': '·', 'bull': '•',
+    'times': '×',
+  };
+
   static String _decodeHtmlEntitiesOnce(String s) {
     return s
         .replaceAll('&amp;', '&')
@@ -1524,6 +1546,10 @@ class OEmbedService {
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&nbsp;', '\u00a0')
+        .replaceAllMapped(
+          RegExp(r'&([a-zA-Z]+);'),
+          (m) => _namedHtmlEntities[m.group(1)!] ?? m.group(0)!,
+        )
         .replaceAllMapped(
           RegExp(r'&#x([0-9a-fA-F]+);'),
           (m) => String.fromCharCode(int.parse(m.group(1)!, radix: 16)),
