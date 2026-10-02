@@ -316,6 +316,7 @@ class ClipsState extends ChangeNotifier {
         unawaited(DatabaseHelper.instance.upsertClip(fixed));
       }
     }
+    await _mergeDuplicateClips();
     // Les couleurs/icônes des catégories standard (cat_xxx) sont déjà
     // correctement définies à la création (voir plus bas dans ce fichier).
     // On ne les réécrase plus ici à chaque chargement : une ancienne
@@ -931,6 +932,43 @@ class ClipsState extends ChangeNotifier {
     await service.saveProfile(updated);
     debugPrint('[apprentissage] créateur « $channel » → ${chosen.name} '
         '(rangement manuel, poids 3)');
+  }
+
+  /// Fusion des doublons deja enregistres (avant le renforcement de la
+  /// deduplication : meme hotel Booking avec d'autres parametres, meme
+  /// article via deux liens Google Images...). Par adresse normalisee, on
+  /// garde le clip le plus range (categorie, puis tags), a egalite le plus
+  /// ancien ; les autres sont supprimes avec leur vignette. Ne touche
+  /// jamais au compteur a vie.
+  Future<void> _mergeDuplicateClips() async {
+    int score(Clip c) =>
+        (c.categoryId != null ? 2 : 0) + (c.tags.isNotEmpty ? 1 : 0);
+    final keepers = <String, Clip>{};
+    final toRemove = <Clip>[];
+    for (final c in _clips) {
+      final key = _normalizeUrl(c.url);
+      final kept = keepers[key];
+      if (kept == null) {
+        keepers[key] = c;
+        continue;
+      }
+      final cBetter = score(c) > score(kept) ||
+          (score(c) == score(kept) && c.addedAt.isBefore(kept.addedAt));
+      if (cBetter) {
+        keepers[key] = c;
+        toRemove.add(kept);
+      } else {
+        toRemove.add(c);
+      }
+    }
+    if (toRemove.isEmpty) return;
+    final ids = toRemove.map((c) => c.id).toSet();
+    _clips.removeWhere((c) => ids.contains(c.id));
+    for (final c in toRemove) {
+      debugPrint('[dedup] doublon fusionne au chargement : "${c.title}" (${c.id})');
+      await DatabaseHelper.instance.deleteClip(c.id);
+      unawaited(ThumbnailStore.instance.delete(c.id));
+    }
   }
 
   Future<void> removeClip(String id) async {
