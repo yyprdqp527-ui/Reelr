@@ -107,6 +107,13 @@ import UIKit
         result(nil)
         return
       }
+      // Partage depuis Safari : image et titre deja lus dans la page par
+      // ReelrPreprocess.js. Prioritaire sur LinkPresentation, qui echoue
+      // sur les sites anti-robots (H&M).
+      if let safari = SafariPreviewStore.take(for: raw) {
+        result(safari)
+        return
+      }
       LinkPreviewFetcher.fetch(url: url) { payload in result(payload) }
     }
     silentShareChannels.append(previewChannel)
@@ -180,5 +187,47 @@ enum LinkPreviewFetcher {
     return UIGraphicsImageRenderer(size: target, format: format).image { _ in
       image.draw(in: CGRect(origin: .zero, size: target))
     }
+  }
+}
+
+/// Apercus lus dans Safari par l'extension de partage (ReelrPreprocess.js),
+/// ranges dans le groupe d'apps sous « ReelrSafariPreviews ». Chaque apercu
+/// n'est servi qu'une fois puis retire.
+enum SafariPreviewStore {
+  static let key = "ReelrSafariPreviews"
+
+  static func take(for rawURL: String) -> [String: Any]? {
+    let groupId = (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
+      ?? "group.com.reelr.app.shared"
+    guard let defaults = UserDefaults(suiteName: groupId),
+          var previews = defaults.dictionary(forKey: key) as? [String: [String: String]]
+    else { return nil }
+    let normalized = normalize(rawURL)
+    guard let entry = previews[normalized] else { return nil }
+    previews.removeValue(forKey: normalized)
+    defaults.set(previews, forKey: key)
+    defaults.synchronize()
+    let image = entry["image"] ?? ""
+    guard !image.isEmpty else { return nil }
+    var payload: [String: Any] = ["imageUrl": image]
+    if let title = entry["title"], !title.isEmpty { payload["title"] = title }
+    return payload
+  }
+
+  /// Meme normalisation que l'extension de partage (ShareViewController).
+  static func normalize(_ rawURL: String) -> String {
+    guard var components = URLComponents(string: rawURL) else {
+      return rawURL.lowercased()
+    }
+    let removeKeys = ["si", "utm_source", "utm_medium", "utm_campaign",
+                      "fbclid", "igshid", "feature", "pp"]
+    components.queryItems = components.queryItems?.filter {
+      !removeKeys.contains($0.name)
+    }
+    if components.queryItems?.isEmpty == true {
+      components.queryItems = nil
+    }
+    components.fragment = nil
+    return (components.string ?? rawURL).lowercased()
   }
 }
