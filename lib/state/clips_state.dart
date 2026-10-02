@@ -430,6 +430,15 @@ class ClipsState extends ChangeNotifier {
       final sw = Stopwatch()..start();
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" ? "gaming streaming ${clip.url}" : clip.title;
+      // Lien web hors plateformes connues (article, boutique, fiche...) :
+      // les couches locales 1 et 2 sont reglees sur des titres de videos
+      // et sur des createurs. Sur une page web, le titre porte souvent un
+      // rayon ou un fil d'Ariane (« Amazon.fr: Cuisine et Maison » a envoye
+      // un matelas dans Food) et `channel` vaut og:site_name (« Amazon.fr »,
+      // « Le Monde ») : un mot-cle fortuit, un media connu ou l'historique
+      // du site decidaient sans consulter Claude. Ces liens passent donc
+      // toujours par Claude. Les videos ne sont pas concernees.
+      final isWebLink = SocialPlatform.detect(clip.url).id == 'other';
       String? catName;
       // Journal de decision. Ces informations arrivaient deja de Claude mais
       // etaient silencieusement jetees : `updateClipClassification` existait
@@ -442,7 +451,9 @@ class ClipsState extends ChangeNotifier {
 
       // Court-circuit local, dans l'ordre de fiabilite :
       // 1) Marque/influenceur/media connu (liste figee, fiable des la 1ere fois)
-      catName = CategoryClassifier.detectStrongMatch(effectiveTitle, channel: clip.channel);
+      catName = isWebLink
+          ? null
+          : CategoryClassifier.detectStrongMatch(effectiveTitle, channel: clip.channel);
       if (catName != null) {
         debugPrint('[classify] correspondance forte -> $catName (Claude saute)');
         decisionSource = "couche 1 · mots-clés locaux";
@@ -460,7 +471,10 @@ class ClipsState extends ChangeNotifier {
       // correspondance forte autonome, cf. `detectStrongMatch`) : on ne
       // decide pas seul avec un indice faible, on evite seulement
       // d'ecraser l'evidence du titre avec l'historique de la chaine.
-      if (catName == null && clip.channel != null && clip.channel!.isNotEmpty) {
+      if (catName == null &&
+          !isWebLink &&
+          clip.channel != null &&
+          clip.channel!.isNotEmpty) {
         final learned = profile.learnedCategoryForChannel(clip.channel!);
         if (learned != null) {
           final hint = CategoryClassifier.detectStrongMatch(
