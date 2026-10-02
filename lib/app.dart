@@ -869,11 +869,37 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
   }
 
+  /// Dernier recours pour un lien web (plateforme 'other') reste sans
+  /// vignette apres tous les essais : capture d'ecran de la page par le
+  /// Worker. Les videos des plateformes connues ne sont pas concernees,
+  /// ni les liens dont aucune metadonnee n'a pu etre lue (meta == null).
+  VideoData? _completeWithScreenshot(Clip clip, VideoData? meta) {
+    if (meta == null || clip.platform != 'other') return meta;
+    final thumb = meta.thumbnailUrl;
+    if (thumb != null && thumb.isNotEmpty) return meta;
+    debugPrint('[screenshot] capture demandee pour: ${clip.url}');
+    return VideoData(
+      title: meta.title,
+      channel: meta.channel,
+      description: meta.description,
+      tags: meta.tags,
+      views: meta.views,
+      duration: meta.duration,
+      publishedAt: meta.publishedAt,
+      platform: meta.platform,
+      thumbnailUrl: OEmbedService.screenshotUrlFor(clip.url),
+      transcriptExcerpt: meta.transcriptExcerpt,
+    );
+  }
+
   Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
-    final meta = await _completeWithLinkPreview(
+    final meta = _completeWithScreenshot(
       clip,
-      await OEmbedService.fetchMetadata(clip.url),
+      await _completeWithLinkPreview(
+        clip,
+        await OEmbedService.fetchMetadata(clip.url),
+      ),
     );
     if (meta == null) {
       // Cette sortie etait muette : un `starting for` sans `done`, et rien
