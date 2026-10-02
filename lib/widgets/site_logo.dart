@@ -28,11 +28,11 @@ class SiteLogo extends StatelessWidget {
   static String? faviconUrlFor(String url) {
     final host = Uri.tryParse(url.trim())?.host ?? '';
     if (host.isEmpty) return null;
-    final google = 'https://www.google.com/s2/favicons?domain=$host&sz=128';
-    // Passe par la route /thumb du Worker Cloudflare : Google ne voit
-    // jamais l'adresse IP de l'utilisateur, seulement celle de Cloudflare.
+    // Route /favicon du Worker Cloudflare : Google, puis les icones
+    // declarees par la page, puis /favicon.ico, avec cache par site.
+    // Aucun tiers ne voit l'adresse IP de l'utilisateur.
     final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
-    return '$proxyBase/thumb?url=${Uri.encodeComponent(google)}';
+    return '$proxyBase/favicon?url=${Uri.encodeComponent(url.trim())}';
   }
 
   @override
