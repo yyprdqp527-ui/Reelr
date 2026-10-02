@@ -111,7 +111,15 @@ import UIKit
       // ReelrPreprocess.js. Prioritaire sur LinkPresentation, qui echoue
       // sur les sites anti-robots (H&M).
       if let safari = SafariPreviewStore.take(for: raw) {
-        result(safari)
+        SafariPreviewStore.firstReachable(safari.candidates) { image in
+          guard let image = image else {
+            LinkPreviewFetcher.fetch(url: url) { payload in result(payload) }
+            return
+          }
+          var payload: [String: Any] = ["imageUrl": image]
+          if !safari.title.isEmpty { payload["title"] = safari.title }
+          result(payload)
+        }
         return
       }
       LinkPreviewFetcher.fetch(url: url) { payload in result(payload) }
@@ -196,7 +204,46 @@ enum LinkPreviewFetcher {
 enum SafariPreviewStore {
   static let key = "ReelrSafariPreviews"
 
-  static func take(for rawURL: String) -> [String: Any]? {
+  /// Adresses d'images qui ne sont qu'un logo ou une icone de site.
+  static func looksGeneric(_ imageURL: String) -> Bool {
+    let path = (URL(string: imageURL)?.path ?? imageURL).lowercased()
+    // Mots entiers seulement : « silicone » ou « iconic » ne sont pas des icones.
+    let pattern = "(^|[/_.-])(logos?|favicon|apple-touch-icon|icons?|sprites?|placeholder)([/_.-]|[0-9]|$)"
+    return path.range(of: pattern, options: .regularExpression) != nil
+  }
+
+  /// Premiere image qui repond vraiment (HEAD, 5 s max chacune), dans
+  /// l'ordre des candidats. Rappel sur le fil principal.
+  static func firstReachable(_ candidates: [String], completion: @escaping (String?) -> Void) {
+    guard let first = candidates.first, let url = URL(string: first) else {
+      DispatchQueue.main.async { completion(nil) }
+      return
+    }
+    var request = URLRequest(url: url, timeoutInterval: 5)
+    request.httpMethod = "HEAD"
+    URLSession.shared.dataTask(with: request) { _, response, error in
+      let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+      if error == nil && (200..<400).contains(code) {
+        DispatchQueue.main.async { completion(first) }
+      } else {
+        firstReachable(Array(candidates.dropFirst()), completion: completion)
+      }
+    }.resume()
+  }
+
+  static func take(for rawURL: String) -> (title: String, candidates: [String])? {
+    guard let entry = takeEntry(for: rawURL) else { return nil }
+    var candidates: [String] = []
+    for key in ["image", "image2"] {
+      if let u = entry[key], !u.isEmpty, !candidates.contains(u) { candidates.append(u) }
+    }
+    // Les logos et icones de site sont ecartes : une vraie photo ou rien.
+    let real = candidates.filter { !looksGeneric($0) }
+    guard !real.isEmpty else { return nil }
+    return (title: entry["title"] ?? "", candidates: real)
+  }
+
+  static func takeEntry(for rawURL: String) -> [String: String]? {
     let groupId = (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
       ?? "group.com.reelr.app.shared"
     guard let defaults = UserDefaults(suiteName: groupId),
@@ -207,11 +254,7 @@ enum SafariPreviewStore {
     previews.removeValue(forKey: normalized)
     defaults.set(previews, forKey: key)
     defaults.synchronize()
-    let image = entry["image"] ?? ""
-    guard !image.isEmpty else { return nil }
-    var payload: [String: Any] = ["imageUrl": image]
-    if let title = entry["title"], !title.isEmpty { payload["title"] = title }
-    return payload
+    return entry
   }
 
   /// Meme normalisation que l'extension de partage (ShareViewController).
