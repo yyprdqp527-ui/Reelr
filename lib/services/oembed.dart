@@ -238,6 +238,15 @@ class OEmbedService {
   /// Cloudflare, qui la retelecharge cote serveur avec des en-tetes
   /// realistes et la retransmet -- utile pour contourner les tokens CDN
   /// expires et les protections anti-hotlink de certaines plateformes.
+  /// Capture d'ecran de [pageUrl] par la route /screenshot du Worker :
+  /// dernier recours pour un lien web qui n'a fourni aucune image. Le
+  /// Worker refuse (502) les pages bloquees ou en erreur ; l'affichage
+  /// retombe alors sur le logo.
+  static String screenshotUrlFor(String pageUrl) {
+    final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
+    return '$proxyBase/screenshot?url=${Uri.encodeComponent(pageUrl)}';
+  }
+
   static String _proxiedThumbnailUrl(String rawUrl) {
     final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
     return '$proxyBase/thumb?url=${Uri.encodeComponent(rawUrl)}';
