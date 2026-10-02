@@ -31,6 +31,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/reelr_loader.dart';
 import '../widgets/resilient_thumbnail.dart';
 import '../widgets/sheet_field.dart';
+import '../widgets/site_logo.dart';
 import 'categories_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -2707,11 +2708,13 @@ class _ThumbnailBanner extends StatelessWidget {
   final String? thumbUrl;
   final SocialPlatform platform;
   final String clipId;
+  final String linkUrl;
 
   const _ThumbnailBanner({
     required this.thumbUrl,
     required this.platform,
     required this.clipId,
+    required this.linkUrl,
   });
 
   @override
@@ -2764,11 +2767,11 @@ class _ThumbnailBanner extends StatelessWidget {
                           height: 48,
                           fit: BoxFit.contain,
                         )
-                      : Icon(
+                      : SiteLogo(url: linkUrl, size: 48, fallback: Icon(
                           platform.icon,
                           color: platform.color.withValues(alpha: 0.6),
                           size: 48,
-                        ),
+                        )),
                 ),
           if (showInfoBadge)
             Positioned(
@@ -2895,7 +2898,7 @@ class ClipCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Miniature 16:9 ──────────────────────────────────────────
-          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform, clipId: clip.id),
+          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform, clipId: clip.id, linkUrl: clip.url),
           // ── Infos principales ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
@@ -2918,7 +2921,7 @@ class ClipCard extends StatelessWidget {
                             fit: BoxFit.contain,
                           ),
                         )
-                      : Icon(platform.icon, color: platform.color, size: 20),
+                      : Center(child: SiteLogo(url: clip.url, size: 20, fallback: Icon(platform.icon, color: platform.color, size: 20))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
