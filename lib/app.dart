@@ -87,8 +87,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// ils etaient perdus).
   static const String _heldShareUrlsKey = 'held_share_urls';
 
-  Future<void> _holdSharedUrls(List<String> urls) async {
-    if (urls.isEmpty) return;
+  /// Renvoie le nombre total de liens en attente.
+  Future<int> _holdSharedUrls(List<String> urls) async {
+    final prefs0 = await SharedPreferences.getInstance();
+    if (urls.isEmpty) {
+      return (prefs0.getStringList(_heldShareUrlsKey) ?? const []).length;
+    }
     final prefs = await SharedPreferences.getInstance();
     final held = prefs.getStringList(_heldShareUrlsKey) ?? <String>[];
     for (final u in urls) {
@@ -97,6 +101,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     await prefs.setStringList(_heldShareUrlsKey, held);
     debugPrint('[drain] ${urls.length} lien(s) garde(s) en attente '
         '(limite gratuite), ${held.length} au total');
+    return held.length;
   }
 
   void setThemeMode(ThemeMode mode) {
@@ -428,8 +433,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
     _lastSharedUrl = url;
     _lastSharedAt = now;
-    if (!widget.state.isDuplicate(url) && !canAddClip()) {
-      unawaited(_holdSharedUrls([url]));
+    if (!widget.state.isDuplicate(url) && !canAddClip(silent: true)) {
+      unawaited(_holdSharedUrls([url])
+          .then((total) => showPaywall(heldCount: total)));
       return;
     }
     unawaited(_ingestSharedUrl(url));
@@ -592,7 +598,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// limite gratuite (_ingestSharedUrl) et directement depuis les Réglages,
   /// pour que l'achat ne soit pas caché derrière la limite de 50 clips
   /// (cf. rejet Apple 2.1(b) — IAP introuvable par le reviewer).
-  void showPaywall() {
+  void showPaywall({int heldCount = 0}) {
     final navigator = _navigatorKey.currentState;
     if (navigator == null) return;
     // Un seul paywall a la fois : deux ecrans identiques empiles obligeaient
@@ -605,6 +611,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         priceText: _purchaseService.premiumProduct?.price,
         isLoading:
             !_purchaseServiceReady || _purchaseService.premiumProduct == null,
+        heldCount: heldCount,
         // On attend l'etat terminal cote StoreKit (achete, annule, erreur)
         // avant de rendre la main : le paywall garde son indicateur pendant
         // toute la preparation de la feuille de paiement, au lieu de rester
@@ -699,7 +706,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       // Un seul ecran Premium, et seulement pour des liens qui viennent
       // d'arriver : sinon chaque retour au premier plan (dont la fermeture
       // de la feuille d'achat) le rouvrirait.
-      if (newlyHeld > 0) showPaywall();
+      if (newlyHeld > 0) showPaywall(heldCount: stillHeld.length);
     } catch (e) {
       debugPrint('[drain] error: $e');
     }
