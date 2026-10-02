@@ -265,7 +265,25 @@ class OEmbedService {
       final googleUri = Uri.tryParse(trimmed);
       final realUrl = googleUri?.queryParameters['imgrefurl'];
       if (realUrl != null && realUrl.isNotEmpty && realUrl != trimmed) {
-        return fetchMetadata(realUrl);
+        final meta = await fetchMetadata(realUrl);
+        // L'image touchee dans Google Images (imgurl) est celle que
+        // l'utilisateur a vue : elle passe avant l'og:image de la page,
+        // parfois generique (Le Parisien : placeholder_ogimage.png).
+        final imageUrl = googleUri?.queryParameters['imgurl'] ?? '';
+        if (meta == null || !imageUrl.startsWith('http')) return meta;
+        debugPrint('[oembed] Google Images : vignette = imgurl $imageUrl');
+        return VideoData(
+          title: meta.title,
+          channel: meta.channel,
+          description: meta.description,
+          tags: meta.tags,
+          views: meta.views,
+          duration: meta.duration,
+          publishedAt: meta.publishedAt,
+          platform: meta.platform,
+          thumbnailUrl: imageUrl,
+          transcriptExcerpt: meta.transcriptExcerpt,
+        );
       }
     }
 
