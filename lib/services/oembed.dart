@@ -1259,7 +1259,8 @@ class OEmbedService {
       final thumb = _extractMetaContent(body, property: 'og:image') ??
           _extractMetaContent(body, property: 'og:image:url') ??
           _extractMetaContent(body, name: 'twitter:image') ??
-          _extractMetaContent(body, name: 'twitter:image:src');
+          _extractMetaContent(body, name: 'twitter:image:src') ??
+          (platformId == 'other' ? _extractFallbackImage(body) : null);
       final channel = _extractMetaContent(body, property: 'og:site_name');
 
       var cleanedTitle = (title ?? '').trim();
@@ -1345,6 +1346,39 @@ class OEmbedService {
     final match = patternA.firstMatch(html) ?? patternB.firstMatch(html);
     if (match == null) return null;
     return _decodeHtmlEntities(match.group(1)?.trim() ?? '');
+  }
+
+  /// Image de secours pour un site quelconque sans og:image ni
+  /// twitter:image. Cherche dans l'ordre : <link rel="image_src">,
+  /// <meta itemprop="image">, puis le champ "image" des donnees structurees
+  /// JSON-LD (fiches produit, recettes, articles). Renvoie null si rien.
+  static String? _extractFallbackImage(String html) {
+    final linkSrc = RegExp(
+      r'<link[^>]+rel=["\x27]image_src["\x27][^>]+href=["\x27]([^"\x27]+)["\x27]',
+      caseSensitive: false,
+    ).firstMatch(html)?.group(1)?.trim();
+    if (linkSrc != null && linkSrc.isNotEmpty) {
+      return _decodeHtmlEntities(linkSrc);
+    }
+    final itemprop = RegExp(
+      r'<meta[^>]+itemprop=["\x27]image["\x27][^>]+content=["\x27]([^"\x27]+)["\x27]',
+      caseSensitive: false,
+    ).firstMatch(html)?.group(1)?.trim();
+    if (itemprop != null && itemprop.isNotEmpty) {
+      return _decodeHtmlEntities(itemprop);
+    }
+    final ldBlocks = RegExp(
+      r'<script[^>]+type=["\x27]application/ld\+json["\x27][^>]*>([\s\S]*?)</script>',
+      caseSensitive: false,
+    ).allMatches(html);
+    final imageField = RegExp(
+      r'"image"\s*:\s*(?:\[\s*)?(?:\{[^}]*?"url"\s*:\s*)?"(https?:[^"]+)"',
+    );
+    for (final block in ldBlocks) {
+      final m = imageField.firstMatch(block.group(1) ?? '');
+      if (m != null) return m.group(1)!.replaceAll(r'\/', '/');
+    }
+    return null;
   }
 
   static String? _extractHtmlTitle(String html) {
