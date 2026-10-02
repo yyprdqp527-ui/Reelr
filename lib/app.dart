@@ -77,6 +77,26 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void setPremium(bool value) {
     setState(() => _isPremium = value);
     SharedPreferences.getInstance().then((p) => p.setBool('is_premium', value));
+    // Liens gardes en attente pendant la limite gratuite : enregistres
+    // des le passage en Premium.
+    if (value) unawaited(_drainSilentShareInbox());
+  }
+
+  /// Liens partages refuses par la limite gratuite, gardes pour plus tard
+  /// (la boite de partage iOS est videe a la lecture : sans cette liste,
+  /// ils etaient perdus).
+  static const String _heldShareUrlsKey = 'held_share_urls';
+
+  Future<void> _holdSharedUrls(List<String> urls) async {
+    if (urls.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final held = prefs.getStringList(_heldShareUrlsKey) ?? <String>[];
+    for (final u in urls) {
+      if (!held.contains(u)) held.add(u);
+    }
+    await prefs.setStringList(_heldShareUrlsKey, held);
+    debugPrint('[drain] ${urls.length} lien(s) garde(s) en attente '
+        '(limite gratuite), ${held.length} au total');
   }
 
   void setThemeMode(ThemeMode mode) {
@@ -408,6 +428,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
     _lastSharedUrl = url;
     _lastSharedAt = now;
+    if (!widget.state.isDuplicate(url) && !canAddClip()) {
+      unawaited(_holdSharedUrls([url]));
+      return;
+    }
     unawaited(_ingestSharedUrl(url));
   }
 
@@ -648,11 +672,34 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           ? raw.whereType<String>().map((u) => u.trim()).toList()
           : <String>[];
       debugPrint('[drain] found ${urls.length} urls');
-      for (final url in urls) {
+      final prefs = await SharedPreferences.getInstance();
+      final previouslyHeld =
+          prefs.getStringList(_heldShareUrlsKey) ?? const <String>[];
+      if (previouslyHeld.isNotEmpty) {
+        debugPrint('[drain] ${previouslyHeld.length} lien(s) en attente repris');
+      }
+      final stillHeld = <String>[];
+      var newlyHeld = 0;
+      for (final url in [...previouslyHeld, ...urls]) {
         if (!_isValidHttpUrl(url)) continue;
         if (widget.state.isDuplicate(url)) continue;
+        // Limite gratuite atteinte : le lien est garde, pas perdu.
+        if (!canAddClip(silent: true)) {
+          if (!stillHeld.contains(url)) stillHeld.add(url);
+          if (!previouslyHeld.contains(url)) newlyHeld++;
+          continue;
+        }
         await _ingestSharedUrl(url);
       }
+      await prefs.setStringList(_heldShareUrlsKey, stillHeld);
+      if (stillHeld.isNotEmpty) {
+        debugPrint('[drain] ${stillHeld.length} lien(s) en attente '
+            '(limite gratuite)');
+      }
+      // Un seul ecran Premium, et seulement pour des liens qui viennent
+      // d'arriver : sinon chaque retour au premier plan (dont la fermeture
+      // de la feuille d'achat) le rouvrirait.
+      if (newlyHeld > 0) showPaywall();
     } catch (e) {
       debugPrint('[drain] error: $e');
     }
