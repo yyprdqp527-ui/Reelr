@@ -23,7 +23,6 @@ import '../services/database.dart';
 import '../services/oembed.dart';
 import '../services/playlist_link.dart';
 import '../services/playlist_link_shortener.dart';
-import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/coach_mark.dart';
@@ -3540,12 +3539,14 @@ class _AddClipSheetState extends State<AddClipSheet> {
   final _tagsCtrl = TextEditingController();
   final _newCategoryCtrl = TextEditingController();
   bool _showNewCategoryField = false;
-  bool _isProposeInProgress = false;
   String? _selectedCategoryId;
   SocialPlatform? _detectedPlatform;
   bool _isFetchingTitle = false;
   String? _thumbnailUrl;
   bool _wasAutoSuggested = false;
+  /// Metadonnees lues pour l'URL saisie (chaine, description) : gardees
+  /// pour le clip et pour son classement en arriere-plan.
+  VideoData? _fetchedMeta;
   // ignore: unused_field
   String? _urlError;
   int _fetchGeneration = 0;
@@ -3561,31 +3562,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
     } else {
       _tryPaste();
     }
-  }
-
-  String _extractSignalFromUrl(String url) {
-    try {
-      final uri = Uri.parse(url);
-      final host = uri.host.toLowerCase();
-      final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
-      if (host.contains('instagram.com')) {
-        if (segments.isNotEmpty) return 'instagram ${segments.first}';
-        return 'instagram';
-      }
-      if (host.contains('facebook.com') || host.contains('fb.watch')) {
-        if (segments.isNotEmpty) return 'facebook ${segments.first}';
-        return 'facebook';
-      }
-      if (host.contains('twitch.tv')) {
-        if (segments.isNotEmpty) return 'twitch ${segments.first}';
-        return 'gaming twitch';
-      }
-      if (host.contains('tiktok.com')) {
-        final user = segments.firstWhere((s) => s.startsWith('@'), orElse: () => '');
-        return user.isNotEmpty ? 'tiktok $user' : 'tiktok';
-      }
-    } catch (_) {}
-    return '';
   }
 
   bool _isValidHttpUrl(String url) {
@@ -3614,11 +3590,13 @@ class _AddClipSheetState extends State<AddClipSheet> {
       _isFetchingTitle = true;
       _urlError = null;
     });
+    _fetchedMeta = null;
     final meta = await OEmbedService.fetchMetadata(url);
     if (!mounted || generation != _fetchGeneration) {
       if (mounted) setState(() => _isFetchingTitle = false);
       return;
     }
+    _fetchedMeta = meta;
     final fetchedTitle = meta?.title ?? '';
     setState(() {
       _isFetchingTitle = false;
@@ -3626,120 +3604,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
       if (fetchedTitle.isNotEmpty && _titleCtrl.text.isEmpty) {
         _titleCtrl.text = fetchedTitle;
       }
-    });
-    // Twitch sans credentials → forcer Gaming directement
-    if (url.toLowerCase().contains('twitch.tv') && _selectedCategoryId == null) {
-      final signal = _extractSignalFromUrl(url);
-      await _proposeCategory('gaming streaming twitch $signal');
-      return;
-    }
-    final classifySignal = fetchedTitle.isNotEmpty ? fetchedTitle : _extractSignalFromUrl(url);
-    if (classifySignal.isNotEmpty && _selectedCategoryId == null) {
-      await _proposeCategory(classifySignal);
-    }
-  }
-
-  /// Affiche la popup IA de confirmation de catégorie.
-  Future<void> _proposeCategory(String title) async {
-    if (_isProposeInProgress) return;
-    _isProposeInProgress = true;
-    try {
-      final suggestion = CategoryClassifier.suggestDetailed(title);
-      // IA sans catégorie reconnue → appel Claude comme fallback.
-      if (suggestion.isUnclassified) {
-        final claudeResult = await ClaudeService.classifyTitle(
-          title: title,
-          categoryNames: widget.state.categories.map((c) => c.name).toList(),
-          platform: _detectedPlatform?.id,
-
-        );
-        if (!mounted) return;
-        if (claudeResult != null && claudeResult.isNotEmpty) {
-          final existing = widget.state.categories.firstWhere(
-            (c) => c.name.toLowerCase() == claudeResult.toLowerCase(),
-            orElse: () => ClipCategory(id: '__new__', name: claudeResult, color: const Color(0xFF7C3AED), icon: Icons.folder_outlined),
-          );
-          final cat = existing.id == '__new__' ? await widget.state.addCategory(existing) : existing;
-          if (!mounted) return;
-          setState(() { _selectedCategoryId = cat.id; _wasAutoSuggested = true; });
-          if (mounted) await _submit();
-          return;
-        }
-        setState(() => _showNewCategoryField = true);
-        return;
-      }
-      final existingId = CategoryClassifier.matchExisting(
-          suggestion, widget.state.categories);
-      final result = await showDialog<Object?>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _CategorySuggestionDialog(
-          suggestion: suggestion,
-          hasExisting: existingId != null,
-        ),
-      );
-      if (!mounted) return;
-      if (result == true) {
-        // "Ajouter dans [Catégorie]"
-        await _applySuggestion(suggestion, existingId);
-        if (mounted) await _submit();
-      } else if (result == false) {
-        // "Ajouter sans catégorie"
-        setState(() {
-          _selectedCategoryId = null;
-          _wasAutoSuggested = false;
-        });
-        if (mounted) await _submit();
-      } else if (result is String && result.isNotEmpty) {
-        // Catégorie saisie manuellement
-        final newCat = ClipCategory(
-          id: const Uuid().v4(),
-          name: result,
-          color: const Color(0xFF7C3AED),
-          icon: Icons.folder_outlined,
-        );
-        await widget.state.addCategory(newCat);
-        if (!mounted) return;
-        setState(() {
-          _selectedCategoryId = newCat.id;
-          _wasAutoSuggested = false;
-        });
-        if (mounted) await _submit();
-      }
-      // result == null → dialog fermé sans choix, on laisse la sheet ouverte
-    } finally {
-      if (mounted) setState(() => _isProposeInProgress = false);
-    }
-  }
-
-  Future<void> _applySuggestion(
-      CategorySuggestion s, String? existingId) async {
-    if (s.isUnclassified) {
-      setState(() {
-        _selectedCategoryId = null;
-        _wasAutoSuggested = false;
-      });
-      return;
-    }
-    if (existingId != null) {
-      setState(() {
-        _selectedCategoryId = existingId;
-        _wasAutoSuggested = true;
-      });
-      return;
-    }
-    // Nouvelle catégorie automatique → création à la volée.
-    final newCat = ClipCategory(
-      id: s.aiCategoryId,
-      name: s.name,
-      color: s.color,
-      icon: s.icon,
-    );
-    await widget.state.addCategory(newCat);
-    if (!mounted) return;
-    setState(() {
-      _selectedCategoryId = newCat.id;
-      _wasAutoSuggested = true;
     });
   }
 
@@ -3823,6 +3687,8 @@ class _AddClipSheetState extends State<AddClipSheet> {
       tags: tags,
       addedAt: DateTime.now(),
       thumbnailUrl: _thumbnailUrl,
+      channel: _fetchedMeta?.channel,
+      description: _fetchedMeta?.description,
     );
     if (!await widget.state.addClip(clip)) {
       if (mounted) {
@@ -3833,6 +3699,14 @@ class _AddClipSheetState extends State<AddClipSheet> {
       return;
     }
     app?.registerClipAdded();
+    // Ajout manuel sans categorie choisie (2026-10-03) : meme classement
+    // que le partage (couche locale stricte, puis Claude et son prompt),
+    // en arriere-plan. Remplace la fenetre « Ajouter dans X ? », qui
+    // tranchait sur un seul mot-cle, et l'ancien appel a Claude, qui
+    // creait des categories libres sans demander.
+    if (categoryId == null && _titleCtrl.text.trim().isNotEmpty) {
+      unawaited(widget.state.classifyClipInBackground(clip));
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -4042,154 +3916,6 @@ class _AddClipSheetState extends State<AddClipSheet> {
   }
 }
 
-
-class _CategorySuggestionDialog extends StatefulWidget {
-  final CategorySuggestion suggestion;
-  final bool hasExisting;
-
-  const _CategorySuggestionDialog({
-    required this.suggestion,
-    required this.hasExisting,
-  });
-
-  @override
-  State<_CategorySuggestionDialog> createState() =>
-      _CategorySuggestionDialogState();
-}
-
-class _CategorySuggestionDialogState
-    extends State<_CategorySuggestionDialog> {
-  bool _showCustom = false;
-  final _customCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _customCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = widget.suggestion;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (!_showCustom) ...[  
-              Icon(s.icon, size: 40, color: s.color),
-              const SizedBox(height: 12),
-              Text(
-                s.name,
-                style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                Localizations.localeOf(context).languageCode == 'fr' ? 'Cette vidéo ressemble à du \${s.name}' : 'This video looks like \${s.name}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 13,
-                    color: isDark ? Colors.grey.shade600 : AppTheme.lightTextTertiary),
-              ),
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: s.color,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Ajouter dans \${s.name}' : 'Add to \${s.name}'),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => setState(() => _showCustom = true),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Autre catégorie' : 'Other category'),
-                ),
-              ),
-              const SizedBox(height: 4),
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(
-                  Localizations.localeOf(context).languageCode == 'fr' ? 'Ajouter sans catégorie' : 'Add without category',
-                  style: TextStyle(
-                      color: isDark ? Colors.grey.shade500 : AppTheme.lightTextTertiary,
-                      fontSize: 13),
-                ),
-              ),
-            ] else ...[  
-              TextField(
-                controller: _customCtrl,
-                autofocus: true,
-                textCapitalization: TextCapitalization.sentences,
-                decoration: InputDecoration(
-                  hintText: Localizations.localeOf(context).languageCode == 'fr' ? 'Nom de la catégorie...' : 'Category name...',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 12),
-                ),
-                onSubmitted: (v) {
-                  final name = v.trim();
-                  if (name.isNotEmpty) Navigator.pop(context, name);
-                },
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => setState(() {
-                        _showCustom = false;
-                        _customCtrl.clear();
-                      }),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Annuler' : 'Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: () {
-                        final name = _customCtrl.text.trim();
-                        if (name.isNotEmpty) Navigator.pop(context, name);
-                      },
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Créer' : 'Create'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _CategoryPicker extends StatelessWidget {
   final List<ClipCategory> categories;
