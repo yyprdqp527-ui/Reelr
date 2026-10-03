@@ -1614,6 +1614,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
     final body = jsonEncode({
       'model': _model,
       'max_tokens': 500,
+      'temperature': 0,
       'system': [
         {
           'type': 'text',
@@ -1650,6 +1651,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         final textOnlyBody = jsonEncode({
           'model': _model,
           'max_tokens': 500,
+          'temperature': 0,
           'system': [
             {
               'type': 'text',
