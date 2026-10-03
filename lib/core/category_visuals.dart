@@ -80,6 +80,8 @@ class CategoryVisuals {
     'Tricot': Icons.checkroom_outlined,
     'Knitting': Icons.checkroom_outlined,
     'Crochet': Icons.gesture_rounded,
+    'Broderie': Icons.grid_on_rounded,
+    'Embroidery': Icons.grid_on_rounded,
     'Documentaire': Icons.video_library_rounded,
     'Documentary': Icons.video_library_rounded,
     'Religion': Icons.church_rounded,
@@ -153,6 +155,8 @@ class CategoryVisuals {
     'Tricot': Color(0xFFD4A5D9),
     'Knitting': Color(0xFFD4A5D9),
     'Crochet': Color(0xFFC08FD0),
+    'Broderie': Color(0xFFE1A6C8),
+    'Embroidery': Color(0xFFE1A6C8),
     'Stand-up': Color(0xFFF2C74E),
 
     'Fitness': Color(0xFFFF9E9E),
@@ -251,6 +255,8 @@ class CategoryVisuals {
     'Tricot': Color(0xFF4A2050),
     'Knitting': Color(0xFF4A2050),
     'Crochet': Color(0xFF3A1C4A),
+    'Broderie': Color(0xFF4F1F3F),
+    'Embroidery': Color(0xFF4F1F3F),
     'Stand-up': Color(0xFF4B3700),
 
     'Fitness': Color(0xFF6B1414),
