@@ -397,6 +397,7 @@ class AppL10n {
     'cat_deco': ['deco', 'decoration', 'home decor'],
     'cat_pets': ['animaux', 'animal', 'pets', 'animaux de compagnie'],
     'cat_shopping': ['bons plans', 'bon plan', 'achats', 'deals', 'promos'],
+    'cat_broderie': ['broderie', 'embroidery', 'point de croix', 'cross stitch', 'crossstitch', 'cross stich', 'punto croce', 'punto de cruz', 'kreuzstich'],
   };
 
   /// Forme de comparaison d'un nom de categorie : minuscules, sans
