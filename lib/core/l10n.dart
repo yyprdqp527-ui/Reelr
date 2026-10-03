@@ -277,6 +277,7 @@ class AppL10n {
     'cat_tricot':         'Couture',
     'cat_tricotage':      'Tricot',
     'cat_crochet':        'Crochet',
+    'cat_broderie':       'Broderie',
     'cat_doc':            'Documentaire',
     'cat_religion':       'Religion',
     'cat_immo':           'Immobilier',
@@ -339,6 +340,7 @@ class AppL10n {
     'cat_tricot':         'Sewing',
     'cat_tricotage':      'Knitting',
     'cat_crochet':        'Crochet',
+    'cat_broderie':       'Embroidery',
     'cat_doc':            'Documentary',
     'cat_religion':       'Religion',
     'cat_immo':           'Real Estate',
@@ -467,6 +469,7 @@ class AppL10n {
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
     'cat_tricotage': Color(0xFFD4A5D9),
     'cat_crochet': Color(0xFFC08FD0),
+    'cat_broderie': Color(0xFFE1A6C8),
     'cat_moto': Color(0xFF7FA0D8),
     'cat_shopping': Color(0xFFF48FB1),
   };
@@ -503,6 +506,7 @@ class AppL10n {
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
     'cat_tricotage': Icons.checkroom_outlined,
     'cat_crochet': Icons.gesture_rounded,
+    'cat_broderie': Icons.grid_on_rounded,
     'cat_moto': Icons.two_wheeler_rounded,
     'cat_shopping': Icons.shopping_bag_rounded,
   };
