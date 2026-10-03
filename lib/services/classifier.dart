@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'net.dart';
 
 import '../config/secrets.dart';
@@ -1664,6 +1666,44 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
       messageContent = userText;
     }
 
+    // Repli texte seul sur TOUTE erreur quand une miniature est jointe
+    // (2026-10-03). Avant, seul un corps contenant « robots.txt »
+    // declenchait ce repli : une miniature TikTok/Instagram expiree, refusee
+    // ou trop lente a telecharger faisait echouer l'appel, la pile au-dessus
+    // relancait le MEME appel avec la MEME image, echouait encore, puis
+    // tombait dans le filet mots-cles (68 % de precision sur le golden).
+    // Jusqu'a 2 x 20 s perdues pour un classement degrade.
+    final hasImage = messageContent is List;
+    http.Response response;
+    try {
+      response = await _post(messageContent);
+    } on TimeoutException {
+      if (!hasImage) rethrow;
+      debugPrint('[classify] delai depasse avec miniature, relance texte seul');
+      response = await _post(userText);
+    }
+    if (response.statusCode != 200 && hasImage) {
+      debugPrint('[classify] erreur ${response.statusCode} avec miniature, '
+          'relance texte seul');
+      response = await _post(userText);
+    }
+    if (response.statusCode != 200) {
+      throw Exception(
+          'Claude API error ${response.statusCode}: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final text =
+        ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
+            as String;
+    final jsonStr = _extractJson(text);
+    return ClassificationResult.fromJson(
+        jsonDecode(jsonStr) as Map<String, dynamic>);
+  }
+
+  /// Un appel au proxy, avec [content] en message utilisateur (texte seul
+  /// ou liste multimodale). Corps et en-tetes identiques a l'ancien code.
+  static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
       'max_tokens': 500,
@@ -1676,11 +1716,10 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
         }
       ],
       'messages': [
-        {'role': 'user', 'content': messageContent},
+        {'role': 'user', 'content': content},
       ],
     });
-
-    final response = await Net.client.post(
+    return Net.client.post(
       Uri.parse(_apiUrl),
       headers: {
         'x-reelr-secret': Secrets.appSharedSecret,
@@ -1690,64 +1729,6 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
       },
       body: body,
     ).timeout(_requestTimeout);
-
-    if (response.statusCode != 200) {
-      // Certains CDN (Instagram, Twitch, LinkedIn...) bloquent parfois
-      // l'acces a l'image de miniature via leur robots.txt, de facon
-      // intermittente (pas systematique). Dans ce cas precis, on relance
-      // une fois immediatement en texte seul (sans image) plutot que de
-      // propager l'echec : sans ce repli cible, le retry generique plus
-      // haut dans la pile renverrait la meme image, avec la meme
-      // probabilite d'echec, pour un cout de 8s supplementaires perdues.
-      final isRobotsBlocked = response.body.contains('robots.txt');
-      if (isRobotsBlocked && messageContent is List) {
-        final textOnlyBody = jsonEncode({
-          'model': _model,
-          'max_tokens': 500,
-          'temperature': 0,
-          'system': [
-            {
-              'type': 'text',
-              'text': _systemPrompt,
-              'cache_control': {'type': 'ephemeral'},
-            }
-          ],
-          'messages': [
-            {'role': 'user', 'content': userText},
-          ],
-        });
-        final retryResponse = await Net.client.post(
-          Uri.parse(_apiUrl),
-          headers: {
-            'x-reelr-secret': Secrets.appSharedSecret,
-            'anthropic-version': '2023-06-01',
-            'anthropic-beta': 'prompt-caching-2024-07-31',
-            'content-type': 'application/json',
-          },
-          body: textOnlyBody,
-        ).timeout(_requestTimeout);
-        if (retryResponse.statusCode != 200) {
-          throw Exception(
-              'Claude API error ${retryResponse.statusCode}: ${retryResponse.body}');
-        }
-        final retryData = jsonDecode(retryResponse.body) as Map<String, dynamic>;
-        final retryText = ((retryData['content'] as List<dynamic>).first
-            as Map<String, dynamic>)['text'] as String;
-        final retryJsonStr = _extractJson(retryText);
-        return ClassificationResult.fromJson(
-            jsonDecode(retryJsonStr) as Map<String, dynamic>);
-      }
-      throw Exception(
-          'Claude API error ${response.statusCode}: ${response.body}');
-    }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final text =
-        ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
-            as String;
-    final jsonStr = _extractJson(text);
-    return ClassificationResult.fromJson(
-        jsonDecode(jsonStr) as Map<String, dynamic>);
   }
 
   static String _buildUserText(VideoData video, ClientProfile? profile) {
