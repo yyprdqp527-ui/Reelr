@@ -890,7 +890,7 @@ class CategoryClassifier {
     'couture': 3, 'coutures': 3, 'coudre': 3, 'cousu': 3, 'cousue': 3,
     'machine coudre': 3, 'machine à coudre': 3, 'apprendre coudre': 3,
     'patron couture': 3, 'patron de couture': 3, 'sewing': 3,
-    'sewing pattern': 3, 'broderie': 3, 'brodée': 3, 'brodee': 3,
+    'sewing pattern': 3,
     'tricoter': 3, 'tricote': 3, 'tricotes': 3, 'tricoté': 3,
     'tricotée': 3, 'tricotee': 3, 'tricotin': 3, 'point tricot': 3,
     'knitting': 3,
@@ -898,6 +898,15 @@ class CategoryClassifier {
     // poing (« le crochet du gauche »). Il lui faut un second indice.
     'crochet': 2, 'crochets': 2,
     'crocheter': 3, 'crochete': 3, 'crocheté': 3, 'amigurumi': 3,
+    // Broderie / point de croix : termes sans ambiguïté, suffisants seuls.
+    // Volontairement PAS pondérés : « broder », « brode » (« broder une
+    // histoire » = enjoliver). Jamais « stitch » seul (Lilo & Stitch).
+    'broderie': 3, 'broderies': 3, 'brodée': 3, 'brodee': 3, 'brodé': 3,
+    'point de croix': 3, 'points de croix': 3, 'point compté': 3, 'point compte': 3,
+    'embroidery': 3, 'embroider': 3, 'embroidered': 3, 'needlepoint': 3,
+    'cross stitch': 3, 'cross-stitch': 3, 'crossstitch': 3, 'cross stitching': 3,
+    'xstitch': 3, 'punto croce': 3, 'punto de cruz': 3, 'punto cruz': 3,
+    'bordado': 3, 'bordados': 3, 'kreuzstich': 3, 'stickerei': 3, 'sticken': 3,
     // Cinéma / Séries
     'bande annonce': 3, 'trailer': 3, 'critique film': 3, 'review film': 3,
     'netflix': 2, 'disney+': 2, 'disney plus': 2, 'hbo': 2,
