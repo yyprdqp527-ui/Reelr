@@ -386,6 +386,7 @@ class CategoryClassifier {
       'tricot', 'tricots', 'tricoter', 'tricotin', 'laine', 'wool',
       'aiguille', 'aiguilles', 'point tricot', 'yarn', 'knitting',
       'tricote', 'tricotes', 'tricoté', 'tricotée', 'tricotee',
+      'point mousse', 'point jersey',
     ],
     'crochet': [
       'crochet', 'crochets', 'crocheter', 'crochete', 'crocheté', 'amigurumi',
@@ -893,6 +894,7 @@ class CategoryClassifier {
     'sewing pattern': 3,
     'tricoter': 3, 'tricote': 3, 'tricotes': 3, 'tricoté': 3,
     'tricotée': 3, 'tricotee': 3, 'tricotin': 3, 'point tricot': 3,
+    'point mousse': 3, 'point jersey': 3,
     'knitting': 3,
     // « crochet » nu reste à 2 : en français c'est aussi un coup de
     // poing (« le crochet du gauche »). Il lui faut un second indice.
@@ -1484,7 +1486,7 @@ cat_societe         → débats de société, féminisme, inégalités, conditio
 cat_truecrime       → affaires criminelles, enquêtes, tueurs en série. Diff. cat_actu : fait divers criminel en profondeur/storytelling, pas actualité du jour.
 cat_diy             → création manuelle, artisanat, procreate, bricolage créatif
 cat_tricot          → couture (machine, patron). Diff. cat_diy : couture = sous-univers textile/aiguilles.
-cat_tricotage       → tricot aux aiguilles, laine.
+cat_tricotage       → tricot aux aiguilles, laine, points de tricot (point mousse, point jersey, côtes, torsades). Diff. cat_broderie : un « point » de tricot n'est pas de la broderie.
 cat_crochet         → crochet, amigurumi, macramé.
 cat_broderie        → broderie, point de croix (cross stitch), grilles et motifs à broder, canevas. Diff. cat_art/cat_diy : une grille de motif pixel destinée au point de croix va ici, même si le texte parle aussi de « pixel art », de perles Hama ou de « DIY ».
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
