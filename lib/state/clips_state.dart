@@ -704,7 +704,7 @@ class ClipsState extends ChangeNotifier {
           'cat_nature': 'Nature', 'cat_truecrime': 'True Crime',
           'cat_astro': 'Astrologie', 'cat_sport': 'Sport',
           'cat_sante': 'Santé', 'cat_science': 'Science',
-          'cat_bebe': 'Bébé', 'cat_tricot': 'Couture', 'cat_tricotage': 'Tricot', 'cat_crochet': 'Crochet',
+          'cat_bebe': 'Bébé', 'cat_tricot': 'Couture', 'cat_tricotage': 'Tricot', 'cat_crochet': 'Crochet', 'cat_broderie': 'Broderie',
           'cat_doc': 'Documentaire', 'cat_religion': 'Religion',
           'cat_immo': 'Immobilier', 'cat_manga': 'Anime & Manga',
           'cat_politique': 'Politique', 'cat_crypto': 'Crypto',
