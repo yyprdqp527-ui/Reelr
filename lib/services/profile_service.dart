@@ -59,11 +59,12 @@ class ProfileService {
       lifestyle: result.styleDeVie,
       influencer: result.influenceurDetecte,
     );
-    if (channel != null && channel.isNotEmpty) {
-      updated = updated.withLearnedChannel(
-          channel, result.categoriePrincipale,
-          increment: 1);
-    }
+    // Le createur n'est plus appris des predictions de Claude (2026-10-03).
+    // C'etait une boucle fermee : trois reponses de Claude a confiance
+    // >= 60 suffisaient a verrouiller toutes les videos suivantes du
+    // createur dans cette categorie, erreurs comprises, sans plus jamais
+    // consulter Claude. Seuls les rangements faits a la main enseignent
+    // desormais un createur (ClipsState._learnChannelFromUserChoice).
     await saveProfile(updated);
     return updated;
   }
