@@ -332,6 +332,11 @@ class OEmbedService {
     if (uri != null) {
       final platformId = SocialPlatform.detect(trimmed).id;
       final og = await _fetchOpenGraphMetadata(uri, platformId: platformId);
+      // Facebook : compteur de vues en tete de titre, createur en fin
+      // (voir cleanFacebookMeta).
+      if (platformId == 'facebook' && og != null) {
+        return cleanFacebookMeta(og);
+      }
       // Site quelconque sans image, ou qui bloque la requete (fiches hotel
       // Booking) : second essai en se presentant comme un robot d'apercu
       // de liens, que ces sites laissent passer pour les vignettes des
@@ -351,6 +356,63 @@ class OEmbedService {
     return VideoData(
       title: _filenameTitle(trimmed),
       platform: 'upload',
+    );
+  }
+
+  /// Compteur que Facebook place en tete de son og:title :
+  /// « 90 K vues · 2,2 K réactions », « 1.2M views · 3K reactions ».
+  static final RegExp _facebookCounter = RegExp(
+    r'^[\d\s.,]+\s*[kKmM]?\s*(vues|views|réactions|reactions|j.aime|likes|commentaires|comments|partages|shares)\b',
+    caseSensitive: false,
+  );
+
+  /// Decoupe un titre Facebook « compteur | titre | createur » (2026-10-03).
+  ///
+  /// Observe en production : « 90 K vues · 2,2 K réactions | Ta vacha al
+  /// marchès | smilyjayce ». La moitie du titre etait du bruit pour Claude
+  /// et pour la carte, et le createur restait colle au titre : la chaine
+  /// valait « Facebook », donc aucun createur Facebook n'etait jamais appris.
+  ///
+  /// Prudent : ne touche a rien si le titre ne COMMENCE pas par ce compteur
+  /// (format inconnu = titre laisse tel quel). Renvoie null dans ce cas.
+  static ({String title, String? creator})? splitFacebookTitle(String raw) {
+    final parts = raw
+        .split('|')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (parts.length < 2 || !_facebookCounter.hasMatch(parts.first)) {
+      return null;
+    }
+    final rest = parts.sublist(1);
+    String? creator;
+    if (rest.length >= 2) creator = rest.removeLast();
+    final title = rest.join(' | ');
+    if (title.isEmpty) return null;
+    return (title: title, creator: creator);
+  }
+
+  /// Applique [splitFacebookTitle] a des metadonnees Facebook. La chaine
+  /// n'est remplacee que si elle est vide ou generique (« Facebook »).
+  static VideoData cleanFacebookMeta(VideoData og) {
+    final split = splitFacebookTitle(og.title);
+    if (split == null) return og;
+    final channel = (split.creator != null && isPlaceholderTitle(og.channel))
+        ? split.creator
+        : og.channel;
+    debugPrint('[oembed] titre Facebook nettoye : "${split.title}" '
+        '(createur : ${channel ?? "inconnu"})');
+    return VideoData(
+      title: split.title,
+      channel: channel,
+      description: og.description,
+      tags: og.tags,
+      views: og.views,
+      duration: og.duration,
+      publishedAt: og.publishedAt,
+      platform: og.platform,
+      thumbnailUrl: og.thumbnailUrl,
+      transcriptExcerpt: og.transcriptExcerpt,
     );
   }
 
