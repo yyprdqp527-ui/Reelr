@@ -855,7 +855,10 @@ class CategoryClassifier {
     'cold case': 3, 'fait divers': 3, 'affaire criminelle': 3,
     'meurtre': 2, 'crime': 2,
     // Documentaire
-    'documentaire': 3, 'documentary': 3, 'reportage': 3,
+    // « documentaire », « documentary », « reportage » ne sont plus
+    // ponderes (2026-10-03) : ce sont des mots de FORMAT. A poids 3 ils
+    // decidaient seuls et contredisaient le prompt (le sujet prime) :
+    // « Documentaire : l'affaire Gregory » partait en Documentaire.
     // Mode vs Couture : « haute couture » doit battre « couture » seul.
     'haute couture': 3, 'défilé mode': 3, 'defile mode': 3,
     // Moto vs Auto. Le prompt demande à Haiku une « correspondance
@@ -910,19 +913,29 @@ class CategoryClassifier {
     'xstitch': 3, 'punto croce': 3, 'punto de cruz': 3, 'punto cruz': 3,
     'bordado': 3, 'bordados': 3, 'kreuzstich': 3, 'stickerei': 3, 'sticken': 3,
     // Cinéma / Séries
-    'bande annonce': 3, 'trailer': 3, 'critique film': 3, 'review film': 3,
+    // « trailer » n'est plus pondere et « bande annonce » passe a 2
+    // (2026-10-03) : une bande-annonce de jeu video (GTA 6) partait en
+    // Cinema, « trailer park » aussi.
+    'bande annonce': 2, 'critique film': 3, 'review film': 3,
     'netflix': 2, 'disney+': 2, 'disney plus': 2, 'hbo': 2,
     // Astro / Spirituel
     'astrologie': 3, 'astrology': 3, 'horoscope': 3,
-    'chakra': 3, 'tarot': 3, 'pleine lune': 3, 'full moon': 3,
+    // « full moon » n'est plus pondere (2026-10-03) : Full Moon Party.
+    'chakra': 3, 'tarot': 3, 'pleine lune': 3,
     'loi de l\'attraction': 3, 'law of attraction': 3,
     // Langue / Culture
     'apprendre': 2, 'vocabulaire': 3, 'grammaire': 3,
     // Immo / Déco
-    'home tour': 3, 'room tour': 3, 'avant après': 3, 'avant apres': 3,
+    // « room tour » passe a 2 (2026-10-03) : un room tour d'hotel est
+    // du Voyage, pas de la Deco.
+    'home tour': 3, 'room tour': 2, 'avant après': 3, 'avant apres': 3,
     'investissement locatif': 3, 'rénovation': 2, 'renovation': 2,
     // Podcast — noms propres, poids très fort
-    'legend': 4, 'transfert': 4, 'thinkerview': 4, 'gdiy': 4,
+    // « legend » et « transfert » ne sont plus ponderes (2026-10-03) :
+    // a 4 ils envoyaient en Podcast « The Legend of Zelda », « John
+    // Legend » et le transfert d'un footballeur. Les podcasts Legend
+    // et Transfert restent reconnus par Claude (liste du prompt).
+    'thinkerview': 4, 'gdiy': 4,
     'artichaut': 4, 'inner game': 4, 'kiffe ta race': 4,
     'les couilles sur la table': 4, 'yala': 4, 'le gratin': 4,
     'binge audio': 3, 'france culture': 3, 'france inter': 3,
@@ -933,10 +946,15 @@ class CategoryClassifier {
     'procès': 2, 'proces': 2, 'tribunal': 2,
     // Science — très spécifiques, poids 3
     'astro': 3, 'astronomie': 3, 'nasa': 3,
-    'galaxie': 3, 'galaxy': 3, 'cosmos': 3,
-    'trou noir': 3, 'black hole': 3, 'big bang': 3,
+    // « galaxy » n'est plus pondere (2026-10-03) : Samsung Galaxy.
+    'galaxie': 3, 'cosmos': 3,
+    // « big bang » n'est plus pondere (2026-10-03) : la serie The Big
+    // Bang Theory partait en Science.
+    'trou noir': 3, 'black hole': 3,
     'telescope': 3, 'télescope': 3, 'hubble': 3, 'james webb': 3,
-    'mars': 3, 'jupiter': 3, 'saturne': 3,
+    // « mars » n'est plus pondere (2026-10-03) : c'est aussi le mois
+    // (« recette du 2 mars ») et Bruno Mars, tous deux partis en Science.
+    'jupiter': 3, 'saturne': 3,
     'exoplanète': 3, 'exoplanete': 3,
     'supernova': 3, 'nébuleuse': 3, 'nebuleuse': 3,
     // Science — spécifiques, poids 2
@@ -968,7 +986,11 @@ class CategoryClassifier {
   static bool _kwMatches(String text, String kw) {
     final escaped = RegExp.escape(kw);
     // La frontière = ni lettre ni chiffre avant/après le mot-clé
-    final pattern = '(?<![a-z0-9])$escaped(?![a-z0-9])';
+    // Les lettres accentuees comptent comme des lettres (2026-10-03) :
+    // sans elles, « saut » matchait dans « saute » accentue (poulet
+    // saute -> Extreme), « art » dans « arte » accentue, etc.
+    const letters = 'a-z0-9àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
+    final pattern = '(?<![$letters])$escaped(?![$letters])';
     return RegExp(pattern).hasMatch(text);
   }
 
@@ -1169,7 +1191,9 @@ class CategoryClassifier {
   static String? detectKnownInfluencer(String text) {
     final lower = text.toLowerCase();
     for (final name in _knownInfluencers) {
-      if (lower.contains(name)) return name;
+      // Mot entier (2026-10-03) : « ponce » matchait « poncer »,
+      // « norman » « Normandie », « axolot » « axolotl ».
+      if (_kwMatches(lower, name)) return name;
     }
     return null;
   }
@@ -1196,10 +1220,10 @@ class CategoryClassifier {
             detectKnownBrand(channel) != null);
     final hasTitleMatch = detectKnownInfluencer(title) != null ||
         detectKnownBrand(title) != null;
-    if (hasChannelMatch || hasTitleMatch) {
-      final suggestion = suggestDetailed(title);
-      if (!suggestion.isUnclassified) return suggestion.name;
-    }
+    // Une marque ou un influenceur ne dit pas la categorie a lui seul
+    // (2026-10-03). Avant, il suffisait d'UN mot-cle faible a cote :
+    // « Samsung Galaxy » -> Science, « Supreme Court ... explained » ->
+    // Documentaire. Le signal abaisse seulement le seuil a 2, plus bas.
     // Même traitement que dans `suggestDetailed` : le `#` seul est
     // retiré, le mot est conservé (voir le commentaire détaillé là-bas).
     final lower = title.replaceAll('#', ' ').toLowerCase();
@@ -1213,7 +1237,9 @@ class CategoryClassifier {
     });
     if (scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    if (best.value < minScore) return null;
+    final needed =
+        (hasChannelMatch || hasTitleMatch) && minScore > 2 ? 2 : minScore;
+    if (best.value < needed) return null;
     return _suggestionFor(best.key)?.name;
   }
 }
