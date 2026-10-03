@@ -377,10 +377,10 @@ class CategoryClassifier {
       // « fil » seul = fil rouge, fil d'actu. On qualifie.
       'patron couture', 'patron de couture', 'sewing pattern',
       'fil a coudre', 'fil à coudre',
-      'tissage', 'weaving', 'broderie', 'broder', 'brodé', 'brode',
+      'tissage', 'weaving',
       // Formes conjuguées : les listes ne contenaient que l'infinitif,
       // donc « j'ai cousu » ou « je couds » n'était jamais reconnu.
-      'cousu', 'cousue', 'coudre', 'brodée', 'brodee',
+      'cousu', 'cousue', 'coudre',
     ],
     'tricotage': [
       'tricot', 'tricots', 'tricoter', 'tricotin', 'laine', 'wool',
@@ -391,6 +391,15 @@ class CategoryClassifier {
       'crochet', 'crochets', 'crocheter', 'crochete', 'crocheté', 'amigurumi',
       // « macrame » sans accent ne matchait jamais l'orthographe française.
       'macramé', 'macrame',
+    ],
+    'broderie': [
+      'broderie', 'broderies', 'broder', 'brodé', 'brode', 'brodée', 'brodee',
+      'point de croix', 'points de croix', 'point compté', 'point compte',
+      'embroidery', 'embroider', 'embroidered', 'needlepoint',
+      // Jamais « stitch » seul : Lilo & Stitch, stitch Instagram...
+      'cross stitch', 'cross-stitch', 'crossstitch', 'cross stitching', 'xstitch',
+      'punto croce', 'punto de cruz', 'punto cruz', 'bordado', 'bordados',
+      'kreuzstich', 'stickerei', 'sticken',
     ],
     'diy_jardin': [
       'jardinage', 'jardin', 'garden', 'gardening', 'potager', 'plantes interieur',
@@ -585,6 +594,11 @@ class CategoryClassifier {
       key: 'crochet', name: 'Crochet',
       color: Color.fromRGBO(192, 143, 208, 1),
       icon: Icons.gesture_rounded,
+    ),
+    'broderie': CategorySuggestion(
+      key: 'broderie', name: 'Broderie',
+      color: Color.fromRGBO(225, 166, 200, 1),
+      icon: Icons.grid_on_rounded,
     ),
     'diy_crea': CategorySuggestion(
       key: 'diy_crea', name: 'DIY',
