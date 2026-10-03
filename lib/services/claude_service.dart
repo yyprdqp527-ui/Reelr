@@ -25,6 +25,7 @@ class ClaudeService {
         body: jsonEncode({
           'model': 'claude-haiku-4-5',
           'max_tokens': 20,
+          'temperature': 0,
           'messages': [
             {
               'role': 'user',
