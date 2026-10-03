@@ -1242,6 +1242,14 @@ class CategoryClassifier {
     final needed =
         (hasChannelMatch || hasTitleMatch) && minScore > 2 ? 2 : minScore;
     if (best.value < needed) return null;
+    // Decision seule (seuil >= 3) seulement si AUCUNE autre categorie n'a
+    // d'indice dans le titre (2026-10-03). Sinon, plusieurs mots faibles
+    // s'additionnaient et battaient le vrai sujet : une grille de point de
+    // croix « cake, dessert, breakfast » donnait Food 3 contre Broderie 3,
+    // Food gagnant l'egalite, sans que Claude soit consulte. Observe en
+    // production. Avec un concurrent, c'est Claude qui tranche.
+    // Le seuil 2 (indice de doute pour la couche 2) n'est pas concerne.
+    if (minScore >= 3 && scores.length > 1) return null;
     return _suggestionFor(best.key)?.name;
   }
 }
@@ -1615,6 +1623,26 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 20. Une bande-annonce (trailer) de jeu vidéo → cat_gaming ; de film ou de
     série → cat_cinema.
 
+21. L'humour bat le sujet dont on rit. Un humoriste, un sketch ou un
+    stand-up sur la nourriture, le sport, les animaux, la famille… →
+    cat_comedy (spectacle, humoriste sur scène) ou cat_humour (sketch
+    court). cat_food exige qu'on cuisine, goûte, teste ou présente
+    réellement de la nourriture, une boisson ou un lieu où manger.
+    Ex : "Humoriste : les Français au restaurant" → cat_comedy.
+    Ex : "I ranked every gas station snack" → cat_food.
+
+22. Un ouvrage fait main se classe selon sa TECHNIQUE, jamais selon ce
+    qu'il représente : grille de point de croix de gâteaux ou de fruits →
+    cat_broderie ; amigurumi en forme de chat → cat_crochet ; pull tricoté
+    motif sapin → cat_tricotage.
+
+23. Le domaine précis bat toujours la forme (« tuto », « explication »,
+    « univers », « voyage ») : production musicale (beat, FL Studio,
+    mixage) → cat_musique ; dressage, éducation ou soins d'un animal →
+    cat_pets ; histoire, lore ou théories d'un jeu vidéo → cat_gaming ;
+    d'un anime → cat_manga ; une moto comme moyen de déplacement (Ducati,
+    Harley, BMW GS…) → cat_moto, même pour un voyage.
+
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
 RÈGLES FINALES :
@@ -1694,8 +1722,42 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
             as String;
     final jsonStr = _extractJson(text);
-    return ClassificationResult.fromJson(
-        jsonDecode(jsonStr) as Map<String, dynamic>);
+    final json = jsonDecode(jsonStr) as Map<String, dynamic>;
+    json['categorie_principale'] =
+        _validCategoryId(json['categorie_principale']);
+    return ClassificationResult.fromJson(json);
+  }
+
+  /// IDs autorises : exactement ceux listes dans le prompt
+  /// (lignes « cat_xxx   → ... »), une seule source de verite.
+  static final Set<String> _knownCategoryIds = RegExp(
+    r'^(cat_\w+)\s+→',
+    multiLine: true,
+  ).allMatches(_systemPrompt).map((m) => m.group(1)!).toSet();
+
+  /// Variantes inventees deja observees -> vrai ID.
+  static const Map<String, String> _categoryIdAliases = {
+    'cat_anime': 'cat_manga',
+    'cat_recette': 'cat_food',
+    'cat_cuisine': 'cat_food',
+    'cat_voyage': 'cat_travel',
+    'cat_beaute': 'cat_beauty',
+    'cat_humor': 'cat_humour',
+    'cat_music': 'cat_musique',
+  };
+
+  /// Garde-fou (2026-10-03) : Claude a renvoye « cat_anime », absent
+  /// de la liste. Dans l'app, un ID inconnu devenait une NOUVELLE
+  /// categorie nommee « cat_anime ». Un ID inconnu sans alias renvoie
+  /// null : le clip reste « A trier » au lieu de creer une tuile fantome.
+  static String? _validCategoryId(dynamic raw) {
+    if (raw is! String) return null;
+    final id = raw.trim();
+    if (_knownCategoryIds.contains(id)) return id;
+    final alias = _categoryIdAliases[id];
+    if (alias != null) return alias;
+    debugPrint('[classify] ID hors liste ignore : $id');
+    return null;
   }
 
   /// Un appel au proxy, avec [content] en message utilisateur (texte seul
