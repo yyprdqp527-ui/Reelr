@@ -1486,6 +1486,7 @@ cat_diy             → création manuelle, artisanat, procreate, bricolage cré
 cat_tricot          → couture (machine, patron). Diff. cat_diy : couture = sous-univers textile/aiguilles.
 cat_tricotage       → tricot aux aiguilles, laine.
 cat_crochet         → crochet, amigurumi, macramé.
+cat_broderie        → broderie, point de croix (cross stitch), grilles et motifs à broder, canevas. Diff. cat_art/cat_diy : une grille de motif pixel destinée au point de croix va ici, même si le texte parle aussi de « pixel art », de perles Hama ou de « DIY ».
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
 cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
 cat_tech            → high-tech, électronique, informatique, smartphones, ordinateurs, audio (écouteurs, enceintes), gadgets, applis. Diff. cat_photo : photo = technique et matériel de prise de vue ; tech = tout autre appareil ou produit électronique.
@@ -1516,9 +1517,10 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 
 1. Une catégorie précise bat cat_diy. cat_diy = fabrication créative SANS
    sous-univers dédié. Si cat_tricot (couture), cat_tricotage, cat_crochet,
-   cat_art, cat_jardin, cat_auto ou cat_deco s'applique, elle gagne — même
+   cat_broderie, cat_art, cat_jardin, cat_auto ou cat_deco s'applique, elle gagne — même
    si le titre dit "tuto", "DIY" ou "fabriquer soi-même".
    Ex : "coudre une robe" → cat_tricot. "macramé mural" → cat_crochet.
+   "grille point de croix, motif pixel art à broder" → cat_broderie.
    "changer ses plaquettes de frein" → cat_auto.
 
 2. cat_sante bat cat_science dès que le sujet est le corps humain, une
