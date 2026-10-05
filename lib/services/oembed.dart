@@ -332,11 +332,6 @@ class OEmbedService {
     if (uri != null) {
       final platformId = SocialPlatform.detect(trimmed).id;
       final og = await _fetchOpenGraphMetadata(uri, platformId: platformId);
-      // Facebook : titre conserve tel quel, seul le createur (fin du titre
-      // « compteur | titre | createur ») est lu comme chaine, pour apprendre.
-      if (platformId == 'facebook' && og != null) {
-        return withFacebookCreator(og);
-      }
       // Site quelconque sans image, ou qui bloque la requete (fiches hotel
       // Booking) : second essai en se presentant comme un robot d'apercu
       // de liens, que ces sites laissent passer pour les vignettes des
@@ -356,32 +351,6 @@ class OEmbedService {
     return VideoData(
       title: _filenameTitle(trimmed),
       platform: 'upload',
-    );
-  }
-
-  static VideoData withFacebookCreator(VideoData og) {
-    if (!isPlaceholderTitle(og.channel)) return og;
-    final parts = og.title
-        .split('|')
-        .map((x) => x.trim())
-        .where((x) => x.isNotEmpty)
-        .toList();
-    final counter = RegExp(
-      r'^[\d\s.,]+\s*[kKmM]?\s*(vues|views|réactions|reactions|j.aime|likes|commentaires|comments|partages|shares)\b',
-      caseSensitive: false,
-    );
-    if (parts.length < 3 || !counter.hasMatch(parts.first)) return og;
-    return VideoData(
-      title: og.title,
-      channel: parts.last,
-      description: og.description,
-      tags: og.tags,
-      views: og.views,
-      duration: og.duration,
-      publishedAt: og.publishedAt,
-      platform: og.platform,
-      thumbnailUrl: og.thumbnailUrl,
-      transcriptExcerpt: og.transcriptExcerpt,
     );
   }
 

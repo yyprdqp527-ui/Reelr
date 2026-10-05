@@ -1,8 +1,6 @@
-import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'net.dart';
 
 import '../config/secrets.dart';
@@ -857,10 +855,7 @@ class CategoryClassifier {
     'cold case': 3, 'fait divers': 3, 'affaire criminelle': 3,
     'meurtre': 2, 'crime': 2,
     // Documentaire
-    // « documentaire », « documentary », « reportage » ne sont plus
-    // ponderes (2026-10-03) : ce sont des mots de FORMAT. A poids 3 ils
-    // decidaient seuls et contredisaient le prompt (le sujet prime) :
-    // « Documentaire : l'affaire Gregory » partait en Documentaire.
+    'documentaire': 3, 'documentary': 3, 'reportage': 3,
     // Mode vs Couture : « haute couture » doit battre « couture » seul.
     'haute couture': 3, 'défilé mode': 3, 'defile mode': 3,
     // Moto vs Auto. Le prompt demande à Haiku une « correspondance
@@ -915,29 +910,19 @@ class CategoryClassifier {
     'xstitch': 3, 'punto croce': 3, 'punto de cruz': 3, 'punto cruz': 3,
     'bordado': 3, 'bordados': 3, 'kreuzstich': 3, 'stickerei': 3, 'sticken': 3,
     // Cinéma / Séries
-    // « trailer » n'est plus pondere et « bande annonce » passe a 2
-    // (2026-10-03) : une bande-annonce de jeu video (GTA 6) partait en
-    // Cinema, « trailer park » aussi.
-    'bande annonce': 2, 'critique film': 3, 'review film': 3,
+    'bande annonce': 3, 'trailer': 3, 'critique film': 3, 'review film': 3,
     'netflix': 2, 'disney+': 2, 'disney plus': 2, 'hbo': 2,
     // Astro / Spirituel
     'astrologie': 3, 'astrology': 3, 'horoscope': 3,
-    // « full moon » n'est plus pondere (2026-10-03) : Full Moon Party.
-    'chakra': 3, 'tarot': 3, 'pleine lune': 3,
+    'chakra': 3, 'tarot': 3, 'pleine lune': 3, 'full moon': 3,
     'loi de l\'attraction': 3, 'law of attraction': 3,
     // Langue / Culture
     'apprendre': 2, 'vocabulaire': 3, 'grammaire': 3,
     // Immo / Déco
-    // « room tour » passe a 2 (2026-10-03) : un room tour d'hotel est
-    // du Voyage, pas de la Deco.
-    'home tour': 3, 'room tour': 2, 'avant après': 3, 'avant apres': 3,
+    'home tour': 3, 'room tour': 3, 'avant après': 3, 'avant apres': 3,
     'investissement locatif': 3, 'rénovation': 2, 'renovation': 2,
     // Podcast — noms propres, poids très fort
-    // « legend » et « transfert » ne sont plus ponderes (2026-10-03) :
-    // a 4 ils envoyaient en Podcast « The Legend of Zelda », « John
-    // Legend » et le transfert d'un footballeur. Les podcasts Legend
-    // et Transfert restent reconnus par Claude (liste du prompt).
-    'thinkerview': 4, 'gdiy': 4,
+    'legend': 4, 'transfert': 4, 'thinkerview': 4, 'gdiy': 4,
     'artichaut': 4, 'inner game': 4, 'kiffe ta race': 4,
     'les couilles sur la table': 4, 'yala': 4, 'le gratin': 4,
     'binge audio': 3, 'france culture': 3, 'france inter': 3,
@@ -948,15 +933,10 @@ class CategoryClassifier {
     'procès': 2, 'proces': 2, 'tribunal': 2,
     // Science — très spécifiques, poids 3
     'astro': 3, 'astronomie': 3, 'nasa': 3,
-    // « galaxy » n'est plus pondere (2026-10-03) : Samsung Galaxy.
-    'galaxie': 3, 'cosmos': 3,
-    // « big bang » n'est plus pondere (2026-10-03) : la serie The Big
-    // Bang Theory partait en Science.
-    'trou noir': 3, 'black hole': 3,
+    'galaxie': 3, 'galaxy': 3, 'cosmos': 3,
+    'trou noir': 3, 'black hole': 3, 'big bang': 3,
     'telescope': 3, 'télescope': 3, 'hubble': 3, 'james webb': 3,
-    // « mars » n'est plus pondere (2026-10-03) : c'est aussi le mois
-    // (« recette du 2 mars ») et Bruno Mars, tous deux partis en Science.
-    'jupiter': 3, 'saturne': 3,
+    'mars': 3, 'jupiter': 3, 'saturne': 3,
     'exoplanète': 3, 'exoplanete': 3,
     'supernova': 3, 'nébuleuse': 3, 'nebuleuse': 3,
     // Science — spécifiques, poids 2
@@ -988,11 +968,7 @@ class CategoryClassifier {
   static bool _kwMatches(String text, String kw) {
     final escaped = RegExp.escape(kw);
     // La frontière = ni lettre ni chiffre avant/après le mot-clé
-    // Les lettres accentuees comptent comme des lettres (2026-10-03) :
-    // sans elles, « saut » matchait dans « saute » accentue (poulet
-    // saute -> Extreme), « art » dans « arte » accentue, etc.
-    const letters = 'a-z0-9àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ';
-    final pattern = '(?<![$letters])$escaped(?![$letters])';
+    final pattern = '(?<![a-z0-9])$escaped(?![a-z0-9])';
     return RegExp(pattern).hasMatch(text);
   }
 
@@ -1193,9 +1169,7 @@ class CategoryClassifier {
   static String? detectKnownInfluencer(String text) {
     final lower = text.toLowerCase();
     for (final name in _knownInfluencers) {
-      // Mot entier (2026-10-03) : « ponce » matchait « poncer »,
-      // « norman » « Normandie », « axolot » « axolotl ».
-      if (_kwMatches(lower, name)) return name;
+      if (lower.contains(name)) return name;
     }
     return null;
   }
@@ -1222,10 +1196,10 @@ class CategoryClassifier {
             detectKnownBrand(channel) != null);
     final hasTitleMatch = detectKnownInfluencer(title) != null ||
         detectKnownBrand(title) != null;
-    // Une marque ou un influenceur ne dit pas la categorie a lui seul
-    // (2026-10-03). Avant, il suffisait d'UN mot-cle faible a cote :
-    // « Samsung Galaxy » -> Science, « Supreme Court ... explained » ->
-    // Documentaire. Le signal abaisse seulement le seuil a 2, plus bas.
+    if (hasChannelMatch || hasTitleMatch) {
+      final suggestion = suggestDetailed(title);
+      if (!suggestion.isUnclassified) return suggestion.name;
+    }
     // Même traitement que dans `suggestDetailed` : le `#` seul est
     // retiré, le mot est conservé (voir le commentaire détaillé là-bas).
     final lower = title.replaceAll('#', ' ').toLowerCase();
@@ -1239,17 +1213,7 @@ class CategoryClassifier {
     });
     if (scores.isEmpty) return null;
     final best = scores.entries.reduce((a, b) => a.value >= b.value ? a : b);
-    final needed =
-        (hasChannelMatch || hasTitleMatch) && minScore > 2 ? 2 : minScore;
-    if (best.value < needed) return null;
-    // Decision seule (seuil >= 3) seulement si AUCUNE autre categorie n'a
-    // d'indice dans le titre (2026-10-03). Sinon, plusieurs mots faibles
-    // s'additionnaient et battaient le vrai sujet : une grille de point de
-    // croix « cake, dessert, breakfast » donnait Food 3 contre Broderie 3,
-    // Food gagnant l'egalite, sans que Claude soit consulte. Observe en
-    // production. Avec un concurrent, c'est Claude qui tranche.
-    // Le seuil 2 (indice de doute pour la couche 2) n'est pas concerne.
-    if (minScore >= 3 && scores.length > 1) return null;
+    if (best.value < minScore) return null;
     return _suggestionFor(best.key)?.name;
   }
 }
@@ -1303,59 +1267,90 @@ class ClaudeClassifier {
   static const Duration _requestTimeout = Duration(seconds: 20);
 
   static const String _systemPrompt = '''
-Tu es une personne réelle qui consomme énormément de contenu en ligne — YouTube, TikTok, Instagram Reels. Tu connais par cœur la culture internet française ET anglophone : les créateurs, les tendances, les codes visuels, les communautés. Les titres arrivent en français, en anglais ou dans une autre langue : tu appliques exactement les mêmes règles quelle que soit la langue.
+Tu es une personne réelle qui consomme énormément de contenu en ligne — YouTube, TikTok, Instagram Reels. Tu connais la culture internet française par cœur : les créateurs, les tendances, les codes visuels, les communautés.
 
 Quand on te donne des métadonnées d'une vidéo, tu ne fais PAS de la classification mécanique par mots-clés. Tu fais ce qu'un humain fait naturellement : tu lis l'ensemble, tu ressens l'ambiance, et tu choisis la catégorie qui correspond à l'EXPÉRIENCE de regarder la vidéo.
 
-━━━ ÉTAPE 0 — REGARDE L'IMAGE SI ELLE EST FOURNIE ━━━
+━━━ ÉTAPE 0 — REGARDE L'IMAGE EN PREMIER ━━━
 
-Si une miniature est fournie, c'est souvent le signal le plus fiable, surtout quand le titre est vague.
+Si une image (miniature/thumbnail) est fournie, c'est ton signal le plus fort — souvent plus fiable que le titre.
+Lis-la comme un humain qui scroll son feed : en une fraction de seconde, l'image te dit tout.
 
-• Salle de sport, haltères, corps musclé → cat_fitness, même si le titre dit "incroyable"
-• Plat, ingrédients, cuisine en action → cat_food, même si le titre dit "elle s'est effondrée"
-• Maquillage, palette, gros plan visage, pinceau sur la peau → cat_beauty (ce qu'on APPLIQUE sur le corps)
-• Vêtements, tenue, essayage, lookbook, haul de vêtements → cat_mode (ce qu'on PORTE)
-• Micro, casque audio, deux personnes face à face en studio, format long avec invité → cat_podcast
-• Écran de jeu, manette, headset → cat_gaming
-• Paysage, aéroport, sac à dos → cat_travel
-• Personnes qui rient, caméra cachée, grimace exagérée → cat_humour
-• Dessin, tablette, Procreate → cat_diy (cat_art si c'est une œuvre exposée)
-• Scène, lumières de concert → cat_musique
-• Bébé, poussette → cat_bebe ; enfants plus grands, vie de famille → cat_famille
-• Graphiques boursiers → cat_finance ; bureau, réunion, startup → cat_business
-• Nom propre lié à une affaire judiciaire du moment → cat_actu (cat_truecrime si l'affaire est racontée en profondeur)
+• Salle de sport, haltères, corps musclé → Fitness, même si le titre dit "incroyable"
+• Cuisine, plat, ingrédients, chef → Food, même si le titre dit "elle s'est effondrée"
+• Maquillage, palette, gros plan visage — personne qui se touche le visage,
+  s'applique quelque chose sur la peau, tient un pinceau → Beauty, même si le
+  titre ne dit pas "makeup". Un humain sait immédiatement.
+• Vêtements, tenue, outfit, essayage, lookbook, haul de vêtements, streetwear → Mode.
+  La règle : Beauty = ce qu'on APPLIQUE sur son corps (crème, mascara, fond de teint).
+  Mode = ce qu'on PORTE (fringues, chaussures, accessoires, sacs).
+  Une personne qui s'habille devant la caméra → Mode. Même si elle est jolie.
+• Micro, casque audio, deux personnes face à face dans un studio → Podcast
+• Fond noir/neutre, sous-titres stylisés, format long avec invité → Podcast
+• Écran de jeu, manette, headset → Gaming
+• Paysage, aéroport, sac à dos → Travel
+• Personnes qui rient, caméra cachée, grimace exagérée → Humour
+• Graphisme, dessin, tablette, Procreate → DIY & Créa
+• Studio, scène, lumières de concert → Musique
+• Bébé, famille, poussette → Famille
+• Graphiques, costard, bureau → Finance & Business
+• Titre ou visuel avec nom propre lié à une affaire judiciaire ou scandale
+  (ex. "Bruel", "DSK", "Weinstein", "affaire X") → Actu & Société
 
-Titre ambigu ET image ambiguë (ou absente) → confiance ≤ 40.
+En cas de titre AMBIGU ("elle s'est effondrée", "incroyable", "vous allez pas le croire") :
+→ L'image TRANCHE. Utilise-la. Augmente ta confiance si l'image est claire.
+→ Si l'image est aussi ambiguë (visage neutre, texte illisible), ALORS mets confiance ≤ 40.
 
-━━━ ÉTAPE 1 — LE FORMAT, PUIS LE SUJET ━━━
+━━━ ÉTAPE 1 — LIS LE FORMAT AVANT LE SUJET ━━━
 
-• PRANK / CAMÉRA CACHÉE / TROLL / GONE WRONG / SKETCH → cat_humour, sauf si un sujet précis est réellement montré (une vraie recette, même ratée ou drôle, reste cat_food : voir sa définition).
-• FAIL / compilation d'accidents → cat_fail
-• TUTO / "comment faire" / "how to" / RECETTE / ROUTINE → le SUJET décide (cat_food, cat_beauty, cat_fitness, cat_diy…). "Tuto", "tutorial" ou "DIY" seuls ne désignent jamais cat_diy.
-• HAUL / UNBOXING / AVIS / TEST / REVIEW / COMPARATIF → le PRODUIT décide (vêtements → cat_mode, makeup → cat_beauty, téléphone → cat_tech, appareil photo → cat_photo).
-• VLOG / "une journée" / "day in my life" → le contexte décide (cat_famille, cat_travel…).
-• DOCUMENTAIRE / REPORTAGE / "expliqué" / "explained" → le SUJET décide, jamais le format (voir arbitrage 10).
+Le FORMAT de la vidéo est le signal le plus fort. Repère ces patterns dès le début :
 
-━━━ ÉTAPE 2 — LIS LE TITRE EN ENTIER ━━━
+• PRANK / TROLL / CAMÉRA CACHÉE / RÉACTION / GONE WRONG / CHALLENGE
+  → Humour, même si le titre mentionne de l'art, de la cuisine ou du sport
 
-Ne découpe pas le titre en mots isolés, lis-le comme une personne :
+• POV: / "j'ai essayé de..." / FAIL / "je suis nul en..." / "mon tatoueur m'a trollé"
+  → Humour ou Vibes, pas la catégorie du sujet mentionné
 
-• "illustration #tattoo #art #pov #procreate" → cat_diy
-• "j'ai fait semblant d'être un artiste 😂 prank" → cat_humour
-• "je teste la cuisine moléculaire avec un vrai chef" → cat_food
-• "Ed Sheeran - Perfect (Official Music Video)" → cat_musique (un nom d'artiste n'est pas un podcast)
-• "Pixel 10 Pro unboxing" → cat_tech
+• TUTO / "comment faire" / "apprendre à" / RECETTE / ROUTINE
+  → Là le sujet compte vraiment (Food, Beauty, Fitness, DIY & Créa…)
 
-😂 💀 🤣 lol mdr ptdr indiquent un ton drôle, mais le sujet montré compte toujours.
+• HAUL / UNBOXING / AVIS / TEST / COMPARATIF
+  → Le sujet compte ET potentiellement une marque à détecter
+  → HAUL vêtements / OOTD / lookbook → Mode (pas Beauty)
+  → HAUL makeup / skincare / soins → Beauty (pas Mode)
 
-━━━ ÉTAPE 3 — LE NOM DE CHAÎNE ━━━
+• VLOG / "une journée" / "avec moi" / "day in my life"
+  → Famille ou Travel ou Vibes selon le contexte
 
-Si tu reconnais le créateur, c'est un signal fort, mais le titre de CETTE vidéo prime s'il désigne clairement autre chose.
-"Squeezie" → cat_gaming ou cat_humour. "750g" → cat_food. "Tibo InShape" → cat_fitness.
+• STORYTELLING / "je vous raconte" / "mon histoire" / "vlog" / thread
+  → Actu & Société, Growth ou Famille selon le sujet
+
+━━━ ÉTAPE 2 — DÉCODE LE TITRE DANS SA GLOBALITÉ ━━━
+
+Ne découpe pas le titre en mots isolés. Lis-le comme une personne le lirait :
+
+• "illustration #tattoo #art #pov #procreate" → Le mot-clé "art" + "procreate" → vraiment DIY & Créa
+• "j'ai fait semblant d'être un artiste 😂 prank" → "prank" + "😂" écrasent "artiste" → Humour
+• "mon chef tattoo artist m'a abandonné en plein milieu 💀" → Drama/storytelling → Humour ou Actu & Société
+• "recette de pâtes mais en 30 secondes 😂 fail" → "fail" + "😂" → Humour, pas Food
+• "je teste la cuisine moléculaire avec un vrai chef" → "je teste" + "vrai chef" → Food
+
+SIGNAUX HUMOUR qui écrasent le sujet si présents en contexte drôle :
+😂 💀 🤣 lol mdr ptdr xd omg oh non bruh fail trop nul awkward gênant
+prank troll réaction challenge gone wrong impossible
+
+SIGNAUX SÉRIEUX qui confirment le sujet :
+tuto guide comment routine recette résultats transformation avant/après
+analyse critique explication science
+
+━━━ ÉTAPE 3 — LE NOM DE CHAÎNE EST UN RACCOURCI ━━━
+
+Si tu reconnais le créateur, c'est souvent le signal le plus fiable de tous.
+"Squeezie" → Gaming/Humour. "750g" → Food. "Tibo InShape" → Fitness. Ne l'ignore jamais.
 
 ━━━ ÉTAPE 4 — IMAGINE LE VIEWER ━━━
 
-Dans quelle playlist cette personne range-t-elle la vidéo ?
+Qui ouvre cette vidéo ? Une ado qui se maquille le matin ? Un gars de 25 ans qui joue après le boulot ? Une maman qui cherche des recettes rapides ? Cette personne, dans quelle playlist elle met la vidéo ?
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1581,80 +1576,32 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     Ex : "OGAM / Restaurant Traditionnel / LYON" → cat_food.
     Ex : "Evenements Archive - AZAR Club" → cat_musique.
 
-12. Une ACTIVITÉ pratiquée bat cat_travel, même dans une destination
-    célèbre : trek, randonnée, escalade, alpinisme, camping, plongée →
-    cat_outdoor ; balade ou voyage à moto → cat_moto. cat_travel =
-    découvrir un lieu (visite, itinéraire, hébergement, culture locale).
-    Ex : "Trek to Everest Base Camp" → cat_outdoor.
-    Ex : "Road trip à moto en Corse" → cat_moto.
-
-13. cat_sport_extreme seulement si la prise de risque spectaculaire est le
-    sujet (base jump, wingsuit, free solo, vagues géantes). Escalade, ski,
-    VTT pratiqués normalement → cat_outdoor.
-
-14. Le sport reste cat_sport même quand c'est une nouvelle du jour :
-    résultats, matchs, transferts, mercato, blessure, contrat d'un joueur.
-    Ex : "Officiel : Dembélé prolonge au PSG" → cat_sport.
-
-15. cat_actu = événement du jour (catastrophe, élection, attentat,
-    décision tombée aujourd'hui). Un PHÉNOMÈNE de société expliqué
-    (logement, jeunesse, transports, travail, inégalités, mode de vie) →
-    cat_societe, même s'il fait l'actualité. Un reportage sur un mode de
-    vie → cat_societe.
-    Ex : "Why rent is so expensive in big cities" → cat_societe.
-
-16. cat_bebe = grossesse, naissance et bébé jusqu'à environ 18 mois
-    (allaitement, sommeil du nourrisson, diversification, portage).
-    Enfant qui marche et parle, "toddler", crises, éducation, 2 ans et
-    plus → cat_famille.
-    Ex : "Terrible two : comment réagir" → cat_famille.
-
-17. Appareils photo, objectifs, caméras, drones, réglages de prise de vue
-    → cat_photo, même pour filmer en vidéo. Téléphones, ordinateurs,
-    écouteurs, consoles et autres appareils → cat_tech.
-
-18. Lune, pleine lune, astres, signes, énergie lunaire → cat_astro, même
-    avec un rituel ou une méditation. cat_wellness = méditation,
-    respiration, sommeil, sans dimension astrologique.
-
-19. Un artiste musical reste cat_musique (portrait, hommage, documentaire
-    sur sa carrière), sauf si l'enquête criminelle est le vrai sujet.
-
-20. Une bande-annonce (trailer) de jeu vidéo → cat_gaming ; de film ou de
-    série → cat_cinema.
-
-21. L'humour bat le sujet dont on rit. Un humoriste, un sketch ou un
-    stand-up sur la nourriture, le sport, les animaux, la famille… →
-    cat_comedy (spectacle, humoriste sur scène) ou cat_humour (sketch
-    court). cat_food exige qu'on cuisine, goûte, teste ou présente
-    réellement de la nourriture, une boisson ou un lieu où manger.
-    Ex : "Humoriste : les Français au restaurant" → cat_comedy.
-    Ex : "I ranked every gas station snack" → cat_food.
-
-22. Un ouvrage fait main se classe selon sa TECHNIQUE, jamais selon ce
-    qu'il représente : grille de point de croix de gâteaux ou de fruits →
-    cat_broderie ; amigurumi en forme de chat → cat_crochet ; pull tricoté
-    motif sapin → cat_tricotage.
-
-23. Le domaine précis bat toujours la forme (« tuto », « explication »,
-    « univers », « voyage ») : production musicale (beat, FL Studio,
-    mixage) → cat_musique ; dressage, éducation ou soins d'un animal →
-    cat_pets ; histoire, lore ou théories d'un jeu vidéo → cat_gaming ;
-    d'un anime → cat_manga ; une moto comme moyen de déplacement (Ducati,
-    Harley, BMW GS…) → cat_moto, même pour un voyage.
-
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
+
+STYLES DE VIE (celui qui colle à l'ambiance générale du créateur/contenu) :
+Minimaliste, Luxe & Premium, Streetwear / Urban, Sportif / Athleisure, Geek / Gamer, Entrepreneur / Hustle culture, Parent / Famille, Étudiant / Budget, Wellness / Slow life
 
 RÈGLES FINALES :
 - `influenceur_detecte` : nom du créateur si reconnu, sinon null
-- `raison` : UNE phrase courte, 15 mots maximum
-- `tags_suggeres` : 3 mots-clés maximum
-- `confiance` : sois HONNÊTE. Si le titre est court, vague ou peut être interprété de plusieurs façons sans autre signal (pas de chaîne, pas de description, pas d'image révélatrice), mets confiance ≤ 40. Mieux vaut admettre le doute que se tromper avec certitude.
-  Exemples de titres ambigus (→ confiance ≤ 40) : "elle s'est effondrée", "incroyable", "je suis choquée", "vous allez pas le croire", "omg", "wtf", "c'est fou", "you won't believe this", "Part 3"
-  Exemples clairs (→ confiance élevée) : "tuto maquillage naturel" (cat_beauty), "Squeezie vs ZeratoR" (cat_gaming)
+- `marque_detectee` : nom de la marque si la vidéo lui est dédiée (haul, test, unboxing, avis), sinon null
+- `raison` : écris 1-2 phrases naturelles comme tu l'expliquerais à un ami — pas de jargon
+- `confiance` : sois HONNÊTE. Si le titre est court, vague ou peut être interprété de plusieurs façons sans autre signal (pas de chaîne, pas de description, pas de tags révélateurs), mets confiance ≤ 40. Mieux vaut admettre le doute que se tromper avec certitude.
+  Exemples de titres ambigus (→ confiance ≤ 40) : "elle s'est effondrée", "incroyable", "je suis choquée", "vous allez pas le croire", "omg", "wtf", "c'est fou"
+  Exemples clairs (→ confiance élevée) : "tuto maquillage naturel procreate" (Beauty/DIY), "Squeezie vs ZeratoR" (Gaming)
 
-Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucun texte autour, exactement ces 5 champs :
-{"categorie_principale": "cat_food", "confiance": 0, "influenceur_detecte": null, "raison": "...", "tags_suggeres": ["...", "..."]}''';
+Réponds UNIQUEMENT en JSON valide, sans markdown, sans aucun texte autour :
+{
+  "categorie_principale": "cat_food",
+  "sous_categories": ["...", "..."],
+  "influenceur_detecte": "nom ou null",
+  "marque_detectee": "nom de la marque ou null",
+  "style_de_vie": "...",
+  "ambiance": "...",
+  "audience_cible": "...",
+  "confiance": 0,
+  "raison": "...",
+  "tags_suggeres": ["...", "..."]
+}''';
 
   /// Classifie [video] via Claude Haiku.
   /// Si [profile] est fourni et contient des données, le profil utilisateur
@@ -1691,78 +1638,6 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
       messageContent = userText;
     }
 
-    // Repli texte seul sur TOUTE erreur quand une miniature est jointe
-    // (2026-10-03). Avant, seul un corps contenant « robots.txt »
-    // declenchait ce repli : une miniature TikTok/Instagram expiree, refusee
-    // ou trop lente a telecharger faisait echouer l'appel, la pile au-dessus
-    // relancait le MEME appel avec la MEME image, echouait encore, puis
-    // tombait dans le filet mots-cles (68 % de precision sur le golden).
-    // Jusqu'a 2 x 20 s perdues pour un classement degrade.
-    final hasImage = messageContent is List;
-    http.Response response;
-    try {
-      response = await _post(messageContent);
-    } on TimeoutException {
-      if (!hasImage) rethrow;
-      debugPrint('[classify] delai depasse avec miniature, relance texte seul');
-      response = await _post(userText);
-    }
-    if (response.statusCode != 200 && hasImage) {
-      debugPrint('[classify] erreur ${response.statusCode} avec miniature, '
-          'relance texte seul');
-      response = await _post(userText);
-    }
-    if (response.statusCode != 200) {
-      throw Exception(
-          'Claude API error ${response.statusCode}: ${response.body}');
-    }
-
-    final data = jsonDecode(response.body) as Map<String, dynamic>;
-    final text =
-        ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
-            as String;
-    final jsonStr = _extractJson(text);
-    final json = jsonDecode(jsonStr) as Map<String, dynamic>;
-    json['categorie_principale'] =
-        _validCategoryId(json['categorie_principale']);
-    return ClassificationResult.fromJson(json);
-  }
-
-  /// IDs autorises : exactement ceux listes dans le prompt
-  /// (lignes « cat_xxx   → ... »), une seule source de verite.
-  static final Set<String> _knownCategoryIds = RegExp(
-    r'^(cat_\w+)\s+→',
-    multiLine: true,
-  ).allMatches(_systemPrompt).map((m) => m.group(1)!).toSet();
-
-  /// Variantes inventees deja observees -> vrai ID.
-  static const Map<String, String> _categoryIdAliases = {
-    'cat_anime': 'cat_manga',
-    'cat_recette': 'cat_food',
-    'cat_cuisine': 'cat_food',
-    'cat_voyage': 'cat_travel',
-    'cat_beaute': 'cat_beauty',
-    'cat_humor': 'cat_humour',
-    'cat_music': 'cat_musique',
-  };
-
-  /// Garde-fou (2026-10-03) : Claude a renvoye « cat_anime », absent
-  /// de la liste. Dans l'app, un ID inconnu devenait une NOUVELLE
-  /// categorie nommee « cat_anime ». Un ID inconnu sans alias renvoie
-  /// null : le clip reste « A trier » au lieu de creer une tuile fantome.
-  static String? _validCategoryId(dynamic raw) {
-    if (raw is! String) return null;
-    final id = raw.trim();
-    if (_knownCategoryIds.contains(id)) return id;
-    final alias = _categoryIdAliases[id];
-    if (alias != null) return alias;
-    debugPrint('[classify] ID hors liste ignore : $id');
-    return null;
-  }
-
-  /// Un appel au proxy, avec [content] en message utilisateur (texte seul
-  /// ou liste multimodale). Corps et en-tetes identiques a l'ancien code.
-  static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
       'max_tokens': 500,
@@ -1775,10 +1650,11 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         }
       ],
       'messages': [
-        {'role': 'user', 'content': content},
+        {'role': 'user', 'content': messageContent},
       ],
     });
-    return Net.client.post(
+
+    final response = await Net.client.post(
       Uri.parse(_apiUrl),
       headers: {
         'x-reelr-secret': Secrets.appSharedSecret,
@@ -1788,6 +1664,64 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
       },
       body: body,
     ).timeout(_requestTimeout);
+
+    if (response.statusCode != 200) {
+      // Certains CDN (Instagram, Twitch, LinkedIn...) bloquent parfois
+      // l'acces a l'image de miniature via leur robots.txt, de facon
+      // intermittente (pas systematique). Dans ce cas precis, on relance
+      // une fois immediatement en texte seul (sans image) plutot que de
+      // propager l'echec : sans ce repli cible, le retry generique plus
+      // haut dans la pile renverrait la meme image, avec la meme
+      // probabilite d'echec, pour un cout de 8s supplementaires perdues.
+      final isRobotsBlocked = response.body.contains('robots.txt');
+      if (isRobotsBlocked && messageContent is List) {
+        final textOnlyBody = jsonEncode({
+          'model': _model,
+          'max_tokens': 500,
+          'temperature': 0,
+          'system': [
+            {
+              'type': 'text',
+              'text': _systemPrompt,
+              'cache_control': {'type': 'ephemeral'},
+            }
+          ],
+          'messages': [
+            {'role': 'user', 'content': userText},
+          ],
+        });
+        final retryResponse = await Net.client.post(
+          Uri.parse(_apiUrl),
+          headers: {
+            'x-reelr-secret': Secrets.appSharedSecret,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31',
+            'content-type': 'application/json',
+          },
+          body: textOnlyBody,
+        ).timeout(_requestTimeout);
+        if (retryResponse.statusCode != 200) {
+          throw Exception(
+              'Claude API error ${retryResponse.statusCode}: ${retryResponse.body}');
+        }
+        final retryData = jsonDecode(retryResponse.body) as Map<String, dynamic>;
+        final retryText = ((retryData['content'] as List<dynamic>).first
+            as Map<String, dynamic>)['text'] as String;
+        final retryJsonStr = _extractJson(retryText);
+        return ClassificationResult.fromJson(
+            jsonDecode(retryJsonStr) as Map<String, dynamic>);
+      }
+      throw Exception(
+          'Claude API error ${response.statusCode}: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final text =
+        ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
+            as String;
+    final jsonStr = _extractJson(text);
+    return ClassificationResult.fromJson(
+        jsonDecode(jsonStr) as Map<String, dynamic>);
   }
 
   static String _buildUserText(VideoData video, ClientProfile? profile) {

@@ -797,10 +797,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     Clip clip, {
     Completer<void>? hydrated,
   }) async {
-    final hasRealTitle = await _hydrateClip(clip, classifyEarly: true);
-    // Classement deja lance pendant l'extraction : ne pas payer un
-    // second appel (voir _maybeClassifyEarly).
-    final classifiedEarly = _earlyClassifiedIds.remove(clip.id);
+    final hasRealTitle = await _hydrateClip(clip);
     // Extraction terminee : la file d'attente peut lancer la suivante.
     if (hydrated != null && !hydrated.isCompleted) hydrated.complete();
     final updated =
@@ -831,7 +828,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       );
       return;
     }
-    if (classifiedEarly) return;
     await widget.state.classifyClipInBackground(updated);
   }
 
@@ -994,57 +990,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     return VideoData(title: title, platform: clip.platform);
   }
 
-  /// Clips dont le classement est deja parti pendant l'extraction (voir
-  /// [_maybeClassifyEarly]) : [_hydrateAndClassify] ne le relance pas.
-  final Set<String> _earlyClassifiedIds = {};
-
-  /// Classement anticipe (2026-10-03).
-  ///
-  /// Quand le titre est deja connu mais pas la vignette, l'extraction
-  /// attend encore l'apercu Safari (LinkPreviewService, jusqu'a 25 s) avant
-  /// de rendre la main au classement. Or dans ce cas l'apercu n'apporte
-  /// rien a Claude : il ne fournit qu'un titre (deja connu) et une image
-  /// (sur iOS stockee dans le telephone, illisible pour Claude). On lance
-  /// donc le classement tout de suite, en parallele de la recherche de
-  /// vignette, avec exactement les champs que l'extraction ecrira ensuite
-  /// (titre, chaine, description). La vignette suit le meme chemin qu'avant.
-  ///
-  /// Tous les autres cas (titre manquant, vignette deja trouvee, clip deja
-  /// range) gardent le chemin d'origine, sans aucun changement.
-  void _maybeClassifyEarly(Clip clip, VideoData? meta) {
-    if (meta == null) return;
-    final m = _withSearchQueryTitle(clip, meta) ?? meta;
-    final title = m.title.trim();
-    if (OEmbedService.isPlaceholderTitle(title)) return;
-    final thumb = m.thumbnailUrl;
-    if (thumb != null && thumb.isNotEmpty) return;
-    if (_currentCategoryIdOf(clip) != null) return;
-    if (!_earlyClassifiedIds.add(clip.id)) return;
-    debugPrint('[classify] anticipe (titre connu, vignette en cours): $title');
-    final early = Clip(
-      id: clip.id,
-      url: clip.url,
-      title: title,
-      platform: clip.platform,
-      tags: clip.tags,
-      addedAt: clip.addedAt,
-      thumbnailUrl: clip.thumbnailUrl,
-      position: clip.position,
-      channel: m.channel ?? clip.channel,
-      description: m.description ?? clip.description,
-    );
-    unawaited(widget.state.classifyClipInBackground(early));
-  }
-
-  Future<bool> _hydrateClip(Clip clip, {bool classifyEarly = false}) async {
+  Future<bool> _hydrateClip(Clip clip) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
-    final firstMeta = await OEmbedService.fetchMetadata(clip.url);
-    if (classifyEarly) _maybeClassifyEarly(clip, firstMeta);
     final rawMeta = _completeWithScreenshot(
       clip,
       _completeWithUrlTitle(
         clip,
-        await _completeWithLinkPreview(clip, firstMeta),
+        await _completeWithLinkPreview(
+          clip,
+          await OEmbedService.fetchMetadata(clip.url),
+        ),
       ),
     );
     final meta = _withSearchQueryTitle(clip, rawMeta);

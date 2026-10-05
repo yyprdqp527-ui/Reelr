@@ -851,12 +851,6 @@ class ClipsState extends ChangeNotifier {
         return;
       }
 
-      // Une correction enseigne aussi le createur (2026-10-03) : avant,
-      // seul le rangement d'un clip « A trier » le faisait. Valable aussi
-      // pour une categorie personnelle : la couche 2 la retrouve par son
-      // nom, sans passer par Claude.
-      await _learnChannelFromUserChoice(clip, newCategoryId);
-
       // GARDE-FOU. La taxonomie envoyee a Haiku est figee dans le prompt
       // systeme : il ne connait que les identifiants `cat_*`. Une categorie
       // creee a la main (identifiant UUID) lui est donc inatteignable.
@@ -929,20 +923,8 @@ class ClipsState extends ChangeNotifier {
 
     final service = ProfileService();
     final profile = await service.loadProfile();
-    // Le geste humain l'emporte sur l'historique du createur (anciennes
-    // predictions de Claude, autre rangement) : la categorie choisie
-    // passe 3 points au-dessus du meilleur score actuel (2026-10-03).
-    final chosenName = chosen.name;
-    final current =
-        profile.channelVocabulary[channel.toLowerCase()] ?? const <String, int>{};
-    var bestOther = 0;
-    current.forEach((cat, score) {
-      if (cat != chosenName && score > bestOther) bestOther = score;
-    });
-    final mine = current[chosenName] ?? 0;
-    final increment = (bestOther > mine ? bestOther - mine : 0) + 3;
-    final updated = profile.withLearnedChannel(channel, chosenName,
-        increment: increment);
+    final updated =
+        profile.withLearnedChannel(channel, chosen.name, increment: 3);
     if (identical(updated, profile)) {
       debugPrint('[apprentissage] "$channel" écarté (nom de plateforme)');
       return;
