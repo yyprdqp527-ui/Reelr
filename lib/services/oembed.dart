@@ -1393,17 +1393,17 @@ class OEmbedService {
 
     final escapedKey = RegExp.escape(key);
     final patternA = RegExp(
-      '<meta[^>]+(?:property|name)=["\']$escapedKey["\'][^>]+content=["\']([^"\']+)["\']',
+      '<meta[^>]+(?:property|name)=["\']$escapedKey["\'][^>]+content=(["\'])((?:(?!\\1)[\\s\\S])+)\\1',
       caseSensitive: false,
     );
     final patternB = RegExp(
-      '<meta[^>]+content=["\']([^"\']+)["\'][^>]+(?:property|name)=["\']$escapedKey["\']',
+      '<meta[^>]+content=(["\'])((?:(?!\\1)[\\s\\S])+)\\1[^>]+(?:property|name)=["\']$escapedKey["\']',
       caseSensitive: false,
     );
 
     final match = patternA.firstMatch(html) ?? patternB.firstMatch(html);
     if (match == null) return null;
-    return _decodeHtmlEntities(match.group(1)?.trim() ?? '');
+    return _decodeHtmlEntities(match.group(2)?.trim() ?? '');
   }
 
   /// Image de secours pour un site quelconque sans og:image ni
