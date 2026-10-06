@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/category.dart';
 import '../models/clip.dart';
+import '../models/client_profile.dart';
 import '../services/classifier.dart';
 import '../models/classification_result.dart';
 import '../services/database.dart';
@@ -502,6 +503,36 @@ class ClipsState extends ChangeNotifier {
         }
       }
 
+      // 1 quater) Tuile personnelle portant le nom du site (ex. tuile
+      // « Vinted » pour un lien vinted.fr, « Carrefour » pour carrefour.fr)
+      // : routage local, sans Claude. Claude connait mal les tuiles
+      // personnelles et classait Vinted en Mode avec 95 de confiance.
+      if (catName == null && isWebLink) {
+        final named = _customCategoryMatchingSite(clip.url, clip.channel);
+        if (named != null) {
+          catName = named.name;
+          debugPrint('[classify] tuile personnelle "${named.name}" = site '
+              '${_siteKey(clip.url)} (Claude saute)');
+          decisionSource = "couche 1 quater · tuile du même nom";
+          decisionReason = "Tu as une tuile « ${named.name} » qui porte le "
+              "nom de ce site. Claude n'a pas été appelé.";
+        }
+      }
+
+      // 1 ter) Site web deja range a la main dans une tuile creee par
+      // l'utilisatrice (ex. Vinted, Carrefour) : meme tuile, sans Claude.
+      // Appris uniquement d'un geste humain (_learnSiteFromUserChoice).
+      if (catName == null && isWebLink) {
+        final siteCat = _learnedSiteCategory(profile, clip.url);
+        if (siteCat != null) {
+          catName = siteCat.name;
+          debugPrint('[classify] site appris ${_siteKey(clip.url)} -> $catName (Claude saute)');
+          decisionSource = "couche 2 bis · site appris";
+          decisionReason = "Tu as rangé un lien de ce site dans cette tuile. "
+              "Claude n'a pas été appelé.";
+        }
+      }
+
       // 2) Chaine deja vue et apprise automatiquement -- SAUF si le titre
       // de CETTE video porte un indice, meme faible, vers une AUTRE
       // categorie precise. Sans ce garde-fou, un createur a contenu mixte
@@ -590,6 +621,7 @@ class ClipsState extends ChangeNotifier {
                 description: clip.description,
               ),
               profile: profile,
+              customCategories: _customCategoryNames(),
             );
           } finally {
             _ClassifyLimiter.release();
@@ -649,6 +681,7 @@ class ClipsState extends ChangeNotifier {
                   description: clip.description,
                 ),
                 profile: profile,
+                customCategories: _customCategoryNames(),
               );
             } finally {
               _ClassifyLimiter.release();
@@ -797,6 +830,10 @@ class ClipsState extends ChangeNotifier {
     try {
       if (newCategoryId == null || newCategoryId.isEmpty) return;
 
+      // Lien de site web range dans une tuile creee par l'utilisatrice :
+      // on retient le site (independamment de ce que Claude avait predit).
+      await _learnSiteFromUserChoice(clip, newCategoryId);
+
       final journal =
           await DatabaseHelper.instance.getClassificationDiagnostic(clip.id);
       final predictedRaw =
@@ -884,6 +921,105 @@ class ClipsState extends ChangeNotifier {
       // deplacement que l'utilisateur vient de demander.
       debugPrint('[correction] echec silencieux: $e');
     }
+  }
+
+  /// Noms des tuiles creees a la main (identifiant UUID) : inconnues du
+  /// prompt systeme de Claude, donc envoyees avec chaque requete.
+  List<String> _customCategoryNames() {
+    final names = _categories
+        .where((c) => !c.id.startsWith('cat_') && !c.id.startsWith('ai_'))
+        .map((c) => c.name)
+        .where((n) => n.trim().isNotEmpty)
+        .toList();
+    debugPrint('[classify] tuiles personnelles envoyees a Claude : $names '
+        '(sur ${_categories.length} categories)');
+    return names;
+  }
+
+  static String _norm(String v) => v
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  /// Tuile personnelle dont le nom est celui du site du lien : un mot du
+  /// nom de domaine (hors extension) ou la chaine (og:site_name) vaut le
+  /// nom de la tuile, tel quel. Une seule tuile doit correspondre.
+  ClipCategory? _customCategoryMatchingSite(String url, String? channel) {
+    final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return null;
+    final labels = host.split('.');
+    // Retire l'extension (fr, com, net...) et « www ».
+    final words = <String>{
+      for (final l in labels.take(labels.length > 1 ? labels.length - 1 : 1))
+        if (l != 'www') _norm(l),
+    };
+    final ch = _norm(channel ?? '');
+    final chBase = ch;
+    final matches = _categories.where((c) {
+      if (c.id.startsWith('cat_') || c.id.startsWith('ai_')) return false;
+      final n = _norm(c.name);
+      if (n.length < 3) return false;
+      return words.contains(n) || n == chBase ||
+          // « Carrefour.fr » -> « carrefourfr »
+          (ch.isNotEmpty && ch.startsWith(n) && ch.length - n.length <= 3);
+    }).toList();
+    return matches.length == 1 ? matches.first : null;
+  }
+
+  /// Cle de site (« vinted.fr ») pour un lien web, ou null.
+  static String? _siteKey(String url) {
+    final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    if (host.isEmpty) return null;
+    return 'site:${host.startsWith('www.') ? host.substring(4) : host}';
+  }
+
+  /// Tuile personnelle apprise pour le site de [url] : le meilleur score
+  /// doit atteindre 3 ET devancer strictement les autres.
+  ClipCategory? _learnedSiteCategory(ClientProfile profile, String url) {
+    final key = _siteKey(url);
+    if (key == null) return null;
+    final scores = profile.channelVocabulary[key];
+    if (scores == null || scores.isEmpty) return null;
+    final sorted = scores.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    if (sorted.first.value < 3) return null;
+    if (sorted.length > 1 && sorted[1].value >= sorted.first.value) return null;
+    return findBestCategoryMatch(sorted.first.key);
+  }
+
+  /// Un lien de site web range a la main dans une tuile personnelle :
+  /// « ce site -> cette tuile ». Un seul geste suffit (poids 3), et un
+  /// nouveau geste vers une autre tuile prend la place du precedent.
+  /// Les categories de base ne sont pas concernees (un site comme Amazon
+  /// vend de tout).
+  Future<void> _learnSiteFromUserChoice(Clip clip, String newCategoryId) async {
+    if (SocialPlatform.detect(clip.url).id != 'other') return;
+    final key = _siteKey(clip.url);
+    if (key == null) return;
+    ClipCategory? chosen;
+    for (final c in _categories) {
+      if (c.id == newCategoryId) {
+        chosen = c;
+        break;
+      }
+    }
+    if (chosen == null ||
+        chosen.id.startsWith('cat_') ||
+        chosen.id.startsWith('ai_')) {
+      return;
+    }
+    final service = ProfileService();
+    final profile = await service.loadProfile();
+    final scores = profile.channelVocabulary[key] ?? const <String, int>{};
+    var maxOther = 0;
+    scores.forEach((name, v) {
+      if (name != chosen!.name && v > maxOther) maxOther = v;
+    });
+    final own = scores[chosen.name] ?? 0;
+    final increment = (maxOther - own + 1) > 3 ? (maxOther - own + 1) : 3;
+    final updated =
+        profile.withLearnedChannel(key, chosen.name, increment: increment);
+    await service.saveProfile(updated);
+    debugPrint('[apprentissage] site $key -> ${chosen.name}');
   }
 
   /// Enseigne « ce créateur → cette catégorie » à partir d'un rangement

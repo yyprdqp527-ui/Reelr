@@ -54,16 +54,16 @@ class ProfileService {
     // on y ecrivait a partir des predictions du modele, pas de corrections
     // humaines. `videoTitle` reste dans la signature : il redeviendra utile
     // le jour ou l'apprentissage sera rebranche sur un vrai signal.
-    var updated = profile.withConfirmedClassification(
+    final updated = profile.withConfirmedClassification(
       result.categoriePrincipale,
       lifestyle: result.styleDeVie,
       influencer: result.influenceurDetecte,
     );
-    if (channel != null && channel.isNotEmpty) {
-      updated = updated.withLearnedChannel(
-          channel, result.categoriePrincipale,
-          increment: 1);
-    }
+    // L'apprentissage de la chaine a partir des reponses de Claude est
+    // retire (2026-10-06) : apres 3 reponses identiques, la couche 2
+    // classait toute la chaine sans appeler Claude, donc une erreur
+    // repetee se figeait. La chaine n'est apprise que d'un geste de
+    // l'utilisatrice (_learnChannelFromUserChoice, clips_state.dart).
     await saveProfile(updated);
     return updated;
   }
