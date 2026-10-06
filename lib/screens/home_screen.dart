@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'onboarding_screen.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -625,6 +624,21 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         .toList();
   }
 
+  /// Moins de 4 vignettes : la tuile « Tout » montre au moins la dernière
+  /// vidéo enregistrée (même s'il n'y en a qu'une).
+  ({String clipId, String url})? _allTileLatest() {
+    final withThumb = widget.state.allClips
+        .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+        .toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    if (withThumb.isEmpty) return null;
+    final c = withThumb.first;
+    return (
+      clipId: c.id,
+      url: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl) ?? c.thumbnailUrl!,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = widget.l;
@@ -677,6 +691,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
           itemBuilder: (ctx, i) {
             if (i == 0) {
               // Tuile "Tout" : fixe, non déplaçable.
+              final latest = _allTileLatest();
               return _CategoryTile(
                 key: const ValueKey('cat_tile_all'),
                 name: l.t('all'),
@@ -686,6 +701,8 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                 isPending: widget.state.hasPendingClassification,
                 isAllTile: true,
                 mosaicThumbs: _allTileMosaic(),
+                thumbnailUrl: latest?.url,
+                thumbnailClipId: latest?.clipId,
                 onTap: () => widget.onOpenCategory(context, null, l.t('all')),
               );
             }
@@ -2291,111 +2308,14 @@ class _SuggestionsList extends StatelessWidget {
   }
 }
 
-class _EmptyState extends StatefulWidget {
+/// État vide de l'accueil : volontairement vide. Les raccourcis vers les
+/// applis sont désormais dans le dernier écran de l'onboarding.
+class _EmptyState extends StatelessWidget {
   final AppL10n l;
   final ClipsState state;
   const _EmptyState({required this.l, required this.state});
   @override
-  State<_EmptyState> createState() => _EmptyStateState();
-}
-class _EmptyStateState extends State<_EmptyState> {
-  @override
-  Widget build(BuildContext context) {
-    final isFr = Localizations.localeOf(context).languageCode == 'fr';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final borderColor = isDark ? Colors.white.withValues(alpha: 0.06) : AppTheme.lightBorder.withValues(alpha: 0.6);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: borderColor, width: 1),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(18),
-                  color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.30),
-                      blurRadius: 20,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: const Icon(Icons.ios_share_rounded, size: 30, color: Color(0xFFA855F7)),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                isFr ? 'COMMENCE ICI' : 'GET STARTED',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.4,
-                  color: Color(0xFFA855F7),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                isFr
-                    ? 'Va sur ta plateforme préférée, sélectionne une vidéo,\npuis partage-la vers Reelr'
-                    : 'Go to your favorite platform, pick a video,\nthen share it to Reelr',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.6,
-                  // Blanc pur en sombre (choix du 07/08), mais le mode clair
-                  // doit repasser sur la couleur secondaire du theme :
-                  // meme convention que `_SubcategoryEmptyState` juste apres.
-                  color: isDark ? Colors.white : AppTheme.lightTextSecondary,
-                ),
-              ),
-              const SizedBox(height: 26),
-              Wrap(
-                alignment: WrapAlignment.center,
-                spacing: 14,
-                runSpacing: 14,
-                children: [
-                  _AppShortcut(label: 'YouTube', assetImage: 'assets/icons/youtube.png', url: 'https://www.youtube.com', appSchemes: const ['youtube', 'vnd.youtube']),
-                  _AppShortcut(label: 'TikTok', assetImage: 'assets/icons/tiktok.png', url: 'https://www.tiktok.com', appSchemes: const ['tiktok', 'snssdk1233']),
-                  _AppShortcut(label: 'Instagram', assetImage: 'assets/icons/instagram.png', url: 'https://www.instagram.com', appSchemes: const ['instagram']),
-                  _AppShortcut(label: 'Facebook', assetImage: 'assets/icons/facebook.png', url: 'https://www.facebook.com', appSchemes: const ['fb']),
-                  _AppShortcut(label: 'Twitch', assetImage: 'assets/icons/twitch.png', url: 'https://www.twitch.tv', appSchemes: const ['twitch']),
-                  _AppShortcut(label: 'Pinterest', assetImage: 'assets/icons/pinterest.png', url: 'https://www.pinterest.com', appSchemes: const ['pinterest']),
-                  _AppShortcut(label: 'LinkedIn', assetImage: 'assets/icons/linkedin.png', url: 'https://www.linkedin.com', appSchemes: const ['linkedin']),
-                ],
-              ),
-              const SizedBox(height: 18),
-              TextButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => OnboardingScreen(state: widget.state),
-                  ),
-                ),
-                icon: const Icon(Icons.replay_rounded, size: 16, color: Color(0xFFA855F7)),
-                label: Text(
-                  isFr ? 'Revoir le tutoriel' : 'Replay tutorial',
-                  style: const TextStyle(
-                    color: Color(0xFFA855F7),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 class _SubcategoryEmptyState extends StatelessWidget {
@@ -2537,160 +2457,6 @@ class _CategoryEmptyState extends StatelessWidget {
     );
   }
 }
-class _AppShortcut extends StatelessWidget {
-  final String label;
-  final String assetImage;
-  final String url;
-
-  /// Schémas d'URL de l'application native, essayés dans l'ordre avant de
-  /// retomber sur le site.
-  ///
-  /// Ouvrir `https://www.tiktok.com` n'ouvre PAS l'application : les
-  /// plateformes ne déclarent leurs liens universels que pour des
-  /// contenus précis, pas pour la racine du site. L'utilisateur
-  /// atterrissait donc sur la page web mobile, qui lui proposait de
-  /// télécharger une application qu'il a déjà.
-  ///
-  /// Le schéma natif ouvre l'application sur le compte de l'utilisateur,
-  /// déjà connecté. Si l'application n'est pas installée — ou si le
-  /// schéma a changé — `canLaunchUrl` renvoie faux et on ouvre le site,
-  /// c'est-à-dire le comportement actuel. Aucune régression possible.
-  final List<String> appSchemes;
-
-  const _AppShortcut({
-    required this.label,
-    required this.assetImage,
-    required this.url,
-    this.appSchemes = const [],
-  });
-
-  Future<void> _openPlatform() async {
-    for (final scheme in appSchemes) {
-      final uri = Uri.parse('$scheme://');
-      try {
-        if (await canLaunchUrl(uri) &&
-            await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-          return;
-        }
-      } catch (_) {
-        // Schéma refusé ou inconnu : on passe au suivant, puis au web.
-      }
-    }
-    await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _showShareReminder(BuildContext context) async {
-    final isFr = Localizations.localeOf(context).languageCode == 'fr';
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    await showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: isDark ? const Color(0xFF14182B) : Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  isFr ? 'Direction $label' : 'Heading to $label',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  isFr
-                      ? 'Choisis une vidéo, appuie sur ↑ Partager, puis cherche Reelr.\nTu ne le vois pas ? Appuie sur ··· Plus et active-le.'
-                      : "Pick a video, tap ↑ Share, then look for Reelr.\nDon't see it? Tap ··· More and turn it on.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.65),
-                  ),
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7C3AED),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () => Navigator.of(sheetContext).pop(),
-                    child: Text(
-                      isFr ? "Compris, j'y vais" : "Got it, let's go",
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-    if (context.mounted) {
-      await _openPlatform();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 56, height: 56,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Material(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              splashColor: const Color(0xFF7C3AED).withValues(alpha: 0.25),
-              highlightColor: const Color(0xFF7C3AED).withValues(alpha: 0.12),
-              onTap: () => _showShareReminder(context),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Image.asset(assetImage, fit: BoxFit.contain),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-      ],
-    );
-  }
-}
-
 /// Retourne le chemin de l'asset PNG du logo pour [platformId], si un logo
 /// dédié existe (voir assets/icons/). Sinon, retourne null : il faut alors
 /// utiliser l'icône Material générique de la plateforme en fallback.
