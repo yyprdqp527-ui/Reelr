@@ -23,10 +23,13 @@ class Outcome {
   final int confiance;
   final String raison;
   final Object? error;
-  const Outcome(this.c, this.catId, this.confiance, this.raison, this.error);
+  final int ms;
+  const Outcome(this.c, this.catId, this.confiance, this.raison, this.error,
+      [this.ms = 0]);
 }
 
 Future<Outcome> _classify(GoldenCase c) async {
+  final sw = Stopwatch()..start();
   try {
     final r = await ClaudeClassifier.classify(
       video: VideoData(
@@ -37,7 +40,8 @@ Future<Outcome> _classify(GoldenCase c) async {
       // Pas de profil : reference sans biais de personnalisation.
       profile: null,
     );
-    return Outcome(c, toCatId(r.categoriePrincipale), r.confiance, r.raison, null);
+    return Outcome(c, toCatId(r.categoriePrincipale), r.confiance, r.raison,
+        null, sw.elapsedMilliseconds);
   } catch (e) {
     return Outcome(c, null, 0, '', e);
   }
@@ -144,6 +148,45 @@ void main() {
 │  erreurs reseau    $errors
 │  confiance < 40    $lowConf  (dont justes : $lowConfCorrect)
 └─ PRECISION GLOBALE : ${_pct(correct, total)}
+''');
+
+    // ── Mesures ajoutees le 2026-10-03 ──
+    // Duree des appels reussis : c'est le temps d'attente reel du
+    // classement, hors extraction des metadonnees.
+    final durees = results
+        .where((o) => o.error == null)
+        .map((o) => o.ms)
+        .toList()
+      ..sort();
+    int quantile(double q) => durees.isEmpty
+        ? 0
+        : durees[((durees.length - 1) * q).round()];
+    // Erreur « sure d'elle » : fausse ET confiance >= 40, donc appliquee
+    // dans l'app. C'est le chiffre a ramener a zero ; une confiance
+    // < 40 part dans « A trier », ce n'est pas une tuile fausse.
+    var sures = 0;
+    var enTotal = 0, enJustes = 0, frTotal = 0, frJustes = 0;
+    for (final o in results) {
+      if (o.error != null || o.c.expectsAbstention) continue;
+      final ok = o.catId == o.c.expectedCatId;
+      if (!ok && o.confiance >= 40) sures++;
+      if (o.c.note.contains('anglais')) {
+        enTotal++;
+        if (ok) enJustes++;
+      } else {
+        frTotal++;
+        if (ok) frJustes++;
+      }
+    }
+    // ignore: avoid_print
+    print('''
+┌─ MESURES
+│  francais          $frJustes/$frTotal   (${_pct(frJustes, frTotal)})
+│  anglais           $enJustes/$enTotal   (${_pct(enJustes, enTotal)})
+│  ERREURS SURES     $sures   (fausses avec confiance >= 40)
+│  duree mediane     ${quantile(0.5)} ms
+│  duree p90         ${quantile(0.9)} ms
+└─ duree max        ${durees.isEmpty ? 0 : durees.last} ms
 ''');
 
     if (failures.isNotEmpty) {
