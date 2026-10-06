@@ -29,6 +29,7 @@ import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/reelr_loader.dart';
 import '../widgets/resilient_thumbnail.dart';
+import '../widgets/search_query_card.dart';
 import '../widgets/sheet_field.dart';
 import '../widgets/site_logo.dart';
 import 'categories_screen.dart';
@@ -610,7 +611,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   /// mosaique de la tuile « Tout ». Liste vide si moins de 4 disponibles.
   List<({String clipId, String url})> _allTileMosaic() {
     final withThumb = widget.state.allClips
-        .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+        .where((c) =>
+            c.thumbnailUrl != null &&
+            c.thumbnailUrl!.isNotEmpty)
         .toList()
       ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
     if (withThumb.length < _allTileMosaicSize) return const [];
@@ -628,7 +631,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   /// vidéo enregistrée (même s'il n'y en a qu'une).
   ({String clipId, String url})? _allTileLatest() {
     final withThumb = widget.state.allClips
-        .where((c) => c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+        .where((c) =>
+            c.thumbnailUrl != null &&
+            c.thumbnailUrl!.isNotEmpty)
         .toList()
       ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
     if (withThumb.isEmpty) return null;
@@ -716,7 +721,8 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                 ? null
                 : sortClipsByOrder(catClips, widget.state.sortOrderFor(cat.id))
                     .where((c) =>
-                        c.thumbnailUrl != null && c.thumbnailUrl!.isNotEmpty)
+                        c.thumbnailUrl != null &&
+                        c.thumbnailUrl!.isNotEmpty)
                     .firstOrNull;
             final tile = _CategoryTile(
               name: localizedName,
@@ -1536,10 +1542,18 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                       persistId: c.id,
                                                       platformId: c.platform,
                                                       fit: BoxFit.cover,
-                                                      fallbackBuilder: (_) => Container(
-                                                          color: AppTheme.orange.withValues(alpha: 0.2)),
+                                                      fallbackBuilder: (_) =>
+                                                          SearchQueryCard.queryFor(c.url) != null
+                                                              ? SearchQueryCard(query: SearchQueryCard.queryFor(c.url)!)
+                                                              : (c.platform == 'other' && c.title.trim().isNotEmpty
+                                                          ? LinkFallbackCard(url: c.url, title: c.title, logoFallback: const Icon(Icons.link_rounded, color: Colors.white70, size: 36))
+                                                          : Container(color: AppTheme.orange.withValues(alpha: 0.2))),
                                                     )
-                                                  : Container(color: AppTheme.orange.withValues(alpha: 0.2)),
+                                                  : (SearchQueryCard.queryFor(c.url) != null
+                                                      ? SearchQueryCard(query: SearchQueryCard.queryFor(c.url)!)
+                                                      : (c.platform == 'other' && c.title.trim().isNotEmpty
+                                                          ? LinkFallbackCard(url: c.url, title: c.title, logoFallback: const Icon(Icons.link_rounded, color: Colors.white70, size: 36))
+                                                          : Container(color: AppTheme.orange.withValues(alpha: 0.2)))),
                                               const IgnorePointer(
                                                 child: DecoratedBox(
                                                   decoration: BoxDecoration(
@@ -2475,8 +2489,10 @@ class _ThumbnailBanner extends StatelessWidget {
   final SocialPlatform platform;
   final String clipId;
   final String linkUrl;
+  final String title;
 
   const _ThumbnailBanner({
+    required this.title,
     required this.thumbUrl,
     required this.platform,
     required this.clipId,
@@ -2501,11 +2517,28 @@ class _ThumbnailBanner extends StatelessWidget {
                 loadingBuilder: (_) => _fallback(shimmer: true),
                 // Erreur → icône plateforme (uniquement si aucune miniature
                 // valide n'a jamais été chargée avec succès pour ce clip)
-                fallbackBuilder: (_) => _fallback(context: context, isError: true),
+                fallbackBuilder: (_) => _searchCardOr(
+                    () => _fallback(context: context, isError: true)),
               )
-            : _fallback(context: context, isError: true),
+            : _searchCardOr(
+                () => _fallback(context: context, isError: true)),
       ),
     );
+  }
+
+  /// Recherche Google dont la capture a echoue : la requete en carte.
+  Widget _searchCardOr(Widget Function() other) {
+    final q = SearchQueryCard.queryFor(linkUrl);
+    if (q != null) return SearchQueryCard(query: q);
+    if (platform.id == 'other' && title.trim().isNotEmpty) {
+      return LinkFallbackCard(
+        url: linkUrl,
+        title: title,
+        logoFallback: Icon(platform.icon,
+            color: Colors.white.withValues(alpha: 0.7), size: 40),
+      );
+    }
+    return other();
   }
 
   Widget _fallback({bool shimmer = false, bool isError = false, BuildContext? context}) {
@@ -2664,7 +2697,7 @@ class ClipCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Miniature 16:9 ──────────────────────────────────────────
-          _ThumbnailBanner(thumbUrl: thumbUrl, platform: platform, clipId: clip.id, linkUrl: clip.url),
+          _ThumbnailBanner(title: clip.title, thumbUrl: thumbUrl, platform: platform, clipId: clip.id, linkUrl: clip.url),
           // ── Infos principales ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),

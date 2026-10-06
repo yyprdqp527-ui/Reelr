@@ -24,6 +24,7 @@ import 'services/oembed.dart';
 import 'services/playlist_link.dart';
 import 'screens/paywall_screen.dart';
 import 'widgets/main_shell.dart';
+import 'widgets/search_query_card.dart';
 import 'state/clips_state.dart';
 
 // ─────────────────────────────────────────────
@@ -879,6 +880,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final metaTitle = meta?.title ?? '';
     final hasTitle = !OEmbedService.isPlaceholderTitle(metaTitle);
     if (hasThumb && hasTitle) return meta;
+
+    // Recherche Google : l'apercu ne rend que le logo « G ». On passe
+    // directement a la capture d'ecran de la page (_completeWithScreenshot).
+    if (SearchQueryCard.queryFor(clip.url) != null) return meta;
 
     final preview = await LinkPreviewService.fetch(clip.url);
     if (preview == null) return meta;
