@@ -11,6 +11,7 @@ import 'dart:async';
 import '../services/oembed.dart';
 import '../services/thumbnail_store.dart';
 import '../services/profile_service.dart';
+import '../services/sorting_notebook.dart';
 
 /// Table de correspondance accent → lettre de base, utilisée par
 /// [normalizeForSearch] pour que la recherche ignore les accents (ex.
@@ -450,6 +451,7 @@ class ClipsState extends ChangeNotifier {
   Future<void> classifyClipInBackground(Clip clip) async {
     try {
       debugPrint('[classify] starting for: ${clip.title}');
+      _registerForBatch(clip);
       final sw = Stopwatch()..start();
       final profile = await ProfileService().loadProfile();
       final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" ? "gaming streaming ${clip.url}" : clip.title;
@@ -607,6 +609,39 @@ class ClipsState extends ChangeNotifier {
         return;
       }
 
+      // Lien Google Images : l'adresse porte l'image touchee et les mots de
+      // la page d'origine, meme quand la page bloque l'extraction (titre
+      // reduit au nom de domaine, vignette locale illisible par Claude).
+      final gHints = _googleImagesHints(clip.url);
+      // Image de mur de connexion (TikTok...) : aucun contenu, on ne l'envoie pas.
+      final rawThumb = clip.thumbnailUrl;
+      final isLoginWallImage = rawThumb != null &&
+          RegExp(r'login_static|Take_A_Break|login_wall', caseSensitive: false)
+              .hasMatch(rawThumb);
+      final classifyImage =
+          gHints['image'] ?? (isLoginWallImage ? null : rawThumb);
+      final classifyDescription = gHints['words'] == null
+          ? clip.description
+          : [
+              if (clip.description?.trim().isNotEmpty ?? false)
+                clip.description!.trim(),
+              gHints['words']!,
+            ].join('\n');
+
+      // Exemples du carnet : rangements faits a la main sur le meme sujet.
+      final userExamples = await SortingNotebook().promptExamples(
+        [
+          effectiveTitle,
+          classifyDescription ?? '',
+          clip.channel ?? '',
+          _linkHost(clip.url),
+        ].join(' '),
+        excludeId: clip.id,
+      );
+      if (userExamples.isNotEmpty) {
+        debugPrint('[classify] exemples du carnet : $userExamples');
+      }
+
       if (catName == null) {
         try {
           await _ClassifyLimiter.acquire();
@@ -616,12 +651,13 @@ class ClipsState extends ChangeNotifier {
               video: VideoData(
                 title: effectiveTitle,
                 platform: clip.platform,
-                thumbnailUrl: clip.thumbnailUrl,
+                thumbnailUrl: classifyImage,
                 channel: clip.channel,
-                description: clip.description,
+                description: classifyDescription,
               ),
               profile: profile,
               customCategories: _customCategoryNames(),
+              userExamples: userExamples,
             );
           } finally {
             _ClassifyLimiter.release();
@@ -676,12 +712,13 @@ class ClipsState extends ChangeNotifier {
                 video: VideoData(
                   title: effectiveTitle,
                   platform: clip.platform,
-                  thumbnailUrl: clip.thumbnailUrl,
+                  thumbnailUrl: classifyImage,
                   channel: clip.channel,
-                  description: clip.description,
+                  description: classifyDescription,
                 ),
                 profile: profile,
                 customCategories: _customCategoryNames(),
+                userExamples: userExamples,
               );
             } finally {
               _ClassifyLimiter.release();
@@ -752,6 +789,7 @@ class ClipsState extends ChangeNotifier {
           'cat_fail': 'Fails',
           'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
           'cat_shopping': 'Shopping',
+          'cat_design': 'Design & UX',
         };
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
         // jamais un ID `cat_xxx` litteral : l'ancien test
@@ -808,6 +846,184 @@ class ClipsState extends ChangeNotifier {
     }
   }
 
+  // ─────────────────────────────────────────────
+  // CLASSEMENT DU LOT (2026-10-07)
+  //
+  // Des liens partages ensemble ont souvent une intention commune (une
+  // recherche d'inspiration : UX, couleurs...), que le classement lien par
+  // lien ne voit pas : Tech, Art, Deco, Photo pour le meme sujet. Une fois
+  // le lot au calme, UN seul appel Claude lit tous les titres ensemble. Si
+  // un sujet commun ressort avec assez de confiance, les liens juges par
+  // la machine (ou laisses a trier) rejoignent cette categorie. Un lien
+  // deja range a la main, ou decide par une regle locale, n'est jamais
+  // deplace.
+  // ─────────────────────────────────────────────
+  final Set<String> _batchIds = {};
+  Timer? _batchTimer;
+  static const Duration _batchQuietDelay = Duration(seconds: 8);
+  static const int _batchMinItems = 3;
+  static const int _batchMaxItems = 20;
+  static const int _batchMinConfidence = 75;
+
+  /// Note qu'un lien vient d'etre classe. Seuls les liens ajoutes dans les
+  /// dernieres minutes comptent : une reclassification d'anciens clips ne
+  /// forme pas un lot.
+  void _registerForBatch(Clip clip) {
+    if (DateTime.now().difference(clip.addedAt) > const Duration(minutes: 10)) {
+      return;
+    }
+    _batchIds.add(clip.id);
+    _batchTimer?.cancel();
+    _batchTimer = Timer(_batchQuietDelay, () {
+      final ids = _batchIds.toList();
+      _batchIds.clear();
+      if (ids.length >= _batchMinItems) unawaited(_reviewBatch(ids));
+    });
+  }
+
+  Future<void> _reviewBatch(List<String> ids) async {
+    try {
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      final items = <_BatchItem>[];
+      for (final id in ids.take(_batchMaxItems)) {
+        final clip = _clips.where((c) => c.id == id).firstOrNull;
+        if (clip == null) continue;
+        final journal =
+            await DatabaseHelper.instance.getClassificationDiagnostic(id);
+        if (journal == null) continue;
+        final reason = (journal['classification_reason'] as String?) ?? '';
+        final predicted =
+            (journal['classification_category'] as String?)?.trim() ?? '';
+        final conf = (journal['classification_confidence'] as int?) ?? 0;
+        // Decision d'une regle locale (couches 1, 2, site appris...) : on
+        // n'y touche pas.
+        final localRule = reason.startsWith('[') &&
+            !reason.startsWith('[Claude') &&
+            !reason.startsWith('[abstention]');
+        if (localRule) continue;
+        final current = clip.categoryId;
+        final bool eligible;
+        if (current == null || current.isEmpty) {
+          // Laisse a trier : abstention ou aucun resultat, personne ne l'a
+          // range.
+          eligible = predicted.isEmpty;
+        } else {
+          // Range par la machine et pas deplace depuis, avec une confiance
+          // pas deja tres haute.
+          final cat = predicted.isEmpty ? null : findBestCategoryMatch(predicted);
+          eligible = cat != null && cat.id == current && conf < 90;
+        }
+        if (!eligible) continue;
+        final hints = _googleImagesHints(clip.url);
+        final info = '${clip.title} ${hints['words'] ?? ''} '
+            '${clip.channel ?? ''}';
+        // Un lien sans aucun mot exploitable n'apporte rien au lot.
+        if (SortingNotebook.tokens(info).length < 2) continue;
+        final flat = clip.title.replaceAll(RegExp(r'\s+'), ' ').trim();
+        final shortTitle =
+            flat.length > 90 ? '${flat.substring(0, 90)}…' : flat;
+        final ref = hints['ref_words'];
+        final host = _linkHost(clip.url);
+        final line = '$shortTitle'
+            '${ref != null ? ' ($ref)' : ''}'
+            '${host.isNotEmpty ? ' [$host]' : ''}';
+        final tags = ((journal['classification_tags'] as String?) ?? '')
+            .split(',')
+            .where((t) => t.trim().isNotEmpty)
+            .toList();
+        items.add(_BatchItem(clip, line, tags, current));
+      }
+      if (items.length < _batchMinItems) {
+        debugPrint('[lot] ${items.length} lien(s) eligible(s), rien a faire');
+        return;
+      }
+
+      final numbered = StringBuffer();
+      for (var i = 0; i < items.length; i++) {
+        numbered.writeln('${i + 1}. ${items[i].line}');
+      }
+      final profile = await ProfileService().loadProfile();
+      final ClassificationResult result;
+      await _ClassifyLimiter.acquire();
+      try {
+        result = await ClaudeClassifier.classify(
+          video: VideoData(
+            title: 'Lot de ${items.length} liens partagés en même temps :\n'
+                '$numbered',
+            platform: 'other',
+            description: 'Ces liens ont été partagés ensemble : ils ont '
+                'probablement un sujet commun. Si un sujet commun ressort, '
+                'classe le lot dans la catégorie de ce sujet. Si les liens '
+                'parlent de sujets sans rapport, mets une confiance de 30 '
+                'ou moins.',
+          ),
+          profile: profile,
+          customCategories: _customCategoryNames(),
+        );
+      } finally {
+        _ClassifyLimiter.release();
+      }
+      final target = result.categoriePrincipale;
+      debugPrint('[lot] ${items.length} liens -> $target '
+          '(confiance ${result.confiance}) : ${result.raison}');
+      const noResult = {'à trier', 'a trier', 'non classé', 'non classe'};
+      if (result.confiance < _batchMinConfidence ||
+          target.trim().isEmpty ||
+          noResult.contains(target.trim().toLowerCase())) {
+        return;
+      }
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      final cat =
+          findBestCategoryMatch(target) ?? await _ensureStandardCategory(target);
+      if (cat == null) {
+        debugPrint('[lot] categorie $target introuvable, lot ignore');
+        return;
+      }
+      var moved = 0;
+      for (final it in items) {
+        final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
+        if (fresh == null) continue;
+        // Rangé à la main pendant l'analyse : on n'y touche pas.
+        if (fresh.categoryId != it.categoryAtStart) continue;
+        if (fresh.categoryId == cat.id) continue;
+        await updateClip(fresh.copyWith(categoryId: cat.id));
+        await DatabaseHelper.instance.updateClipClassification(
+          clipId: fresh.id,
+          category: target,
+          confidence: result.confiance,
+          reason: '[lot] ${items.length} liens partagés ensemble, sujet '
+              'commun : ${result.raison}',
+          tags: it.tags,
+        );
+        moved++;
+      }
+      debugPrint('[lot] $moved lien(s) range(s) dans ${cat.name}');
+      if (moved > 0) {
+        _newlyClassifiedCategoryIds.add(cat.id);
+        _categories = await DatabaseHelper.instance.getAllCategories();
+        _clips = await DatabaseHelper.instance.getAllClips();
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[lot] erreur: $e');
+    }
+  }
+
+  /// Cree la categorie standard [rawId] (ex. cat_design) si elle n'existe
+  /// pas encore chez l'utilisatrice.
+  Future<ClipCategory?> _ensureStandardCategory(String rawId) async {
+    final id = AppL10n.canonicalCategoryId(rawId);
+    if (id == null) return null;
+    final name = AppL10n.standardCategoryName(id);
+    if (name == null) return null;
+    return addCategory(ClipCategory(
+      id: id,
+      name: name,
+      color: AppL10n.categoryColors[id] ?? const Color(0xFF7C3AED),
+      icon: AppL10n.categoryIcons[id] ?? Icons.folder_rounded,
+    ));
+  }
+
   Future<void> updateClip(Clip clip) async {
     await DatabaseHelper.instance.upsertClip(clip);
     final idx = _clips.indexWhere((c) => c.id == clip.id);
@@ -829,6 +1045,8 @@ class ClipsState extends ChangeNotifier {
   Future<void> recordUserCategoryChoice(Clip clip, String? newCategoryId) async {
     try {
       if (newCategoryId == null || newCategoryId.isEmpty) return;
+
+      await _recordInNotebook(clip, newCategoryId);
 
       // Lien de site web range dans une tuile creee par l'utilisatrice :
       // on retient le site (independamment de ce que Claude avait predit).
@@ -921,6 +1139,42 @@ class ClipsState extends ChangeNotifier {
       // deplacement que l'utilisateur vient de demander.
       debugPrint('[correction] echec silencieux: $e');
     }
+  }
+
+  /// Carnet des rangements manuels (voir SortingNotebook) : retient
+  /// « ce lien -> cette categorie » pour classer les liens du meme sujet.
+  Future<void> _recordInNotebook(Clip clip, String newCategoryId) async {
+    ClipCategory? chosen;
+    for (final c in _categories) {
+      if (c.id == newCategoryId) {
+        chosen = c;
+        break;
+      }
+    }
+    // Les categories `ai_` sont inventees par la machine : Claude ne peut
+    // pas y repondre, un exemple vers elles ne servirait a rien.
+    if (chosen == null || chosen.id.startsWith('ai_')) return;
+    final hints = _googleImagesHints(clip.url);
+    final desc = clip.description?.trim() ?? '';
+    final text = [
+      clip.title,
+      hints['words'] ?? '',
+      clip.channel ?? '',
+      desc.length > 200 ? desc.substring(0, 200) : desc,
+      _linkHost(clip.url),
+    ].join(' ');
+    final refWords = hints['ref_words'];
+    final title = (!clip.title.contains(' ') && refWords != null)
+        ? '${clip.title} ($refWords)'
+        : clip.title;
+    await SortingNotebook().record(NotebookEntry(
+      id: clip.id,
+      title: title,
+      text: text,
+      categoryRef: chosen.id.startsWith('cat_') ? chosen.id : chosen.name,
+      categoryLabel: chosen.name,
+      addedAtMs: DateTime.now().millisecondsSinceEpoch,
+    ));
   }
 
   /// Noms des tuiles creees a la main (identifiant UUID) : inconnues du
@@ -1637,4 +1891,70 @@ class ClipsState extends ChangeNotifier {
     _clips = await DatabaseHelper.instance.getAllClips();
     notifyListeners();
   }
+}
+
+/// Lien Google Images (google.*/imgres) : l'adresse contient l'image touchee
+/// (`imgurl`) et la page d'origine (`imgrefurl`). Renvoie `image` (adresse
+/// https directe, lisible par Claude) et `words` (mots tires des adresses :
+/// ex. « ui design gradient »), ou une table vide pour tout autre lien.
+Map<String, String> _googleImagesHints(String url) {
+  final lower = url.toLowerCase();
+  if (!lower.contains('google.') || !lower.contains('/imgres')) {
+    return const {};
+  }
+  final uri = Uri.tryParse(url);
+  if (uri == null) return const {};
+  final imgUrl = uri.queryParameters['imgurl'] ?? '';
+  final refUrl = uri.queryParameters['imgrefurl'] ?? '';
+
+  String words(String raw) {
+    final u = Uri.tryParse(raw);
+    if (u == null) return '';
+    final segs = u.pathSegments.where((x) => x.isNotEmpty).toList();
+    final tail = segs.length > 3 ? segs.sublist(segs.length - 3) : segs;
+    final cleaned = tail
+        .join(' ')
+        .replaceAll(
+          RegExp(r'\.(jpe?g|png|webp|gif|avif|html?)\b', caseSensitive: false),
+          ' ',
+        )
+        .replaceAll(RegExp(r'[-_+.%]'), ' ');
+    final tokens = cleaned
+        .split(RegExp(r'\s+'))
+        .where((t) => RegExp(r'^[A-Za-z\u00C0-\u017F]{2,}$').hasMatch(t))
+        .take(25);
+    return tokens.join(' ');
+  }
+
+  final out = <String, String>{};
+  if (imgUrl.startsWith('https://')) out['image'] = imgUrl;
+  final refWords = words(refUrl);
+  final imgWords = words(imgUrl);
+  if (refWords.isNotEmpty) out['ref_words'] = refWords;
+  final parts = <String>[
+    if (refWords.isNotEmpty) "Mots de l'adresse de la page : $refWords.",
+    if (imgWords.isNotEmpty) "Mots du nom de l'image : $imgWords.",
+  ];
+  if (parts.isNotEmpty) out['words'] = parts.join(' ');
+  return out;
+}
+
+/// Nom de domaine du site d'un lien. Pour un lien Google Images, c'est celui
+/// de la page d'origine (`imgrefurl`), pas google.com.
+String _linkHost(String url) {
+  final ref = Uri.tryParse(url)?.queryParameters['imgrefurl'];
+  return Uri.tryParse(ref != null && ref.isNotEmpty ? ref : url)?.host ?? '';
+}
+
+/// Un lien du lot en cours d'analyse (voir ClipsState._reviewBatch).
+class _BatchItem {
+  final Clip clip;
+  final String line;
+  final List<String> tags;
+
+  /// Categorie du clip au debut de l'analyse : permet de detecter un
+  /// rangement manuel survenu pendant l'appel.
+  final String? categoryAtStart;
+
+  _BatchItem(this.clip, this.line, this.tags, this.categoryAtStart);
 }
