@@ -12,6 +12,7 @@ import '../services/oembed.dart';
 import '../services/thumbnail_store.dart';
 import '../services/profile_service.dart';
 import '../services/sorting_notebook.dart';
+import 'package:uuid/uuid.dart';
 
 /// Table de correspondance accent → lettre de base, utilisée par
 /// [normalizeForSearch] pour que la recherche ignore les accents (ex.
@@ -532,6 +533,34 @@ class ClipsState extends ChangeNotifier {
           decisionSource = "couche 2 bis · site appris";
           decisionReason = "Tu as rangé un lien de ce site dans cette tuile. "
               "Claude n'a pas été appelé.";
+        }
+      }
+
+      // 1 quinquies) Enseigne commerciale connue (Auchan, Lidl, Amazon,
+      // Walmart, Tesco...) : une tuile par enseigne, creee au premier lien,
+      // quel que soit le produit (litiere, jouet, courses). Passe apres les
+      // choix de l'utilisatrice : une tuile du meme nom ou un site range a
+      // la main gagnent toujours.
+      if (catName == null && isWebLink) {
+        await OEmbedService.loadShopHosts();
+        final shopHost = _linkHost(clip.url);
+        final brand = _retailBrandOf(shopHost) ??
+            (OEmbedService.isShopHost(shopHost)
+                ? (_brandInTitle(clip.title) ?? _shopNameFor(clip, shopHost))
+                : null);
+        if (brand != null) {
+          final tile = await addCategory(ClipCategory(
+            id: const Uuid().v4(),
+            name: brand,
+            color: _brandColor(brand),
+            icon: Icons.storefront_rounded,
+          ));
+          catName = tile.name;
+          debugPrint('[classify] enseigne $brand -> tuile "${tile.name}" '
+              '(Claude saute)');
+          decisionSource = "couche 2 ter · enseigne";
+          decisionReason = "Lien d'une enseigne commerciale ($brand) : "
+              "tuile dédiée. Claude n'a pas été appelé.";
         }
       }
 
@@ -1337,6 +1366,9 @@ class ClipsState extends ChangeNotifier {
   ClipCategory? _learnedSiteCategory(ClientProfile profile, String url) {
     final key = _siteKey(url);
     if (key == null) return null;
+    // Enseigne commerciale (Amazon, Aldi, ManoMano...) : un meme site
+    // vend de tout (cadeaux, courses). Jamais deduit d'un rangement.
+    if (_retailBrandOf(_linkHost(url)) != null) return null;
     final scores = profile.channelVocabulary[key];
     if (scores == null || scores.isEmpty) return null;
     final sorted = scores.entries.toList()
@@ -1355,6 +1387,8 @@ class ClipsState extends ChangeNotifier {
     if (SocialPlatform.detect(clip.url).id != 'other') return;
     final key = _siteKey(clip.url);
     if (key == null) return;
+    // Enseigne commerciale : voir _learnedSiteCategory.
+    if (_retailBrandOf(_linkHost(clip.url)) != null) return;
     ClipCategory? chosen;
     for (final c in _categories) {
       if (c.id == newCategoryId) {
@@ -2047,6 +2081,112 @@ Map<String, String> _googleImagesHints(String url) {
 
 /// Nom de domaine du site d'un lien. Pour un lien Google Images, c'est celui
 /// de la page d'origine (`imgrefurl`), pas google.com.
+/// Enseignes commerciales (FR et EN) : mot du nom de domaine, sans accents ni
+/// tirets, vers nom de la tuile. Complete la liste ici pour en ajouter.
+const Map<String, String> _retailBrands = {
+  // France
+  'auchan': 'Auchan', 'lidl': 'Lidl', 'aldi': 'Aldi', 'carrefour': 'Carrefour',
+  'casino': 'Casino', 'casinodrive': 'Casino', 'geantcasino': 'Casino',
+  'casinomax': 'Casino', 'grandfrais': 'Grand Frais', 'biocoop': 'Biocoop',
+  'netto': 'Netto', 'chronodrive': 'Chronodrive', 'superu': 'Super U',
+  'magasinsu': 'Super U', 'bricomarche': 'Bricomarché',
+  'mrbricolage': 'Mr Bricolage', 'cultura': 'Cultura', 'hema': 'HEMA',
+  'primark': 'Primark', 'kingjouet': 'King Jouet', 'lafoirfouille': 'La Foir\'Fouille',
+  'leclerc': 'Leclerc', 'intermarche': 'Intermarché', 'monoprix': 'Monoprix',
+  'franprix': 'Franprix', 'picard': 'Picard', 'cora': 'Cora',
+  'cdiscount': 'Cdiscount', 'fnac': 'Fnac', 'darty': 'Darty',
+  'boulanger': 'Boulanger', 'leroymerlin': 'Leroy Merlin',
+  'castorama': 'Castorama', 'bricodepot': 'Brico Dépôt', 'ikea': 'IKEA',
+  'decathlon': 'Decathlon', 'kiabi': 'Kiabi', 'zara': 'Zara',
+  'maisonsdumonde': 'Maisons du Monde', 'gifi': 'Gifi', 'sephora': 'Sephora',
+  'nocibe': 'Nocibé', 'yvesrocher': 'Yves Rocher', 'marionnaud': 'Marionnaud',
+  'douglas': 'Douglas', 'rakuten': 'Rakuten', 'leboncoin': 'Leboncoin',
+  'manomano': 'ManoMano', 'jardiland': 'Jardiland', 'truffaut': 'Truffaut',
+  'botanic': 'Botanic', 'conforama': 'Conforama', 'electrodepot': 'Electro Dépôt',
+  'laredoute': 'La Redoute', 'veepee': 'Veepee', 'showroomprive': 'Showroomprivé',
+  'shein': 'Shein', 'temu': 'Temu', 'aliexpress': 'AliExpress', 'ebay': 'eBay',
+  'etsy': 'Etsy', 'amazon': 'Amazon', 'amzn': 'Amazon', 'vinted': 'Vinted',
+  // Pays anglophones
+  'walmart': 'Walmart', 'target': 'Target', 'costco': 'Costco',
+  'kroger': 'Kroger', 'tesco': 'Tesco', 'sainsburys': "Sainsbury's",
+  'asda': 'Asda', 'morrisons': 'Morrisons', 'waitrose': 'Waitrose',
+  'argos': 'Argos', 'boots': 'Boots', 'bestbuy': 'Best Buy',
+  'homedepot': 'Home Depot', 'lowes': "Lowe's", 'wayfair': 'Wayfair',
+  'macys': "Macy's", 'nordstrom': 'Nordstrom', 'kohls': "Kohl's",
+  'ulta': 'Ulta', 'cvs': 'CVS', 'walgreens': 'Walgreens',
+  'samsclub': "Sam's Club", 'wholefoodsmarket': 'Whole Foods',
+  'traderjoes': "Trader Joe's", 'safeway': 'Safeway', 'publix': 'Publix',
+  'currys': 'Currys', 'johnlewis': 'John Lewis', 'asos': 'ASOS',
+  'marksandspencer': 'Marks & Spencer', 'overstock': 'Overstock',
+  'newegg': 'Newegg', 'chewy': 'Chewy', 'petsmart': 'PetSmart',
+};
+
+/// Nom d'enseigne pour un nom d'hote (www.auchan.fr, smile.amazon.co.uk,
+/// shop.walmart.com...), ou null. Un mot du domaine doit valoir
+/// exactement le nom d'une enseigne.
+String? _retailBrandOf(String host) {
+  if (host.isEmpty) return null;
+  for (final label in host.toLowerCase().split('.')) {
+    final key = label.replaceAll(RegExp(r'[^a-z0-9]'), '');
+    final brand = _retailBrands[key];
+    if (brand != null) return brand;
+  }
+  return null;
+}
+
+/// Enseigne connue nommee dans le titre d'un produit (mot entier), ou null.
+/// Mots trop courants en francais ou en anglais ecartes.
+const Set<String> _ambiguousBrandWords = {
+  'target', 'boots', 'argos', 'douglas', 'cora', 'cvs', 'asda', 'action',
+  'zara', 'etsy', 'ebay', 'ulta',
+};
+
+String? _brandInTitle(String title) {
+  final words = normalizeForSearch(title)
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((w) => w.length >= 4);
+  for (final w in words) {
+    if (_ambiguousBrandWords.contains(w)) continue;
+    final brand = _retailBrands[w];
+    if (brand != null) return brand;
+  }
+  return null;
+}
+
+/// Nom de tuile pour une boutique detectee par la regle (hors liste) :
+/// d'abord og:site_name (1er segment avant « : », « | » ou « - », s'il est
+/// court), sinon le nom de domaine (mescourses.fr -> Mescourses).
+String _shopNameFor(Clip clip, String host) {
+  final site = clip.channel?.trim() ?? '';
+  if (site.isNotEmpty) {
+    final first = site.split(RegExp(r'\s*[:|]\s*|\s+[-–—]\s+')).first.trim();
+    if (first.length >= 2 && first.length <= 25) return first;
+  }
+  final labels = host.toLowerCase().split('.')
+    ..removeWhere((l) => l.isEmpty || l == 'www');
+  if (labels.isEmpty) return host;
+  var i = labels.length >= 2 ? labels.length - 2 : 0;
+  if (labels.length >= 3 && labels[labels.length - 2].length <= 3) {
+    i = labels.length - 3;
+  }
+  final name = labels[i];
+  return name[0].toUpperCase() + name.substring(1);
+}
+
+/// Couleur stable d'une tuile d'enseigne (meme nom, meme couleur).
+Color _brandColor(String name) {
+  const palette = [
+    Color(0xFF0EA5E9), Color(0xFFF97316), Color(0xFF10B981),
+    Color(0xFFEC4899), Color(0xFF8B5CF6), Color(0xFFEAB308),
+    Color(0xFF14B8A6), Color(0xFFEF4444),
+  ];
+  var h = 0;
+  for (final u in name.codeUnits) {
+    h = (h * 31 + u) & 0x7fffffff;
+  }
+  return palette[h % palette.length];
+}
+
 String _linkHost(String url) {
   final ref = Uri.tryParse(url)?.queryParameters['imgrefurl'];
   return Uri.tryParse(ref != null && ref.isNotEmpty ? ref : url)?.host ?? '';
