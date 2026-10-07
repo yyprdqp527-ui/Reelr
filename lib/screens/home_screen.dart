@@ -2786,10 +2786,6 @@ class ClipCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14)),
                   itemBuilder: (_) => [
                     PopupMenuItem(
-                        value: 'edit',
-                        child: _MenuItem(
-                            icon: Icons.edit_rounded, label: l.t('edit'))),
-                    PopupMenuItem(
                         value: 'move',
                         child: _MenuItem(
                             icon: Icons.drive_file_move_rounded,
@@ -2969,81 +2965,211 @@ class _MoveToCategorySheet extends StatefulWidget {
   State<_MoveToCategorySheet> createState() => _MoveToCategorySheetState();
 }
 class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
+  late Clip _clip = widget.clip;
+
+  Widget _tile({
+    required double width,
+    required IconData icon,
+    required String label,
+    required Color color,
+    required bool selected,
+    required VoidCallback onTap,
+    String? caption,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: width,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: selected ? 0.35 : 0.15),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.25),
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 24),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+            ),
+            if (caption != null)
+              Text(
+                caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, fontSize: 9),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final categories = widget.state.categories
-        .where((c) => c.id != widget.clip.categoryId)
-        .toList()
+    final fr = Localizations.localeOf(context).languageCode == 'fr';
+    final categories = List<ClipCategory>.from(widget.state.categories)
       ..sort((a, b) => a.name.compareTo(b.name));
+    // Toutes les sous-catégories de toutes les catégories, d'un coup.
+    final subs = <SubCategory>[
+      for (final c in categories) ...widget.state.getSubCategoriesFor(c.id),
+    ];
+    final currentSubId = widget.state.subcategoryIdForClip(_clip.id);
+    final currentSubSubId = widget.state.subsubcategoryIdForClip(_clip.id);
+    final subsubs = widget.state.getSubSubCategoriesFor(currentSubId);
+    const gap = 8.0;
     return Container(
       decoration: const BoxDecoration(
         color: Color(0xFF1C1C1E),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 40, height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            AppL10n.of(context).t('move_to_category'),
-            style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 12),
-          ConstrainedBox(
-            constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
-            child: ListView.separated(
-              shrinkWrap: true,
-              itemCount: categories.length,
-              separatorBuilder: (_, _) => const Divider(color: Colors.white10, height: 1),
-              itemBuilder: (ctx, i) {
-                final cat = categories[i];
-                return InkWell(
-                  onTap: () async {
-                    final updated = widget.clip.copyWith(categoryId: cat.id);
-                    await widget.state.updateClip(updated);
-                    // L'ordre est libre : `upsertClip` ne touche pas aux
-                    // colonnes classification_*, le journal est intact.
-                    await widget.state
-                        .recordUserCategoryChoice(widget.clip, cat.id);
-                    if (ctx.mounted) Navigator.pop(ctx);
-                  },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            color: cat.color.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(cat.icon, color: cat.color, size: 22),
-                        ),
-                        const SizedBox(width: 14),
-                        Text(
-                          AppL10n.of(context).localizeCategoryDisplay(cat.id, cat.name),
-                          style: const TextStyle(color: Colors.white, fontSize: 15),
-                        ),
-                      ],
-                    ),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
+      child: SingleChildScrollView(
+        child: LayoutBuilder(builder: (ctx, box) {
+          final w = (box.maxWidth - gap * 3) / 4;
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                fr ? 'Catégorie' : 'Category',
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: categories.map((cat) {
+                  return _tile(
+                    width: w,
+                    icon: cat.icon,
+                    label: AppL10n.of(context)
+                        .localizeCategoryDisplay(cat.id, cat.name),
+                    color: cat.color,
+                    selected: cat.id == _clip.categoryId,
+                    onTap: () async {
+                      if (cat.id == _clip.categoryId) return;
+                      final before = _clip;
+                      final updated = before.copyWith(categoryId: cat.id);
+                      await widget.state.updateClip(updated);
+                      // L'ordre est libre : `upsertClip` ne touche pas aux
+                      // colonnes classification_*, le journal est intact.
+                      await widget.state
+                          .recordUserCategoryChoice(before, cat.id);
+                      // L'ancienne sous-catégorie appartenait à l'ancienne
+                      // catégorie : on la vide.
+                      await widget.state.setClipSubcategory(_clip.id, null);
+                      await widget.state.setClipSubSubcategory(_clip.id, null);
+                      if (!mounted) return;
+                      setState(() => _clip = updated);
+                    },
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 18),
+              Text(
+                fr ? 'Sous-catégorie' : 'Subcategory',
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              if (subs.isEmpty)
+                Text(
+                  fr ? 'Aucune sous-catégorie créée' : 'No subcategory created',
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                )
+              else
+                Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: subs.map((sc) {
+                    return _tile(
+                      width: w,
+                      icon: sc.icon,
+                      label: sc.name,
+                      caption: AppL10n.of(context).localizeCategoryDisplay(
+                          sc.categoryId,
+                          categories
+                              .firstWhere((c) => c.id == sc.categoryId)
+                              .name),
+                      color: sc.color,
+                      selected: sc.id == currentSubId,
+                      onTap: () async {
+                        if (sc.categoryId != _clip.categoryId) {
+                          final before = _clip;
+                          final updated =
+                              before.copyWith(categoryId: sc.categoryId);
+                          await widget.state.updateClip(updated);
+                          await widget.state
+                              .recordUserCategoryChoice(before, sc.categoryId);
+                          _clip = updated;
+                        }
+                        await widget.state.setClipSubcategory(_clip.id, sc.id);
+                        await widget.state.setClipSubSubcategory(_clip.id, null);
+                        if (!ctx.mounted) return;
+                        // S'il y a des sous-dossiers, on les propose ;
+                        // sinon le rangement est terminé.
+                        if (widget.state.getSubSubCategoriesFor(sc.id).isEmpty) {
+                          Navigator.pop(ctx);
+                        } else {
+                          setState(() {});
+                        }
+                      },
+                    );
+                  }).toList(),
+                ),
+              if (subsubs.isNotEmpty) ...[
+                const SizedBox(height: 18),
+                Text(
+                  fr ? 'Sous-dossier' : 'Subfolder',
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: subsubs.map((ss) {
+                    return _tile(
+                      width: w,
+                      icon: ss.icon,
+                      label: ss.name,
+                      color: ss.color,
+                      selected: ss.id == currentSubSubId,
+                      onTap: () async {
+                        await widget.state.setClipSubcategory(_clip.id, currentSubId);
+                        await widget.state.setClipSubSubcategory(_clip.id, ss.id);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ],
+            ],
+          );
+        }),
       ),
     );
   }
