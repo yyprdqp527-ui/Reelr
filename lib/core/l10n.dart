@@ -60,6 +60,11 @@ class AppL10n {
       'edit_category': 'Modifier la catégorie',
       'settings_my_data_section': 'Mes données',
       'settings_export_clips': 'Exporter mes clips',
+      'settings_notebook': 'Ce que Reelr a appris',
+      'notebook_intro': "Chaque fois que tu ranges un lien toi-même, Reelr le retient ici. Il s'en sert pour classer les liens qui parlent du même sujet. Supprime un exemple s'il est faux.",
+      'notebook_empty': "Rien pour l'instant. Range un lien à la main et il apparaîtra ici.",
+      'notebook_clear': 'Tout effacer',
+      'notebook_clear_confirm': 'Effacer tous les exemples appris ?',
       'settings_delete_all_data': 'Supprimer toutes les données',
       'settings_delete_all_confirm': 'Supprimer toutes les données ?',
       'settings_delete_all_confirm_sub':
@@ -155,6 +160,11 @@ class AppL10n {
       'edit_category': 'Edit category',
       'settings_my_data_section': 'My data',
       'settings_export_clips': 'Export my clips',
+      'settings_notebook': 'What Reelr has learned',
+      'notebook_intro': 'Whenever you sort a link yourself, Reelr remembers it here. It uses these examples to sort links about the same topic. Remove an example if it is wrong.',
+      'notebook_empty': 'Nothing yet. Sort a link by hand and it will appear here.',
+      'notebook_clear': 'Clear all',
+      'notebook_clear_confirm': 'Clear all learned examples?',
       'settings_delete_all_data': 'Delete all data',
       'settings_delete_all_confirm': 'Delete all data?',
       'settings_delete_all_confirm_sub':
@@ -263,6 +273,7 @@ class AppL10n {
     'cat_moto':           'Moto',
     'cat_shopping':       'Shopping',
     'cat_tech':           'Tech',
+    'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
     'cat_cinema':         'Cinéma',
     'cat_growth':         'Dév. Personnel',
@@ -326,6 +337,7 @@ class AppL10n {
     'cat_moto':           'Bikes',
     'cat_shopping':       'Shopping',
     'cat_tech':           'Tech',
+    'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
     'cat_cinema':         'Films',
     'cat_growth':         'Self Growth',
@@ -395,6 +407,7 @@ class AppL10n {
     'cat_musique': ['music', 'musique'],
     'cat_gaming': ['gaming', 'jeu video', 'jeux video', 'video game'],
     'cat_deco': ['deco', 'decoration', 'home decor'],
+    'cat_design': ['design', 'ux', 'ui', 'ui ux', 'ux ui', 'design ux', 'graphisme', 'graphic design'],
     'cat_pets': ['animaux', 'animal', 'pets', 'animaux de compagnie'],
     'cat_shopping': ['bons plans', 'bon plan', 'achats', 'deals', 'promos'],
     'cat_broderie': ['broderie', 'embroidery', 'point de croix', 'cross stitch', 'crossstitch', 'cross stich', 'punto croce', 'punto de cruz', 'kreuzstich'],
@@ -467,6 +480,7 @@ class AppL10n {
     'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
     'cat_fail': Color(0xFFFF5722),
     'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
+    'cat_design': Color(0xFF7C4DFF),
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
     'cat_tricotage': Color(0xFFD4A5D9),
     'cat_crochet': Color(0xFFC08FD0),
@@ -504,6 +518,7 @@ class AppL10n {
     'cat_nutrition': Icons.no_food_rounded, 'cat_vintage': Icons.watch_rounded,
     'cat_fail': Icons.sentiment_very_dissatisfied_rounded,
     'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
+    'cat_design': Icons.design_services_rounded,
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
     'cat_tricotage': Icons.checkroom_outlined,
     'cat_crochet': Icons.gesture_rounded,
@@ -548,6 +563,10 @@ class AppL10n {
     }
     return null;
   }
+
+  /// Nom francais d'une categorie standard (ex. cat_design -> Design & UX),
+  /// ou null si l'identifiant est inconnu.
+  static String? standardCategoryName(String id) => _categoryNamesFr[id];
 
   String localizeCategory(String name) {
     final canonicalId = canonicalCategoryId(name);
