@@ -862,6 +862,8 @@ class ClipsState extends ChangeNotifier {
   Timer? _batchTimer;
   static const Duration _batchQuietDelay = Duration(seconds: 8);
   static const int _batchMinItems = 3;
+  // Un sous-groupe de meme sujet (plantes, entreprises...) a partir de 2 liens.
+  static const int _batchMinGroup = 2;
   static const int _batchMaxItems = 20;
   static const int _batchMinConfidence = 75;
 
@@ -877,7 +879,7 @@ class ClipsState extends ChangeNotifier {
     _batchTimer = Timer(_batchQuietDelay, () {
       final ids = _batchIds.toList();
       _batchIds.clear();
-      if (ids.length >= _batchMinItems) unawaited(_reviewBatch(ids));
+      if (ids.length >= _batchMinGroup) unawaited(_reviewBatch(ids));
     });
   }
 
@@ -903,6 +905,7 @@ class ClipsState extends ChangeNotifier {
         if (localRule) continue;
         final current = clip.categoryId;
         final bool eligible;
+        var isAnchor = false;
         if (current == null || current.isEmpty) {
           // Laisse a trier : abstention ou aucun resultat, personne ne l'a
           // range.
@@ -911,7 +914,11 @@ class ClipsState extends ChangeNotifier {
           // Range par la machine et pas deplace depuis, avec une confiance
           // pas deja tres haute.
           final cat = predicted.isEmpty ? null : findBestCategoryMatch(predicted);
-          eligible = cat != null && cat.id == current && conf < 90;
+          final machineDecided = cat != null && cat.id == current;
+          // Un lien deja sur de lui (>= 90) ne bouge jamais, mais il reste
+          // dans le lot comme « ancre » : la serie suit sa categorie.
+          isAnchor = machineDecided && conf >= 90;
+          eligible = machineDecided;
         }
         if (!eligible) continue;
         final hints = _googleImagesHints(clip.url);
@@ -931,82 +938,160 @@ class ClipsState extends ChangeNotifier {
             .split(',')
             .where((t) => t.trim().isNotEmpty)
             .toList();
-        items.add(_BatchItem(clip, line, tags, current));
+        items.add(_BatchItem(clip, line, tags, current,
+            SortingNotebook.tokens(info).map(_stem).toSet(),
+            anchor: isAnchor));
       }
-      if (items.length < _batchMinItems) {
+      if (items.length < _batchMinGroup) {
         debugPrint('[lot] ${items.length} lien(s) eligible(s), rien a faire');
         return;
       }
 
-      final numbered = StringBuffer();
-      for (var i = 0; i < items.length; i++) {
-        numbered.writeln('${i + 1}. ${items[i].line}');
+      // 1) Le lot entier : un seul sujet commun ?
+      var wholeTried = false;
+      if (items.length >= _batchMinItems) {
+        wholeTried = true;
+        if (await _classifyAndMoveGroup(items, 'lot')) return;
       }
-      final profile = await ProfileService().loadProfile();
-      final ClassificationResult result;
-      await _ClassifyLimiter.acquire();
-      try {
-        result = await ClaudeClassifier.classify(
-          video: VideoData(
-            title: 'Lot de ${items.length} liens partagés en même temps :\n'
-                '$numbered',
-            platform: 'other',
-            description: 'Ces liens ont été partagés ensemble : ils ont '
-                'probablement un sujet commun. Si un sujet commun ressort, '
-                'classe le lot dans la catégorie de ce sujet. Si les liens '
-                'parlent de sujets sans rapport, mets une confiance de 30 '
-                'ou moins.',
-          ),
-          profile: profile,
-          customCategories: _customCategoryNames(),
-        );
-      } finally {
-        _ClassifyLimiter.release();
-      }
-      final target = result.categoriePrincipale;
-      debugPrint('[lot] ${items.length} liens -> $target '
-          '(confiance ${result.confiance}) : ${result.raison}');
-      const noResult = {'à trier', 'a trier', 'non classé', 'non classe'};
-      if (result.confiance < _batchMinConfidence ||
-          target.trim().isEmpty ||
-          noResult.contains(target.trim().toLowerCase())) {
-        return;
-      }
-      _categories = await DatabaseHelper.instance.getAllCategories();
-      final cat =
-          findBestCategoryMatch(target) ?? await _ensureStandardCategory(target);
-      if (cat == null) {
-        debugPrint('[lot] categorie $target introuvable, lot ignore');
-        return;
-      }
-      var moved = 0;
-      for (final it in items) {
-        final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
-        if (fresh == null) continue;
-        // Rangé à la main pendant l'analyse : on n'y touche pas.
-        if (fresh.categoryId != it.categoryAtStart) continue;
-        if (fresh.categoryId == cat.id) continue;
-        await updateClip(fresh.copyWith(categoryId: cat.id));
-        await DatabaseHelper.instance.updateClipClassification(
-          clipId: fresh.id,
-          category: target,
-          confidence: result.confiance,
-          reason: '[lot] ${items.length} liens partagés ensemble, sujet '
-              'commun : ${result.raison}',
-          tags: it.tags,
-        );
-        moved++;
-      }
-      debugPrint('[lot] $moved lien(s) range(s) dans ${cat.name}');
-      if (moved > 0) {
-        _newlyClassifiedCategoryIds.add(cat.id);
-        _categories = await DatabaseHelper.instance.getAllCategories();
-        _clips = await DatabaseHelper.instance.getAllClips();
-        notifyListeners();
+      // 2) Sinon, sous-groupes de meme sujet (mots communs) : un lot
+      // melange (plantes + entreprises + archives...) est range groupe par
+      // groupe au lieu d'etre refuse en bloc.
+      final groups = _clusterBatch(items);
+      for (final g in groups) {
+        if (wholeTried && g.length == items.length) continue;
+        await _classifyAndMoveGroup(g, 'sous-groupe');
       }
     } catch (e) {
       debugPrint('[lot] erreur: $e');
     }
+  }
+
+  /// Racine grossiere d'un mot (pluriel, feminin) pour rapprocher
+  /// "plante"/"plantes", "verte"/"vertes".
+  static String _stem(String w) {
+    var t = w;
+    if (t.length > 3 && (t.endsWith('s') || t.endsWith('x'))) {
+      t = t.substring(0, t.length - 1);
+    }
+    if (t.length > 4 && t.endsWith('e')) t = t.substring(0, t.length - 1);
+    return t;
+  }
+
+  /// Regroupe les liens du lot qui partagent au moins 2 mots (composantes
+  /// connexes). Ne garde que les groupes d'au moins [_batchMinGroup] liens.
+  List<List<_BatchItem>> _clusterBatch(List<_BatchItem> items) {
+    final parent = List<int>.generate(items.length, (i) => i);
+    int find(int i) {
+      while (parent[i] != i) {
+        parent[i] = parent[parent[i]];
+        i = parent[i];
+      }
+      return i;
+    }
+
+    for (var i = 0; i < items.length; i++) {
+      for (var j = i + 1; j < items.length; j++) {
+        if (items[i].tokens.intersection(items[j].tokens).length >= 2) {
+          parent[find(i)] = find(j);
+        }
+      }
+    }
+    final byRoot = <int, List<_BatchItem>>{};
+    for (var i = 0; i < items.length; i++) {
+      byRoot.putIfAbsent(find(i), () => []).add(items[i]);
+    }
+    return [
+      for (final g in byRoot.values)
+        if (g.length >= _batchMinGroup) g,
+    ];
+  }
+
+  /// Soumet [group] a Claude comme un lot et range les liens dans la
+  /// categorie commune si la confiance est suffisante. Renvoie true si une
+  /// categorie commune a ete retenue (meme si aucun lien n'a eu a bouger).
+  Future<bool> _classifyAndMoveGroup(List<_BatchItem> group, String kind) async {
+    // Que des liens surs : rien a deplacer.
+    if (group.every((it) => it.anchor)) return false;
+    final numbered = StringBuffer();
+    for (var i = 0; i < group.length; i++) {
+      numbered.writeln('${i + 1}. ${group[i].line}');
+    }
+    final profile = await ProfileService().loadProfile();
+    final ClassificationResult result;
+    await _ClassifyLimiter.acquire();
+    try {
+      result = await ClaudeClassifier.classify(
+        video: VideoData(
+          title: 'Lot de ${group.length} liens partagés en même temps :\n'
+              '$numbered',
+          platform: 'other',
+          description: 'Ces liens ont été partagés ensemble : ils ont '
+              'probablement un sujet commun. Si un sujet commun ressort, '
+              'classe le lot dans la catégorie de ce sujet. Si les liens '
+              'parlent de sujets sans rapport, mets une confiance de 30 '
+              'ou moins.',
+        ),
+        profile: profile,
+        customCategories: _customCategoryNames(),
+      );
+    } finally {
+      _ClassifyLimiter.release();
+    }
+    final target = result.categoriePrincipale;
+    debugPrint('[lot] $kind de ${group.length} liens -> $target '
+        '(confiance ${result.confiance}) : ${result.raison}');
+    const noResult = {'à trier', 'a trier', 'non classé', 'non classe'};
+    if (result.confiance < _batchMinConfidence ||
+        target.trim().isEmpty ||
+        noResult.contains(target.trim().toLowerCase())) {
+      return false;
+    }
+    _categories = await DatabaseHelper.instance.getAllCategories();
+    var cat =
+        findBestCategoryMatch(target) ?? await _ensureStandardCategory(target);
+    // Si des liens surs (ancres) sont deja ranges ensemble dans UNE
+    // categorie, la serie les rejoint : on ne contredit pas un lien sur.
+    final anchorCats = {
+      for (final it in group)
+        if (it.anchor && it.categoryAtStart != null) it.categoryAtStart!,
+    };
+    if (anchorCats.length == 1) {
+      final anchorCat = _categories
+          .where((c) => c.id == anchorCats.first)
+          .firstOrNull;
+      if (anchorCat != null) cat = anchorCat;
+    }
+    if (cat == null) {
+      debugPrint('[lot] categorie $target introuvable, $kind ignore');
+      return false;
+    }
+    var moved = 0;
+    for (final it in group) {
+      if (it.anchor) continue;
+      final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
+      if (fresh == null) continue;
+      // Rangé à la main pendant l'analyse : on n'y touche pas.
+      if (fresh.categoryId != it.categoryAtStart) continue;
+      if (fresh.categoryId == cat.id) continue;
+      await updateClip(fresh.copyWith(categoryId: cat.id));
+      await DatabaseHelper.instance.updateClipClassification(
+        clipId: fresh.id,
+        category: anchorCats.length == 1 ? cat.id : target,
+        confidence: result.confiance,
+        reason: '[lot] ${group.length} liens partagés ensemble, sujet '
+            'commun : ${result.raison}',
+        tags: it.tags,
+      );
+      moved++;
+    }
+    debugPrint('[lot] $moved lien(s) range(s) dans ${cat.name}');
+    if (moved > 0) {
+      _newlyClassifiedCategoryIds.add(cat.id);
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      _clips = await DatabaseHelper.instance.getAllClips();
+      notifyListeners();
+    }
+    return true;
   }
 
   /// Cree la categorie standard [rawId] (ex. cat_design) si elle n'existe
@@ -1221,9 +1306,30 @@ class ClipsState extends ChangeNotifier {
 
   /// Cle de site (« vinted.fr ») pour un lien web, ou null.
   static String? _siteKey(String url) {
-    final host = Uri.tryParse(url.trim())?.host.toLowerCase() ?? '';
+    var uri = Uri.tryParse(url.trim());
+    var host = uri?.host.toLowerCase() ?? '';
     if (host.isEmpty) return null;
-    return 'site:${host.startsWith('www.') ? host.substring(4) : host}';
+    if (host.startsWith('www.')) host = host.substring(4);
+    // Lien Google Images : le « site » est la page d'origine (imgrefurl),
+    // pas google.com.
+    if (host.startsWith('google.') && uri!.path.contains('/imgres')) {
+      final ref = uri.queryParameters['imgrefurl'];
+      final refHost = (ref == null ? null : Uri.tryParse(ref)?.host.toLowerCase());
+      if (refHost == null || refHost.isEmpty) return null;
+      host = refHost.startsWith('www.') ? refHost.substring(4) : refHost;
+    }
+    // Moteurs de recherche et reseaux : un meme domaine melange tous les
+    // sujets, il ne dit rien sur le contenu (jamais appris, jamais applique).
+    const hubs = [
+      'google.', 'bing.com', 'duckduckgo.com', 'ecosia.org', 'qwant.com',
+      'pinterest.', 'facebook.com', 'instagram.com', 'reddit.com',
+      'youtube.com', 'youtu.be', 'tiktok.com', 'x.com', 'twitter.com',
+    ];
+    if (hubs.any((h) => host.startsWith(h) || host.contains('.$h') ||
+        host.endsWith(h))) {
+      return null;
+    }
+    return 'site:$host';
   }
 
   /// Tuile personnelle apprise pour le site de [url] : le meilleur score
@@ -1956,5 +2062,13 @@ class _BatchItem {
   /// rangement manuel survenu pendant l'appel.
   final String? categoryAtStart;
 
-  _BatchItem(this.clip, this.line, this.tags, this.categoryAtStart);
+  /// Mots (racines) du lien, pour le rapprocher des autres du lot.
+  final Set<String> tokens;
+
+  /// Lien deja range avec une confiance >= 90 : il ne bouge pas, mais sa
+  /// categorie sert de reference aux autres liens de la meme serie.
+  final bool anchor;
+
+  _BatchItem(this.clip, this.line, this.tags, this.categoryAtStart, this.tokens,
+      {this.anchor = false});
 }
