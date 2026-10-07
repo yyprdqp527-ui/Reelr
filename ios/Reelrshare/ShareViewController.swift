@@ -376,6 +376,19 @@ class ShareViewController: UIViewController {
            (scheme == "http" || scheme == "https") {
             return parsed.absoluteString
         }
+        // Adresse explicite (http:// ou https://) d'abord : un texte comme
+        // « ...sur Booking.com ! https://www.booking.com/Share-xxx » contient
+        // aussi un nom de site que le detecteur iOS prend pour un lien.
+        if let range = text.range(of: "https?://[^\\s]+", options: .regularExpression) {
+            let trimSet = CharacterSet(charactersIn: ".,;:!?)]}\"'»")
+            var found = String(text[range])
+            while let last = found.unicodeScalars.last, trimSet.contains(last) {
+                found.removeLast()
+            }
+            if let parsed = URL(string: found), parsed.host != nil {
+                return parsed.absoluteString
+            }
+        }
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let matches = detector?.matches(in: text, options: [], range: NSRange(text.startIndex..., in: text))
         return matches?.first?.url?.absoluteString
