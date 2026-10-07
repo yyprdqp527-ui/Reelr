@@ -880,7 +880,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     VideoData? meta,
   ) async {
     final currentThumb = meta?.thumbnailUrl;
-    final hasThumb = currentThumb != null && currentThumb.isNotEmpty;
+    // Image du CDN « crawler » de Facebook / Instagram : jamais lisible par
+    // l'app. Elle compte comme absente, pour laisser la place a l'apercu
+    // Safari, a LinkPresentation puis a la capture d'ecran.
+    final badThumb = currentThumb != null &&
+        currentThumb.contains('lookaside.fbsbx.com');
+    final hasThumb =
+        currentThumb != null && currentThumb.isNotEmpty && !badThumb;
     final metaTitle = meta?.title ?? '';
     final hasTitle = !OEmbedService.isPlaceholderTitle(metaTitle);
     if (hasThumb && hasTitle) return meta;
@@ -890,9 +896,25 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (SearchQueryCard.queryFor(clip.url) != null) return meta;
 
     final preview = await LinkPreviewService.fetch(clip.url);
-    if (preview == null) return meta;
+    if (preview == null) {
+      if (!badThumb) return meta;
+      // Aucun apercu : on retire quand meme l'image inutilisable, pour
+      // que la capture d'ecran prenne le relais.
+      return VideoData(
+        title: meta?.title ?? '',
+        channel: meta?.channel,
+        description: meta?.description,
+        tags: meta?.tags ?? const [],
+        views: meta?.views,
+        duration: meta?.duration,
+        publishedAt: meta?.publishedAt,
+        platform: meta?.platform ?? clip.platform,
+        thumbnailUrl: null,
+        transcriptExcerpt: meta?.transcriptExcerpt,
+      );
+    }
 
-    var thumbnailUrl = currentThumb;
+    var thumbnailUrl = badThumb ? null : currentThumb;
     final image = preview.image;
     if (!hasThumb && image != null) {
       // iOS : image deja telechargee, enregistree directement.
@@ -1512,6 +1534,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     for (final clip in widget.state.allClips) {
       final stored = clip.thumbnailUrl;
       if (stored == null || stored.isEmpty) continue;
+      // Recherche Google : la carte « requete » n'a pas de photo, jamais
+      // a reparer.
+      if (SearchQueryCard.queryFor(clip.url) != null) continue;
       // Copie permanente presente : la carte s'affiche, rien a faire.
       if (await ThumbnailStore.instance.has(clip.id)) continue;
       final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
