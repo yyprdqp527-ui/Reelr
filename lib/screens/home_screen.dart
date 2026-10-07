@@ -2971,6 +2971,76 @@ class _MoveToCategorySheet extends StatefulWidget {
 class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
   late Clip _clip = widget.clip;
 
+  /// Appui long sur une categorie : propose de la supprimer. Les videos ne
+  /// sont jamais supprimees, elles repassent en « A trier ».
+  Future<void> _confirmDeleteCategory(ClipCategory cat) async {
+    final l = AppL10n.of(context);
+    final name = l.localizeCategoryDisplay(cat.id, cat.name);
+    final count = widget.state.countForCategory(cat.id);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l.t('delete_category_confirm').replaceAll('{name}', name)),
+        content: Text(
+          count == 0
+              ? l.t('delete_category_empty')
+              : l.t('delete_category_keeps_clips').replaceAll('{n}', '$count'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: Text(l.t('delete')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await widget.state.removeCategory(cat.id);
+    if (!mounted) return;
+    setState(() {
+      if (_clip.categoryId == cat.id) {
+        _clip = _clip.copyWith(categoryId: null);
+      }
+    });
+  }
+
+  /// Appui long sur une sous-categorie ou un sous-dossier : confirmation,
+  /// puis suppression. Les videos ne sont jamais supprimees.
+  Future<void> _confirmDeleteSub({
+    required String title,
+    required String name,
+    required Future<void> Function() onYes,
+  }) async {
+    final fr = Localizations.localeOf(context).languageCode == 'fr';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(title),
+        content: Text(fr ? '"$name" sera supprimée.' : '"$name" will be deleted.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(fr ? 'Annuler' : 'Cancel'),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(fr ? 'Supprimer' : 'Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await onYes();
+    if (mounted) setState(() {});
+  }
+
   Widget _tile({
     required double width,
     required IconData icon,
@@ -2978,10 +3048,12 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
     required Color color,
     required bool selected,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
     String? caption,
   }) {
     return GestureDetector(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         width: width,
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
@@ -3033,7 +3105,12 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
     final currentSubSubId = widget.state.subsubcategoryIdForClip(_clip.id);
     final subsubs = widget.state.getSubSubCategoriesFor(currentSubId);
     const gap = 8.0;
-    return Container(
+    return ConstrainedBox(
+      // Jamais plus haut que 88 % de l'ecran : le haut reste touchable pour
+      // fermer la feuille, meme avec beaucoup de categories.
+      constraints:
+          BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
+      child: Container(
       decoration: const BoxDecoration(
         color: Color(0xFF1C1C1E),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -3056,10 +3133,29 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                 ),
               ),
               const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      fr ? 'Catégorie' : 'Category',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.close_rounded, color: Colors.white70),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
               Text(
-                fr ? 'Catégorie' : 'Category',
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+                fr
+                    ? 'Appui long sur une catégorie, une sous-catégorie ou un sous-dossier pour le supprimer.'
+                    : 'Long-press a category, subfolder or sub-subfolder to delete it.',
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -3073,6 +3169,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                         .localizeCategoryDisplay(cat.id, cat.name),
                     color: cat.color,
                     selected: cat.id == _clip.categoryId,
+                    onLongPress: () => _confirmDeleteCategory(cat),
                     onTap: () async {
                       if (cat.id == _clip.categoryId) return;
                       final before = _clip;
@@ -3120,6 +3217,13 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                               .name),
                       color: sc.color,
                       selected: sc.id == currentSubId,
+                      onLongPress: () => _confirmDeleteSub(
+                        title: fr
+                            ? 'Supprimer la sous-catégorie ?'
+                            : 'Delete subfolder?',
+                        name: sc.name,
+                        onYes: () => widget.state.deleteSubCategory(sc.id),
+                      ),
                       onTap: () async {
                         if (sc.categoryId != _clip.categoryId) {
                           final before = _clip;
@@ -3162,6 +3266,13 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                       label: ss.name,
                       color: ss.color,
                       selected: ss.id == currentSubSubId,
+                      onLongPress: () => _confirmDeleteSub(
+                        title: fr
+                            ? 'Supprimer ce sous-dossier ?'
+                            : 'Delete this subfolder?',
+                        name: ss.name,
+                        onYes: () => widget.state.deleteSubSubCategory(ss.id),
+                      ),
                       onTap: () async {
                         await widget.state.setClipSubcategory(_clip.id, currentSubId);
                         await widget.state.setClipSubSubcategory(_clip.id, ss.id);
@@ -3174,6 +3285,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
             ],
           );
         }),
+      ),
       ),
     );
   }
