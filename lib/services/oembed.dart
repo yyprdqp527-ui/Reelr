@@ -271,6 +271,15 @@ class OEmbedService {
         // parfois generique (Le Parisien : placeholder_ogimage.png).
         final imageUrl = googleUri?.queryParameters['imgurl'] ?? '';
         if (meta == null || !imageUrl.startsWith('http')) return meta;
+        // lookaside.instagram.com est un point d'acces reserve au robot
+        // Google : l'appli n'y recoit pas une image. Si la page d'origine
+        // a donne sa propre image (og:image), on la garde.
+        if (Uri.tryParse(imageUrl)?.host == 'lookaside.instagram.com' &&
+            (meta.thumbnailUrl?.startsWith('http') ?? false)) {
+          debugPrint('[oembed] Google Images : imgurl lookaside ignore, '
+              'og:image de la page d\'origine conservee');
+          return meta;
+        }
         debugPrint('[oembed] Google Images : vignette = imgurl $imageUrl');
         return VideoData(
           title: meta.title,
