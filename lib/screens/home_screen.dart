@@ -588,8 +588,12 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     final base = List<ClipCategory>.of(_baseOrder());
     final fromIdx = base.indexWhere((c) => c.id == draggedId);
     if (fromIdx == -1) return;
-    final moved = base.removeAt(fromIdx);
-    base.insert(targetIndex.clamp(0, base.length), moved);
+    // Échange : seules la tuile déplacée et la tuile visée changent de
+    // place, toutes les autres restent où elles sont.
+    final toIdx = targetIndex.clamp(0, base.length - 1);
+    final tmp = base[fromIdx];
+    base[fromIdx] = base[toIdx];
+    base[toIdx] = tmp;
     _didReorderDuringDrag = true;
     setState(() {
       _previewIndex = targetIndex;
