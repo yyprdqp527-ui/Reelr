@@ -1495,6 +1495,7 @@ cat_tricotage       → tricot aux aiguilles, laine, points de tricot (point mou
 cat_crochet         → crochet, amigurumi, macramé.
 cat_broderie        → broderie, point de croix (cross stitch), grilles et motifs à broder, canevas. Diff. cat_art/cat_diy : une grille de motif pixel destinée au point de croix va ici, même si le texte parle aussi de « pixel art », de perles Hama ou de « DIY ».
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
+cat_design          → design appliqué : UX/UI, interfaces d'applis et de sites, maquettes, Figma, palettes et tendances de couleurs, typographie, logos, identité visuelle, branding, design graphique, inspiration design. Diff. cat_art : art = beaux-arts et démarche artistique ; design = conception visuelle appliquée à un usage (interface, marque, produit). Diff. cat_tech : tech = appareils et logiciels ; design = leur conception visuelle ou ergonomique. Diff. cat_deco : déco = intérieur d'un logement. Diff. cat_photo : une banque d'images sur un sujet de design reste cat_design.
 cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
 cat_tech            → high-tech, électronique, informatique, smartphones, ordinateurs, audio (écouteurs, enceintes), gadgets, applis. Diff. cat_photo : photo = technique et matériel de prise de vue ; tech = tout autre appareil ou produit électronique.
 cat_cosplay         → cosplay, costumes de personnages, geek culture
@@ -1643,6 +1644,19 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     d'un anime → cat_manga ; une moto comme moyen de déplacement (Ducati,
     Harley, BMW GS…) → cat_moto, même pour un voyage.
 
+24. Une page web d'inspiration ou de recherche se classe selon son SUJET, jamais selon le type de
+    site qui l'héberge : banque d'images, portfolio, place de marché, plateforme de blog ou outil en ligne,
+    le site ne compte pas. UX/UI, interface, maquette, palette ou tendance de couleurs, typographie,
+    identité visuelle, logo, branding → cat_design. Quand une image est jointe, elle montre souvent le
+    sujet mieux que le titre.
+    Ex : "Dashboard UI kit | Figma Community" → cat_design.
+    Ex : "Nouvelle identité visuelle : logo et charte graphique" → cat_design.
+
+25. Une page de HASHTAG ("#recette", "#voyage", adresse /tag/ ou /hashtag/) n'a pas de contenu propre :
+    le mot du hashtag EST le sujet, classe-le avec confiance (au moins 75) si le mot est clair.
+    Ignore une image de mur de connexion ou de pause (logo, écran "Take a break", "Log in").
+    Ex : "#recette" → cat_food. Ex : "#voyage" → cat_travel.
+
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
 RÈGLES FINALES :
@@ -1663,8 +1677,10 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     required VideoData video,
     ClientProfile? profile,
     List<String> customCategories = const [],
+    List<String> userExamples = const [],
   }) async {
-    final userText = _buildUserText(video, profile, customCategories);
+    final userText =
+        _buildUserText(video, profile, customCategories, userExamples);
 
     // Construction du contenu (multimodal si thumbnail disponible)
     final dynamic messageContent;
@@ -1673,19 +1689,35 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     // tokens à courte durée de vie qui expirent souvent avant que l'API
     // Anthropic ne récupère l'image côté serveur.
     const platformsWithReliableThumbnails = {'youtube', 'tiktok', 'instagram', 'twitch'};
-    if (video.thumbnailUrl != null && video.thumbnailUrl!.isNotEmpty && platformsWithReliableThumbnails.contains(video.platform)) {
+    // Liens web (2026-10-07) : l'image n'etait jamais envoyee, alors qu'une
+    // page de recherche d'inspiration (UX, couleurs...) se reconnait au
+    // premier coup d'oeil sur la vignette. Seules les images directes
+    // (https) partent : ni la capture du proxy (lente, 502 frequents), ni
+    // les vignettes locales (le proxy plafonne la requete a 50 Ko).
+    final thumb = video.thumbnailUrl;
+    final isWebWithDirectImage = video.platform == 'other' &&
+        thumb != null &&
+        thumb.startsWith('https://') &&
+        !thumb.contains('reelr-proxy');
+    if (thumb != null &&
+        thumb.isNotEmpty &&
+        (platformsWithReliableThumbnails.contains(video.platform) ||
+            isWebWithDirectImage)) {
       messageContent = [
         {
           'type': 'image',
           'source': {
             'type': 'url',
-            'url': video.thumbnailUrl!,
+            'url': thumb,
           },
         },
         {
           'type': 'text',
-          'text': 'Voici la miniature de la vidéo. Utilise-la comme signal '
-              'principal si le titre est ambigu.\n\n$userText',
+          'text': isWebWithDirectImage
+              ? 'Voici l\'image principale de la page web. Elle montre '
+                  'souvent le sujet : utilise-la avec le titre.\n\n$userText'
+              : 'Voici la miniature de la vidéo. Utilise-la comme signal '
+                  'principal si le titre est ambigu.\n\n$userText',
         },
       ];
     } else {
@@ -1798,7 +1830,8 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
   }
 
   static String _buildUserText(VideoData video, ClientProfile? profile,
-      [List<String> customCategories = const []]) {
+      [List<String> customCategories = const [],
+      List<String> userExamples = const []]) {
     // Lien web hors plateformes connues (article, fiche, page produit) :
     // presente comme une video, il faisait chercher a Claude une video
     // inexistante et faisait chuter sa confiance (Wikipedia « Belgique »
@@ -1881,6 +1914,18 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
           'tuiles (son nom, ou une marque/un site qu\'elle désigne), réponds '
           'avec son NOM EXACT dans categorie_principale, à la place d\'un '
           'cat_xxx. Sinon, ignore cette liste.');
+    }
+
+    // Rangements deja faits a la main par l'utilisatrice sur le meme sujet
+    // (SortingNotebook) : un geste humain, donc le signal le plus fiable.
+    if (userExamples.isNotEmpty) {
+      buf.writeln('\nEXEMPLES DÉJÀ RANGÉS PAR L\'UTILISATRICE (son choix prime) :');
+      for (final e in userExamples) {
+        buf.writeln('  • $e');
+      }
+      buf.writeln('Si ce contenu traite du même sujet que l\'un de ces '
+          'exemples, range-le dans la même catégorie, avec une confiance '
+          'd\'au moins 70. Sinon, ignore ces exemples.');
     }
 
     return buf.toString();
