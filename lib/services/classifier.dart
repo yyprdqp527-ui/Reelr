@@ -1502,7 +1502,7 @@ cat_cosplay         → cosplay, costumes de personnages, geek culture
 cat_manga           → anime, manga, culture japonaise animée. Diff. cat_cosplay : manga = œuvres, cosplay = déguisement inspiré d'œuvres.
 cat_deco            → décoration intérieure, home tour, aménagement
 cat_immo            → achat/vente/investissement immobilier, visites de biens à vendre. Diff. cat_deco : immo = transaction, déco = esthétique du bien habité.
-cat_jardin          → jardinage, potager, plantes d'extérieur
+cat_jardin          → jardinage, potager, plantes d'extérieur ET d'intérieur (plantes vertes, entretien, achat de plantes). Diff. cat_deco : une plante, même d'intérieur, va dans cat_jardin ; cat_deco = meubles, objets, aménagement.
 cat_nature          → écologie, environnement, biodiversité au sens large. Diff. cat_jardin : jardin = pratique personnelle, nature = sujet environnemental large.
 cat_pets            → animaux de compagnie, chiens, chats, vétérinaire
 cat_auto            → voitures, mécanique auto, conduite, essais de voitures. Diff. cat_moto : tout ce qui a deux roues motorisées va dans cat_moto.
