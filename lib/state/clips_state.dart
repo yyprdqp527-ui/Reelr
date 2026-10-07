@@ -1167,9 +1167,11 @@ class ClipsState extends ChangeNotifier {
     final visible = _categories.where((c) => countForCategory(c.id) > 0).toList();
     final oldIndex = visible.indexWhere((c) => c.id == draggedId);
     if (oldIndex == -1) return;
-    final moved = visible.removeAt(oldIndex);
-    final insertAt = targetIndex.clamp(0, visible.length);
-    visible.insert(insertAt, moved);
+    // Échange de deux tuiles : les autres ne bougent pas.
+    final swapWith = targetIndex.clamp(0, visible.length - 1);
+    final moved = visible[oldIndex];
+    visible[oldIndex] = visible[swapWith];
+    visible[swapWith] = moved;
 
     // 1) Mise à jour immédiate en mémoire + notify pour un rendu instantané,
     //    avant toute écriture en base (évite le "rebond" visuel).
