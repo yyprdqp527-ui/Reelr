@@ -7,6 +7,7 @@ import 'net.dart';
 import '../config/secrets.dart';
 import 'classifier.dart';
 import 'thumbnail_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SocialPlatform {
   final String id;
@@ -252,6 +253,25 @@ class OEmbedService {
     return '$proxyBase/thumb?url=${Uri.encodeComponent(rawUrl)}';
   }
 
+  /// Vrai seulement si [url] repond 404 ou 410 (image supprimee). Delai
+  /// maximal 2 s ; toute autre issue renvoie false.
+  static Future<bool> _imageIsGone(String url) async {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 2);
+    try {
+      final request = await client.headUrl(uri).timeout(const Duration(seconds: 2));
+      final response = await request.close().timeout(const Duration(seconds: 2));
+      await response.drain<void>();
+      return response.statusCode == 404 || response.statusCode == 410;
+    } catch (_) {
+      return false;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   static Future<VideoData?> fetchMetadata(String url) async {
     final trimmed = url.trim();
     final lower = trimmed.toLowerCase();
@@ -278,6 +298,17 @@ class OEmbedService {
             (meta.thumbnailUrl?.startsWith('http') ?? false)) {
           debugPrint('[oembed] Google Images : imgurl lookaside ignore, '
               'og:image de la page d\'origine conservee');
+          return meta;
+        }
+        // Image supprimee depuis par la boutique (404 / 410) : la page,
+        // elle, existe encore, on prend son og:image. Les autres reponses
+        // (refus, delai depasse, HEAD non gere) ne prouvent rien : on garde
+        // l'image de Google.
+        // Meme sans og:image sur la page : une image morte ne vaut rien,
+        // mieux vaut pas de vignette (apercu Safari, capture ensuite).
+        if (await _imageIsGone(imageUrl)) {
+          debugPrint('[oembed] Google Images : imgurl disparue (404), '
+              'vignette de la page d\'origine (ou aucune)');
           return meta;
         }
         debugPrint('[oembed] Google Images : vignette = imgurl $imageUrl');
@@ -917,8 +948,51 @@ class OEmbedService {
     'static.licdn.com',
   ];
 
+  /// Sites reconnus comme boutiques (page produit : og:type produit, prix,
+  /// JSON-LD Product). Retenus d'une session a l'autre.
+  static final Set<String> _shopHosts = <String>{};
+  static Future<void>? _shopHostsLoading;
+  static const String _shopHostsKey = 'shop_hosts';
+
+  static String _shopKey(String host) {
+    var h = host.toLowerCase();
+    if (h.startsWith('www.')) h = h.substring(4);
+    return h;
+  }
+
+  static Future<void> loadShopHosts() => _shopHostsLoading ??= _doLoadShopHosts();
+
+  static Future<void> _doLoadShopHosts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _shopHosts.addAll(prefs.getStringList(_shopHostsKey) ?? const <String>[]);
+    } catch (_) {}
+  }
+
+  static Future<void> markShopHost(String host) async {
+    await loadShopHosts();
+    final key = _shopKey(host);
+    if (key.isEmpty || !_shopHosts.add(key)) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_shopHostsKey, _shopHosts.toList());
+    } catch (_) {}
+  }
+
+  static bool isShopHost(String host) => _shopHosts.contains(_shopKey(host));
+
   static bool _isGenericPlatformImage(String url) {
     final lower = url.toLowerCase();
+    // Un logo (logo_casino.png, auchan-logo-desktop.svg) n'est pas la photo
+    // du contenu : mieux vaut aucune vignette (apercu, capture ensuite).
+    if (RegExp(r'(^|[/_.-])logo([/_.-]|$)')
+        .hasMatch(Uri.tryParse(lower)?.path ?? lower)) {
+      return true;
+    }
+    // Un .svg est un logo ou une icone, jamais une photo : l'app ne sait
+    // pas l'afficher comme miniature (observe sur auchan.fr).
+    final path = Uri.tryParse(lower)?.path ?? lower;
+    if (path.endsWith('.svg')) return true;
     return _genericImageMarkers.any(lower.contains);
   }
 
@@ -1329,6 +1403,21 @@ class OEmbedService {
           _extractMetaContent(body, name: 'twitter:image:src') ??
           (platformId == 'other' ? _extractFallbackImage(body) : null);
       final channel = _extractMetaContent(body, property: 'og:site_name');
+      // Page produit (boutique) : og:type produit, prix en balise meta ou
+      // JSON-LD Product. Le site est retenu comme boutique.
+      if (platformId == 'other') {
+        final ogType =
+            (_extractMetaContent(body, property: 'og:type') ?? '').toLowerCase();
+        final isProductPage = ogType.contains('product') ||
+            ogType.contains('produit') ||
+            _extractMetaContent(body, property: 'product:price:amount') != null ||
+            _extractMetaContent(body, property: 'og:price:amount') != null ||
+            RegExp(r'"@type"\s*:\s*\[?\s*"Product"').hasMatch(body);
+        if (isProductPage) {
+          debugPrint('[oembed] page produit -> boutique ${uri.host}');
+          markShopHost(uri.host).ignore();
+        }
+      }
 
       var cleanedTitle = (title ?? '').trim();
       // og:image relative (« //cdn.shopify.com/... », « /files/x.jpg ») :
