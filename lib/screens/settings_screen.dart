@@ -17,6 +17,7 @@ import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
 import '../models/legal_content.dart';
 import 'legal_document_screen.dart';
+import 'sorting_notebook_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final ClipsState state;
@@ -308,6 +309,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       label: l.t('settings_export_clips'),
                       trailing: const Icon(Icons.chevron_right_rounded),
                       onTap: _exportClips,
+                    ),
+                    _SettingsRow(
+                      icon: Icons.menu_book_outlined,
+                      label: l.t('settings_notebook'),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SortingNotebookScreen(state: widget.state),
+                        ),
+                      ),
                     ),
                     _SettingsRow(
                       icon: Icons.delete_outline,
