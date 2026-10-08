@@ -3051,12 +3051,17 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
     VoidCallback? onLongPress,
     String? caption,
   }) {
+    // Toutes les tuiles ont la meme hauteur : un titre long reduit sa
+    // police au lieu d'agrandir la tuile.
+    final labelSize = label.length > 22 ? 9.0 : (label.length > 14 ? 10.0 : 11.0);
+    final height = caption != null ? 92.0 : 80.0;
     return GestureDetector(
       onTap: onTap,
       onLongPress: onLongPress,
       child: Container(
         width: width,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: selected ? 0.35 : 0.15),
           borderRadius: BorderRadius.circular(14),
@@ -3066,17 +3071,25 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
           ),
         ),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, color: color, size: 24),
             const SizedBox(height: 6),
-            Text(
-              label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+            SizedBox(
+              height: labelSize * 2.5,
+              child: Center(
+                child: Text(
+                  label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: labelSize,
+                      height: 1.15,
+                      fontWeight: FontWeight.w600),
+                ),
+              ),
             ),
             if (caption != null)
               Text(
@@ -3171,7 +3184,10 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                     selected: cat.id == _clip.categoryId,
                     onLongPress: () => _confirmDeleteCategory(cat),
                     onTap: () async {
-                      if (cat.id == _clip.categoryId) return;
+                      if (cat.id == _clip.categoryId) {
+                        Navigator.pop(ctx);
+                        return;
+                      }
                       final before = _clip;
                       final updated = before.copyWith(categoryId: cat.id);
                       await widget.state.updateClip(updated);
@@ -3183,8 +3199,9 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                       // catégorie : on la vide.
                       await widget.state.setClipSubcategory(_clip.id, null);
                       await widget.state.setClipSubSubcategory(_clip.id, null);
-                      if (!mounted) return;
-                      setState(() => _clip = updated);
+                      if (!ctx.mounted) return;
+                      // Choix fait : on ferme la feuille d'un seul geste.
+                      Navigator.pop(ctx);
                     },
                   );
                 }).toList(),
