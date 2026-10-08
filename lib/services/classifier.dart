@@ -1825,53 +1825,109 @@ Tu reçois plusieurs liens partagés EN MÊME TEMPS par la même personne. Lis-l
 Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu hésites.
 ''';
 
+  /// Consigne ajoutee quand les vignettes sont jointes au lot.
+  static const String _lotImageHint =
+      'Les images jointes sont les vignettes des liens, dans l\'ordre. '
+      'Pour des liens de recherche visuelle (Pinterest, images, boutiques), '
+      'ce que montrent les images compte plus que les titres : regroupe '
+      'selon ce que l\'on voit.';
+
   /// Lit un lot de liens en un seul appel et renvoie les groupes de meme
-  /// sujet. Mesure (Haiku 5.5, 8 lots) : 29/29 contre 24/29 pour un appel
-  /// par lien. [lines] : une ligne par lien (numerotees 1.. dans l'appel).
+  /// sujet. Mesure (Haiku 5.5, 8 lots, titres seuls) : 29/29 contre 24/29
+  /// pour un appel par lien. [lines] : une ligne par lien (numerotees 1..).
+  /// [images] : vignette de chaque lien (https), jointe a l'appel ; en cas
+  /// d'echec avec images, l'appel est refait en texte seul.
   /// Renvoie null si l'appel ou la reponse est inutilisable : l'appelant
   /// retombe alors sur l'ancienne methode.
   static Future<List<LotGroup>?> classifyLot(
-      List<String> lines, List<String> customCategories) async {
+      List<String> lines, List<String> customCategories,
+      [List<String?> images = const []]) async {
     try {
-      final numbered = StringBuffer();
-      for (var i = 0; i < lines.length; i++) {
-        numbered.writeln('${i + 1}. ${lines[i]}');
-      }
       final tiles = customCategories.isEmpty
           ? ''
           : '\nTuiles personnelles de l\'utilisatrice : '
               '${customCategories.join(', ')}.';
-      final user = 'Lot de ${lines.length} liens partagés en même temps :\n'
-          '$numbered$tiles';
-      final body = jsonEncode({
-        'model': _model,
-        'max_tokens': 900,
-        if (_isGen5)
-          'output_config': {'effort': 'low'}
-        else
-          'temperature': 0,
-        'system': [
-          {
-            'type': 'text',
-            'text': _systemPrompt,
-            'cache_control': {'type': 'ephemeral'},
+      final header = 'Lot de ${lines.length} liens partagés en même temps :\n';
+      final textOnly = '$header'
+          '${[for (var i = 0; i < lines.length; i++) '${i + 1}. ${lines[i]}'].join('\n')}'
+          '\n$tiles';
+
+      // Vignettes : https uniquement, 12 au plus (le telechargement se fait
+      // cote Anthropic, il ne faut pas allonger l'appel).
+      final usable = <int>{};
+      for (var i = 0; i < lines.length && i < images.length; i++) {
+        final u = images[i];
+        if (u != null && u.startsWith('https://') && usable.length < 12) {
+          usable.add(i);
+        }
+      }
+      final List<Map<String, Object>>? withImages = usable.isEmpty
+          ? null
+          : [
+              {'type': 'text', 'text': header},
+              for (var i = 0; i < lines.length; i++) ...[
+                {'type': 'text', 'text': '${i + 1}. ${lines[i]}'},
+                if (usable.contains(i))
+                  {
+                    'type': 'image',
+                    'source': {'type': 'url', 'url': images[i]!},
+                  },
+              ],
+              {'type': 'text', 'text': '$_lotImageHint$tiles'},
+            ];
+
+      Future<http.Response> post(dynamic content) {
+        final body = jsonEncode({
+          'model': _model,
+          'max_tokens': 900,
+          if (_isGen5)
+            'output_config': {'effort': 'low'}
+          else
+            'temperature': 0,
+          'system': [
+            {
+              'type': 'text',
+              'text': _systemPrompt,
+              'cache_control': {'type': 'ephemeral'},
+            },
+            {'type': 'text', 'text': _lotInstructions},
+          ],
+          'messages': [
+            {'role': 'user', 'content': content},
+          ],
+        });
+        return Net.client.post(
+          Uri.parse(_apiUrl),
+          headers: {
+            'x-reelr-secret': Secrets.appSharedSecret,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31',
+            'content-type': 'application/json',
           },
-          {'type': 'text', 'text': _lotInstructions},
-        ],
-        'messages': [
-          {'role': 'user', 'content': user},
-        ],
-      });
-      final resp = await Net.client.post(
-        Uri.parse(_apiUrl),
-        headers: {
-          'x-reelr-secret': Secrets.appSharedSecret,
-          'anthropic-version': '2023-06-01',
-          'anthropic-beta': 'prompt-caching-2024-07-31',
-          'content-type': 'application/json',
-        },
-        body: body,
-      ).timeout(const Duration(seconds: 40));
+          body: body,
+        ).timeout(const Duration(seconds: 40));
+      }
+
+      http.Response resp;
+      if (withImages != null) {
+        debugPrint('[lot] lecture groupee : ${usable.length} image(s) jointe(s)');
+        try {
+          resp = await post(withImages);
+        } on TimeoutException {
+          debugPrint('[lot] delai depasse avec images, relance texte seul');
+          resp = await post(textOnly);
+        }
+        if (resp.statusCode != 200) {
+          final detail = resp.body.length > 300
+              ? resp.body.substring(0, 300)
+              : resp.body;
+          debugPrint('[lot] erreur ${resp.statusCode} avec images, '
+              'relance texte seul : $detail');
+          resp = await post(textOnly);
+        }
+      } else {
+        resp = await post(textOnly);
+      }
       if (resp.statusCode != 200) {
         debugPrint('[lot] lecture groupee : HTTP ${resp.statusCode}');
         return null;
@@ -2035,7 +2091,11 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
       }
       buf.writeln('Si ce contenu traite du même sujet que l\'un de ces '
           'exemples, range-le dans la même catégorie, avec une confiance '
-          'd\'au moins 70. Sinon, ignore ces exemples.');
+          'd\'au moins 70. Un mot en commun, la même plateforme (Instagram, '
+          'TikTok...) ou le même format ne suffisent PAS : un mot comme '
+          '"cheveux" dans une publicité ou une série ne fait pas de ce '
+          'contenu une coupe de cheveux. Compare le sujet réel (ce dont '
+          'parle ou ce que montre le contenu). Sinon, ignore ces exemples.');
     }
 
     return buf.toString();
