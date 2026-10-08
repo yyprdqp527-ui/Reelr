@@ -332,23 +332,33 @@ class OEmbedService {
   /// d'apercu. Renvoie l'adresse de la fiche (sans parametres), ou null si
   /// la redirection ne mene pas a un chemin /hotel/.
   static Future<String?> _resolveBookingShareLink(Uri uri) async {
+    HttpClient? client;
     try {
-      final response = await Net.client.get(
-        uri,
-        headers: const {
-          'User-Agent': 'facebookexternalhit/1.1',
-          'Accept': 'text/html,application/xhtml+xml',
-        },
-      ).timeout(const Duration(seconds: 10));
-      final finalUri = response.request?.url;
-      if (response.statusCode == 200 &&
-          finalUri != null &&
-          finalUri.path.contains('/hotel/') &&
-          !finalUri.path.endsWith('/index.html')) {
-        return finalUri.replace(query: '').toString().replaceAll('?', '');
+      client = HttpClient()..userAgent = 'facebookexternalhit/1.1';
+      final request =
+          await client.getUrl(uri).timeout(const Duration(seconds: 10));
+      request.headers.set('Accept', 'text/html,application/xhtml+xml');
+      final response =
+          await request.close().timeout(const Duration(seconds: 10));
+      await response.drain<void>();
+      if (response.statusCode == 200 && response.redirects.isNotEmpty) {
+        final finalUri = response.redirects.last.location;
+        if (finalUri.host.isNotEmpty &&
+            finalUri.path.contains('/hotel/') &&
+            !finalUri.path.endsWith('/index.html')) {
+          return Uri(
+            scheme: finalUri.scheme,
+            host: finalUri.host,
+            path: finalUri.path,
+          ).toString();
+        }
       }
+      debugPrint('[oembed] Booking Share : redirection inexploitable '
+          '(code ${response.statusCode}, ${response.redirects.length} saut(s))');
     } catch (e) {
       debugPrint('[oembed] Booking Share echoue: $e');
+    } finally {
+      client?.close(force: true);
     }
     return null;
   }
@@ -945,6 +955,14 @@ class OEmbedService {
   /// Retombe sur l'URI d'origine si ce n'est pas un lien court connu, ou
   /// si la resolution echoue.
   static Future<Uri> resolveShortLinkForDedup(Uri uri) async {
+    // Booking Share (dedup) : chaque partage d'un meme hotel cree un nouveau
+    // code Share-xxxx. On le resout vers la fiche, dont la normalisation
+    // (clips_state) ignore la langue et les parametres. En cas d'echec, le
+    // lien est conserve tel quel.
+    if (_isBookingShareLink(uri)) {
+      final hotelUrl = await _resolveBookingShareLink(uri);
+      return hotelUrl != null ? Uri.parse(hotelUrl) : uri;
+    }
     final host = uri.host.toLowerCase();
     final isPinterestShortLink = host == 'pin.it';
     final isRedditShareLink =
