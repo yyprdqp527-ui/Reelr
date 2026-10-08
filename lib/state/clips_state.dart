@@ -572,10 +572,22 @@ class ClipsState extends ChangeNotifier {
       if (catName == null && isWebLink) {
         await OEmbedService.loadShopHosts();
         final shopHost = _linkHost(clip.url);
-        final brand = _retailBrandOf(shopHost) ??
-            (OEmbedService.isShopHost(shopHost)
-                ? (_brandInTitle(clip.title) ?? _shopNameFor(clip, shopHost))
+        // Enseigne connue : une tuile par enseigne. Autre boutique : pas de
+        // tuile automatique (une liste du meme sujet reste ensemble) ; on
+        // n'utilise qu'une tuile du meme nom DEJA existante.
+        final knownBrand = _retailBrandOf(shopHost);
+        final otherBrand = (knownBrand == null &&
+                OEmbedService.isShopHost(shopHost))
+            ? (_brandInTitle(clip.title) ?? _shopNameFor(clip, shopHost))
+            : null;
+        final brand = knownBrand ??
+            ((otherBrand != null && findBestCategoryMatch(otherBrand) != null)
+                ? otherBrand
                 : null);
+        if (otherBrand != null && brand == null) {
+          debugPrint('[classify] boutique $otherBrand : pas de tuile '
+              'automatique, classement par sujet');
+        }
         if (brand != null) {
           final tile = await addCategory(ClipCategory(
             id: const Uuid().v4(),
@@ -1001,7 +1013,7 @@ class ClipsState extends ChangeNotifier {
             .toList();
         items.add(_BatchItem(clip, line, tags, current,
             SortingNotebook.tokens(info).map(_stem).toSet(),
-            anchor: isAnchor));
+            anchor: isAnchor, image: _lotImage(clip)));
       }
       if (items.length < _batchMinGroup) {
         debugPrint('[lot] ${items.length} lien(s) eligible(s), rien a faire');
@@ -1161,6 +1173,20 @@ class ClipsState extends ChangeNotifier {
     return true;
   }
 
+  /// Vignette d'un lien pour la lecture groupee : https uniquement, pas la
+  /// capture du proxy, pas une image de mur de connexion.
+  String? _lotImage(Clip clip) {
+    final hints = _googleImagesHints(clip.url);
+    final raw = (hints['image'] ?? clip.thumbnailUrl)?.trim();
+    if (raw == null || !raw.startsWith('https://')) return null;
+    if (raw.contains('reelr-proxy')) return null;
+    if (RegExp(r'login_static|Take_A_Break|login_wall', caseSensitive: false)
+        .hasMatch(raw)) {
+      return null;
+    }
+    return raw;
+  }
+
   /// Lecture groupee d'un lot (2026-10-08) : UN appel qui separe les liens
   /// en groupes de meme sujet. Chaque groupe d'au moins 2 liens, avec une
   /// confiance >= [_batchMinConfidence], est range dans une meme categorie.
@@ -1172,7 +1198,9 @@ class ClipsState extends ChangeNotifier {
     await _ClassifyLimiter.acquire();
     try {
       groups = await ClaudeClassifier.classifyLot(
-          [for (final it in items) it.line], _customCategoryNames());
+          [for (final it in items) it.line],
+          _customCategoryNames(),
+          [for (final it in items) it.image]);
     } catch (e) {
       debugPrint('[lot] lecture groupee echouee: $e');
       return false;
@@ -2340,6 +2368,9 @@ class _BatchItem {
   /// categorie sert de reference aux autres liens de la meme serie.
   final bool anchor;
 
+  /// Vignette https du lien (jointe a la lecture groupee du lot), ou null.
+  final String? image;
+
   _BatchItem(this.clip, this.line, this.tags, this.categoryAtStart, this.tokens,
-      {this.anchor = false});
+      {this.anchor = false, this.image});
 }
