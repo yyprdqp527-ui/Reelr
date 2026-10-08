@@ -1812,6 +1812,97 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     return null;
   }
 
+  /// Mode lot (2026-10-08) : consignes ajoutees au prompt quand plusieurs
+  /// liens partages EN MEME TEMPS sont lus ensemble.
+  static const String _lotInstructions = '''
+━━━ MODE LOT (prioritaire sur le format de réponse ci-dessus) ━━━
+Tu reçois plusieurs liens partagés EN MÊME TEMPS par la même personne. Lis-les ensemble, comme une personne qui range sa liste.
+1. Sépare-les en groupes de même sujet. Un lien sans rapport avec les autres forme un groupe à lui seul.
+2. Les liens d'une même liste (mêmes objets : tapis, coupes de cheveux, recettes...) vont dans la MÊME catégorie, même si leurs titres n'ont aucun mot en commun ou sont dans des langues différentes.
+3. Pour chaque groupe, donne une catégorie : un ID cat_xxx de la liste, ou le nom exact d'une tuile personnelle si elle correspond mieux.
+4. Réponds UNIQUEMENT avec ce JSON, sans texte autour :
+{"groupes":[{"liens":[1,2],"categorie":"cat_xxx","confiance":0-100,"raison":"courte"}]}
+Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu hésites.
+''';
+
+  /// Lit un lot de liens en un seul appel et renvoie les groupes de meme
+  /// sujet. Mesure (Haiku 5.5, 8 lots) : 29/29 contre 24/29 pour un appel
+  /// par lien. [lines] : une ligne par lien (numerotees 1.. dans l'appel).
+  /// Renvoie null si l'appel ou la reponse est inutilisable : l'appelant
+  /// retombe alors sur l'ancienne methode.
+  static Future<List<LotGroup>?> classifyLot(
+      List<String> lines, List<String> customCategories) async {
+    try {
+      final numbered = StringBuffer();
+      for (var i = 0; i < lines.length; i++) {
+        numbered.writeln('${i + 1}. ${lines[i]}');
+      }
+      final tiles = customCategories.isEmpty
+          ? ''
+          : '\nTuiles personnelles de l\'utilisatrice : '
+              '${customCategories.join(', ')}.';
+      final user = 'Lot de ${lines.length} liens partagés en même temps :\n'
+          '$numbered$tiles';
+      final body = jsonEncode({
+        'model': _model,
+        'max_tokens': 900,
+        if (_isGen5)
+          'output_config': {'effort': 'low'}
+        else
+          'temperature': 0,
+        'system': [
+          {
+            'type': 'text',
+            'text': _systemPrompt,
+            'cache_control': {'type': 'ephemeral'},
+          },
+          {'type': 'text', 'text': _lotInstructions},
+        ],
+        'messages': [
+          {'role': 'user', 'content': user},
+        ],
+      });
+      final resp = await Net.client.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          'x-reelr-secret': Secrets.appSharedSecret,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'prompt-caching-2024-07-31',
+          'content-type': 'application/json',
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 40));
+      if (resp.statusCode != 200) {
+        debugPrint('[lot] lecture groupee : HTTP ${resp.statusCode}');
+        return null;
+      }
+      final text = (jsonDecode(utf8.decode(resp.bodyBytes))['content'] as List)
+          .map((b) => (b as Map)['text'] ?? '')
+          .join();
+      final data = jsonDecode(_extractJson(text)) as Map<String, dynamic>;
+      final out = <LotGroup>[];
+      final seen = <int>{};
+      for (final g in (data['groupes'] as List)) {
+        final links = <int>[];
+        for (final l in (g['liens'] as List)) {
+          final n = (l as num).toInt();
+          if (n >= 1 && n <= lines.length && seen.add(n)) links.add(n);
+        }
+        if (links.isEmpty) continue;
+        out.add(LotGroup(
+          links,
+          _validCategoryId(g['categorie'], customCategories),
+          (g['confiance'] as num).toInt(),
+          (g['raison'] ?? '').toString(),
+        ));
+      }
+      return out;
+    } catch (e) {
+      debugPrint('[lot] lecture groupee echouee : $e');
+      return null;
+    }
+  }
+
   /// Un appel au proxy, avec [content] en message utilisateur (texte seul
   /// ou liste multimodale). Corps et en-tetes identiques a l'ancien code.
   static Future<http.Response> _post(dynamic content) {
@@ -1967,4 +2058,15 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     }
     return text.substring(start, end + 1);
   }
+}
+
+
+/// Un groupe de liens de meme sujet, tel que Claude l'a lu dans un lot
+/// (voir ClaudeClassifier.classifyLot). [links] : numeros 1.. dans le lot.
+class LotGroup {
+  final List<int> links;
+  final String? category;
+  final int confidence;
+  final String reason;
+  const LotGroup(this.links, this.category, this.confidence, this.reason);
 }
