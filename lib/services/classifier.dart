@@ -1287,7 +1287,16 @@ class VideoData {
 
 /// Classifieur basé sur Claude Haiku via l'API Anthropic.
 class ClaudeClassifier {
-  static const String _model = 'claude-haiku-4-5-20251001';
+  /// Modele du classement. Defaut = Haiku 4.5 (comportement historique).
+  /// Pour mesurer un autre modele : --dart-define=REELR_MODEL=claude-haiku-5-5
+  static const String _model = String.fromEnvironment('REELR_MODEL',
+      defaultValue: 'claude-haiku-4-5-20251001');
+
+  /// Haiku 5.x et Sonnet 5.x : pas de `temperature` (erreur 400), la
+  /// reflexion se regle par `output_config.effort`.
+  static bool get _isGen5 =>
+      _model.startsWith('claude-haiku-5') ||
+      _model.startsWith('claude-sonnet-5');
   static const String _apiUrl = Secrets.reelrProxyUrl;
 
   /// Plafond d'attente d'une reponse du proxy.
@@ -1751,9 +1760,13 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     }
 
     final data = jsonDecode(response.body) as Map<String, dynamic>;
+    // Haiku 5.x peut faire preceder la reponse de blocs `thinking` : on
+    // prend le premier bloc de type `text` (identique a l'ancien `.first`
+    // avec Haiku 4.5, dont la reponse n'a qu'un bloc texte).
+    final blocks =
+        (data['content'] as List<dynamic>).cast<Map<String, dynamic>>();
     final text =
-        ((data['content'] as List<dynamic>).first as Map<String, dynamic>)['text']
-            as String;
+        blocks.firstWhere((b) => b['type'] == 'text')['text'] as String;
     final jsonStr = _extractJson(text);
     final json = jsonDecode(jsonStr) as Map<String, dynamic>;
     json['categorie_principale'] =
@@ -1804,8 +1817,14 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
   static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
-      'max_tokens': 500,
-      'temperature': 0,
+      // 800 : le JSON de reponse depassait parfois 500 tokens (reponse
+      // coupee, FormatException) ; Haiku 5.x y compte aussi sa reflexion.
+      // Le Worker plafonne a 1000.
+      'max_tokens': 800,
+      if (_isGen5)
+        'output_config': {'effort': 'low'}
+      else
+        'temperature': 0,
       'system': [
         {
           'type': 'text',
