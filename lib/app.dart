@@ -778,6 +778,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           _hydrateAndClassify(current, hydrated: hydrated)
               .catchError((Object e) {
             debugPrint('[hydrate] erreur (${current.id}): $e');
+            widget.state.markClassificationDone(current.id);
           }).whenComplete(() {
             if (!hydrated.isCompleted) hydrated.complete();
           }),
@@ -830,6 +831,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       debugPrint(
         '[classify] ignore (aucun signal exploitable): "${updated.title}"',
       );
+      widget.state.markClassificationDone(clip.id);
       return;
     }
     if (classifiedEarly) return;
@@ -1080,6 +1082,23 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   Future<bool> _hydrateClip(Clip clip, {bool classifyEarly = false}) async {
     debugPrint('[hydrate] ${DateTime.now()} starting for: ${clip.url}');
+    // Sites de reservation de voyage : la categorie (Voyage) se decide par
+    // l'adresse seule (couche 1 bis de classifyClipInBackground, sans
+    // Claude). Inutile d'attendre l'extraction, ni l'apercu Safari qui peut
+    // durer jusqu'a 25 s : on classe tout de suite.
+    if (classifyEarly) {
+      final travelHost = (Uri.tryParse(clip.url)?.host ?? '').toLowerCase();
+      final isTravelSite = RegExp(
+        r'(^|\.)(booking\.com|hotels\.com|airbnb\.[a-z.]+|'
+        r'expedia\.[a-z.]+|trivago\.[a-z.]+|tripadvisor\.[a-z.]+)$',
+      ).hasMatch(travelHost);
+      if (isTravelSite &&
+          _currentCategoryIdOf(clip) == null &&
+          _earlyClassifiedIds.add(clip.id)) {
+        debugPrint('[classify] site de voyage classe tout de suite: $travelHost');
+        unawaited(widget.state.classifyClipInBackground(clip));
+      }
+    }
     final firstMeta = await OEmbedService.fetchMetadata(clip.url);
     if (classifyEarly) _maybeClassifyEarly(clip, firstMeta);
     final rawMeta = _completeWithScreenshot(
