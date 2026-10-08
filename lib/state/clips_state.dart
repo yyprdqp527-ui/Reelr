@@ -1008,6 +1008,12 @@ class ClipsState extends ChangeNotifier {
         return;
       }
 
+      // 0) Lecture du lot en une fois : Claude separe les liens en
+      // groupes de meme sujet (mesure : 29/29 contre 24/29 lien par
+      // lien). Si l'appel echoue, les passes ci-dessous prennent le
+      // relais comme avant.
+      if (await _partitionAndMove(items)) return;
+
       // 1) Le lot entier : un seul sujet commun ?
       var wholeTried = false;
       if (items.length >= _batchMinItems) {
@@ -1148,6 +1154,93 @@ class ClipsState extends ChangeNotifier {
     debugPrint('[lot] $moved lien(s) range(s) dans ${cat.name}');
     if (moved > 0) {
       _newlyClassifiedCategoryIds.add(cat.id);
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      _clips = await DatabaseHelper.instance.getAllClips();
+      notifyListeners();
+    }
+    return true;
+  }
+
+  /// Lecture groupee d'un lot (2026-10-08) : UN appel qui separe les liens
+  /// en groupes de meme sujet. Chaque groupe d'au moins 2 liens, avec une
+  /// confiance >= [_batchMinConfidence], est range dans une meme categorie.
+  /// Un lien ancre (>= 90) ne bouge pas mais sa categorie guide le groupe.
+  /// Renvoie false si l'appel a echoue (les anciennes passes s'executent),
+  /// true sinon (le lot a ete lu, meme si rien n'a bouge).
+  Future<bool> _partitionAndMove(List<_BatchItem> items) async {
+    List<LotGroup>? groups;
+    await _ClassifyLimiter.acquire();
+    try {
+      groups = await ClaudeClassifier.classifyLot(
+          [for (final it in items) it.line], _customCategoryNames());
+    } catch (e) {
+      debugPrint('[lot] lecture groupee echouee: $e');
+      return false;
+    } finally {
+      _ClassifyLimiter.release();
+    }
+    if (groups == null || groups.isEmpty) return false;
+    debugPrint('[lot] lecture groupee de ${items.length} liens -> '
+        '${groups.length} groupe(s)');
+    const noResult = {'à trier', 'a trier', 'non classé', 'non classe'};
+    _categories = await DatabaseHelper.instance.getAllCategories();
+    var movedTotal = 0;
+    for (final g in groups) {
+      final members = [for (final n in g.links) items[n - 1]];
+      if (members.length < _batchMinGroup) continue;
+      if (members.every((it) => it.anchor)) continue;
+      final target = g.category;
+      debugPrint('[lot] groupe de ${members.length} -> $target '
+          '(confiance ${g.confidence}) : ${g.reason}');
+      if (target == null ||
+          target.trim().isEmpty ||
+          noResult.contains(target.trim().toLowerCase()) ||
+          g.confidence < _batchMinConfidence) {
+        continue;
+      }
+      var cat = findBestCategoryMatch(target) ??
+          await _ensureStandardCategory(target);
+      // Si des liens surs (ancres) sont deja ranges ensemble dans UNE
+      // categorie, la serie les rejoint : on ne contredit pas un lien sur.
+      final anchorCats = {
+        for (final it in members)
+          if (it.anchor && it.categoryAtStart != null) it.categoryAtStart!,
+      };
+      if (anchorCats.length == 1) {
+        final anchorCat =
+            _categories.where((c) => c.id == anchorCats.first).firstOrNull;
+        if (anchorCat != null) cat = anchorCat;
+      }
+      if (cat == null) {
+        debugPrint('[lot] categorie $target introuvable, groupe ignore');
+        continue;
+      }
+      var moved = 0;
+      for (final it in members) {
+        if (it.anchor) continue;
+        final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
+        if (fresh == null) continue;
+        // Range a la main pendant l'analyse : on n'y touche pas.
+        if (fresh.categoryId != it.categoryAtStart) continue;
+        if (fresh.categoryId == cat.id) continue;
+        await updateClip(fresh.copyWith(categoryId: cat.id));
+        await DatabaseHelper.instance.updateClipClassification(
+          clipId: fresh.id,
+          category: anchorCats.length == 1 ? cat.id : target,
+          confidence: g.confidence,
+          reason: '[lot] ${members.length} liens partagés ensemble, sujet '
+              'commun : ${g.reason}',
+          tags: it.tags,
+        );
+        moved++;
+      }
+      debugPrint('[lot] $moved lien(s) range(s) dans ${cat.name}');
+      if (moved > 0) {
+        _newlyClassifiedCategoryIds.add(cat.id);
+        movedTotal += moved;
+      }
+    }
+    if (movedTotal > 0) {
       _categories = await DatabaseHelper.instance.getAllCategories();
       _clips = await DatabaseHelper.instance.getAllClips();
       notifyListeners();
