@@ -342,7 +342,14 @@ class OEmbedService {
         // lookaside.instagram.com est un point d'acces reserve au robot
         // Google : l'appli n'y recoit pas une image. Si la page d'origine
         // a donne sa propre image (og:image), on la garde.
-        if (Uri.tryParse(imageUrl)?.host == 'lookaside.instagram.com' &&
+        // Idem pour tiktok.com/api/img : refuse (403) a l'app comme au
+        // Worker ; la page TikTok donne une vignette lisible.
+        final imageUri = Uri.tryParse(imageUrl);
+        final imageHost = imageUri?.host ?? '';
+        final unreadableImage = imageHost == 'lookaside.instagram.com' ||
+            (imageHost.endsWith('tiktok.com') &&
+                (imageUri?.path ?? '').startsWith('/api/img'));
+        if (unreadableImage &&
             (meta.thumbnailUrl?.startsWith('http') ?? false)) {
           debugPrint('[oembed] Google Images : imgurl lookaside ignore, '
               'og:image de la page d\'origine conservee');
