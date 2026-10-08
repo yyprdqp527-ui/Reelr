@@ -372,7 +372,30 @@ class ClipsState extends ChangeNotifier {
 
   /// Durée pendant laquelle un clip sans catégorie est considéré « en
   /// cours de classement » par l'interface.
-  static const Duration pendingClassificationWindow = Duration(seconds: 20);
+  static const Duration pendingClassificationWindow = Duration(seconds: 45);
+
+  /// Clips dont le classement est termine, avec ou sans categorie.
+  ///
+  /// La fenetre ci-dessus n'est plus qu'un garde-fou : « en cours » cesse
+  /// des que le classement rend la main, au lieu d'attendre la fin du delai
+  /// quand il se termine sans categorie (confiance trop basse, « A trier »,
+  /// Claude indisponible, aucun signal exploitable).
+  final Set<String> _classificationDone = {};
+
+  /// Marque le classement d'un clip comme termine et reveille l'interface.
+  void markClassificationDone(String clipId) {
+    if (!_classificationDone.add(clipId)) return;
+    try {
+      notifyListeners();
+    } catch (_) {}
+  }
+
+  /// Vrai tant que le clip est sans categorie, que son classement n'est pas
+  /// termine et que la fenetre de securite n'est pas ecoulee.
+  bool isClassificationPending(Clip clip) =>
+      clip.categoryId == null &&
+      !_classificationDone.contains(clip.id) &&
+      DateTime.now().difference(clip.addedAt) < pendingClassificationWindow;
 
   /// Réveille l'interface à la fin de la fenêtre d'attente.
   ///
@@ -455,7 +478,12 @@ class ClipsState extends ChangeNotifier {
       _registerForBatch(clip);
       final sw = Stopwatch()..start();
       final profile = await ProfileService().loadProfile();
-      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" ? "gaming streaming ${clip.url}" : clip.title;
+      // Twitch = Gaming, toujours (regle d'Anne, 2026-10-08). Meme traitement
+      // que le titre « Twitch » seul : Gaming par defaut, sans appel a
+      // Claude. Avant, un profil (« Nico_la - Live on Twitch ») partait en
+      // Voyage a 75 : le titre ne porte que le pseudo et Claude devinait.
+      final isTwitchLink = clip.url.toLowerCase().contains('twitch.tv');
+      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || isTwitchLink ? "gaming streaming ${clip.url}" : clip.title;
       // Lien web hors plateformes connues (article, boutique, fiche...) :
       // les couches locales 1 et 2 sont reglees sur des titres de videos
       // et sur des createurs. Sur une page web, le titre porte souvent un
@@ -872,6 +900,10 @@ class ClipsState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[classify] error: $e');
+    } finally {
+      // Fin du classement, avec ou sans categorie : l'interface cesse
+      // d'afficher « en cours » tout de suite.
+      markClassificationDone(clip.id);
     }
   }
 
@@ -1710,9 +1742,7 @@ class ClipsState extends ChangeNotifier {
 
   int get totalCount => _clips.length;
 
-  bool get hasPendingClassification => _clips.any((c) =>
-      c.categoryId == null &&
-      DateTime.now().difference(c.addedAt) < pendingClassificationWindow);
+  bool get hasPendingClassification => _clips.any(isClassificationPending);
 
   /// Point d'entrée public pour normaliser une URL de déduplication —
   /// utilisé aussi par app.dart pour éviter de dupliquer cette logique
