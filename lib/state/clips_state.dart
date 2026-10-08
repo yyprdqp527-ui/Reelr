@@ -1754,6 +1754,14 @@ class ClipsState extends ChangeNotifier {
               r'expedia\.[a-z.]+|trivago\.[a-z.]+|tripadvisor\.[a-z.]+)$')
           .hasMatch(lowerHost)) {
         var path = uri.pathSegments.where((s) => s.isNotEmpty).join('/');
+        if (path.isEmpty) {
+          final hid = uri.queryParameters['app_hotel_id'] ??
+              uri.queryParameters['hotel_id'] ??
+              '';
+          if (RegExp(r'^\d+$').hasMatch(hid)) {
+            return 'travel:${lowerHost.replaceFirst(RegExp(r'^www\.'), '')}/hotel_id=$hid';
+          }
+        }
         path = path.replaceFirst(RegExp(r'\.[a-z]{2}(-[a-z]{2})?\.html$'), '.html');
         return 'travel:${lowerHost.replaceFirst(RegExp(r'^www\.'), '')}/$path';
       }

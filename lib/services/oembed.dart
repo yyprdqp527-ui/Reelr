@@ -272,6 +272,54 @@ class OEmbedService {
     }
   }
 
+  /// Lien partage depuis l'appli Booking : domaine nu, aucun chemin, numero
+  /// d'hotel en parametre.
+  static bool _isBookingAppLink(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host != 'booking.com' && !host.endsWith('.booking.com')) return false;
+    if (uri.path.isNotEmpty && uri.path != '/') return false;
+    final id = uri.queryParameters['app_hotel_id'] ??
+        uri.queryParameters['hotel_id'] ??
+        '';
+    return RegExp(r'^\d+$').hasMatch(id);
+  }
+
+  /// Essaie quelques adresses Booking qui redirigent un numero d'hotel vers
+  /// sa fiche. Une adresse n'est retenue que si, apres redirection, elle
+  /// mene a un chemin /hotel/ (jamais la page d'accueil). Delai : 6 s par
+  /// essai. Renvoie l'adresse de la fiche (sans parametres), ou null.
+  static Future<String?> _resolveBookingAppLink(Uri uri) async {
+    final id = uri.queryParameters['app_hotel_id'] ??
+        uri.queryParameters['hotel_id'] ??
+        '';
+    final candidates = <String>[
+      'https://www.booking.com/hotel/index.html?hotel_id=$id',
+      'https://www.booking.com/hotel.html?hotel_id=$id',
+      'https://www.booking.com/hotel/redirect.html?hotel_id=$id',
+    ];
+    for (final candidate in candidates) {
+      try {
+        final response = await Net.client.get(
+          Uri.parse(candidate),
+          headers: const {
+            'User-Agent': 'facebookexternalhit/1.1',
+            'Accept': 'text/html,application/xhtml+xml',
+          },
+        ).timeout(const Duration(seconds: 6));
+        final finalUri = response.request?.url;
+        if (response.statusCode == 200 &&
+            finalUri != null &&
+            finalUri.path.contains('/hotel/') &&
+            !finalUri.path.endsWith('/index.html')) {
+          return finalUri.replace(query: '').toString().replaceAll('?', '');
+        }
+      } catch (e) {
+        debugPrint('[oembed] Booking app link essai echoue: $e');
+      }
+    }
+    return null;
+  }
+
   static Future<VideoData?> fetchMetadata(String url) async {
     final trimmed = url.trim();
     final lower = trimmed.toLowerCase();
@@ -341,6 +389,17 @@ class OEmbedService {
     }
 
     final uri = _parseHttpUri(trimmed);
+
+    // Lien de l'appli Booking (booking.com?...&app_hotel_id=123) : la page
+    // d'accueil, l'hotel n'est qu'un numero. On tente de retrouver la fiche.
+    if (uri != null && _isBookingAppLink(uri)) {
+      final hotelUrl = await _resolveBookingAppLink(uri);
+      if (hotelUrl != null && hotelUrl != trimmed) {
+        debugPrint('[oembed] Booking app link -> $hotelUrl');
+        return fetchMetadata(hotelUrl);
+      }
+      debugPrint('[oembed] Booking app link : fiche introuvable');
+    }
 
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
       if (uri == null) return null;
@@ -924,6 +983,9 @@ class OEmbedService {
     // scenario pouvant se produire partout.
     'twitch', 'vimeo', 'youtube', 'linkedin', 'twitter',
     'apple music', 'spotify',
+    // Nom de plateforme par defaut d'un lien web sans titre : sans cela il
+    // passait pour un vrai titre et l'apercu Safari n'etait jamais tente.
+    'autre', 'other',
   };
 
   /// Images generiques servies par une plateforme quand elle n'a pas de

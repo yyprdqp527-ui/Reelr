@@ -889,7 +889,22 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         currentThumb != null && currentThumb.isNotEmpty && !badThumb;
     final metaTitle = meta?.title ?? '';
     final hasTitle = !OEmbedService.isPlaceholderTitle(metaTitle);
-    if (hasThumb && hasTitle) return meta;
+    // Sites de reservation (Booking...) : l'og:image lue en HTTP est souvent
+    // un logo ou une image inutilisable, alors que l'apercu Safari rend la
+    // vraie photo. On le consulte toujours et sa photo prend le dessus.
+    final isTravelSite = RegExp(
+      r'(^|\.)(booking\.com|hotels\.com|airbnb\.[a-z.]+|expedia\.[a-z.]+)$',
+    ).hasMatch((Uri.tryParse(clip.url)?.host ?? '').toLowerCase()) &&
+        (Uri.tryParse(clip.url)?.pathSegments.any((s) => s.isNotEmpty) ??
+            false);
+    // Image generique de la page d'accueil Booking : jamais une vraie photo.
+    final genericThumb =
+        currentThumb != null && currentThumb.contains('/static/img/fb/');
+    // La photo d'une fiche deja trouvee n'est jamais remplacee par celle de
+    // Safari (qui renvoie parfois le logo). Safari ne sert que s'il manque
+    // une photo, ou si celle qu'on a est l'image generique.
+    final usePreviewThumb = !hasThumb || (isTravelSite && genericThumb);
+    if (hasThumb && hasTitle && !genericThumb) return meta;
 
     // Recherche Google : l'apercu ne rend que le logo « G ». On passe
     // directement a la capture d'ecran de la page (_completeWithScreenshot).
@@ -916,13 +931,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
     var thumbnailUrl = badThumb ? null : currentThumb;
     final image = preview.image;
-    if (!hasThumb && image != null) {
+    if (usePreviewThumb && image != null) {
       // iOS : image deja telechargee, enregistree directement.
       if (await ThumbnailStore.instance.saveBytes(clip.id, image)) {
         thumbnailUrl = ThumbnailStore.localUrlFor(clip.id);
         debugPrint('[linkpreview] vignette enregistree: ${clip.url}');
       }
-    } else if (!hasThumb && preview.imageUrl != null) {
+    } else if (usePreviewThumb && preview.imageUrl != null) {
       // Android : adresse de l'image ; le pre-cache de _hydrateClip la
       // telecharge et la copie dans le stockage permanent.
       thumbnailUrl = preview.imageUrl;
