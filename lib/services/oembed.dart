@@ -507,8 +507,58 @@ class OEmbedService {
     );
   }
 
+  /// Duree ISO 8601 (PT1H2M3S) -> « 1:02:03 ».
+  static String? _youtubeDuration(String? iso) {
+    if (iso == null) return null;
+    final m = RegExp(r'^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$').firstMatch(iso);
+    if (m == null) return null;
+    final h = int.tryParse(m.group(1) ?? '') ?? 0;
+    final mi = int.tryParse(m.group(2) ?? '') ?? 0;
+    final s = int.tryParse(m.group(3) ?? '') ?? 0;
+    final ss = s.toString().padLeft(2, '0');
+    if (h > 0) return '$h:${mi.toString().padLeft(2, '0')}:$ss';
+    return '$mi:$ss';
+  }
+
+  static Future<VideoData?> _fetchYouTubeViaProxy(
+      Uri videoUri, String videoId) async {
+    try {
+      final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
+      final response = await Net.client.get(
+        Uri.parse('$proxyBase/youtube?id=${Uri.encodeComponent(videoId)}'),
+        headers: {'x-reelr-secret': Secrets.appSharedSecret},
+      ).timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final p = json.decode(utf8.decode(response.bodyBytes))
+          as Map<String, dynamic>;
+      final title = (p['title'] as String?)?.trim() ?? '';
+      if (title.isEmpty) return null;
+      final channel = (p['channel'] as String?)?.trim();
+      final description = (p['description'] as String?)?.trim();
+      return VideoData(
+        title: title,
+        channel: (channel == null || channel.isEmpty) ? null : channel,
+        description:
+            (description == null || description.isEmpty) ? null : description,
+        tags: ((p['tags'] as List?) ?? const []).whereType<String>().toList(),
+        views: (p['views'] as num?)?.toInt(),
+        duration: _youtubeDuration(p['duration'] as String?),
+        publishedAt: p['publishedAt'] as String?,
+        platform: 'youtube',
+        thumbnailUrl: bestThumbnailUrl(videoUri.toString(), null),
+      );
+    } catch (e) {
+      debugPrint('[oembed] youtube proxy: $e');
+      return null;
+    }
+  }
+
   static Future<VideoData?> _fetchYouTubeMetadata(Uri videoUri, String videoId) async {
     try {
+      // Metadonnees riches via le proxy (cle YouTube cote Cloudflare). Toute
+      // erreur : on retombe sur l'oEmbed ci-dessous, comme avant.
+      final rich = await _fetchYouTubeViaProxy(videoUri, videoId);
+      if (rich != null) return rich;
       final oembedUrl = 'https://www.youtube.com/oembed?url=${Uri.encodeComponent(videoUri.toString())}&format=json';
       final response = await Net.client
           .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
