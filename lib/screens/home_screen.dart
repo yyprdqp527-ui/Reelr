@@ -2703,6 +2703,21 @@ class _ThumbnailBanner extends StatelessWidget {
 // CLIP CARD
 // ─────────────────────────────────────────────
 
+/// Adresse a utiliser pour AFFICHER la carte : pour un lien Google Images
+/// (google.com/imgres), la page d'origine (imgrefurl). Sinon, l'adresse
+/// du clip. N'est jamais enregistree.
+String _displayUrlFor(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri == null) return url;
+  final isGoogle = uri.host == 'google.com' || uri.host.endsWith('.google.com') ||
+      RegExp(r'(^|\.)google\.[a-z.]+$').hasMatch(uri.host);
+  if (isGoogle && uri.path == '/imgres') {
+    final ref = uri.queryParameters['imgrefurl'];
+    if (ref != null && (Uri.tryParse(ref)?.hasAuthority ?? false)) return ref;
+  }
+  return url;
+}
+
 class ClipCard extends StatelessWidget {
   final Clip clip;
   final ClipsState state;
@@ -2724,7 +2739,8 @@ class ClipCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final platform = SocialPlatform.detect(clip.url);
+    final displayUrl = _displayUrlFor(clip.url);
+    final platform = SocialPlatform.detect(displayUrl);
     final category = state.categoryById(clip.categoryId);
     final lang = Localizations.localeOf(context).languageCode;
     final thumbUrl =
@@ -2739,7 +2755,7 @@ class ClipCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Miniature 16:9 ──────────────────────────────────────────
-          _ThumbnailBanner(title: clip.title, thumbUrl: thumbUrl, platform: platform, clipId: clip.id, linkUrl: clip.url),
+          _ThumbnailBanner(title: clip.title, thumbUrl: thumbUrl, platform: platform, clipId: clip.id, linkUrl: displayUrl),
           // ── Infos principales ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
@@ -2762,7 +2778,7 @@ class ClipCard extends StatelessWidget {
                             fit: BoxFit.contain,
                           ),
                         )
-                      : Center(child: SiteLogo(url: clip.url, size: 20, fallback: Icon(platform.icon, color: platform.color, size: 20))),
+                      : Center(child: SiteLogo(url: displayUrl, size: 20, fallback: Icon(platform.icon, color: platform.color, size: 20))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
