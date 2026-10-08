@@ -102,6 +102,11 @@ class AppL10n {
       'onboardingAssignVideoToSubcategory':
           'Sous-catégorie créée. Pour y ajouter une vidéo, ouvrez le menu ⋯ de la vidéo, puis choisissez cette sous-catégorie.',
       'onboardingGotIt': 'Compris',
+      'fallibleNoticeTitle':
+          'Reelr range tes liens… mais il peut se tromper.',
+      'fallibleNoticeBody':
+          "Si un lien n'est pas au bon endroit, déplace-le : Reelr s'en souvient pour les prochains.",
+      'fallibleNoticeOk': 'OK',
       'add_subcategory_tooltip': 'Ajouter une sous-catégorie',
       'add_subsubcategory_tooltip': 'Ajouter un sous-dossier',
       'sharePlaylist': 'Partager la playlist',
@@ -202,6 +207,11 @@ class AppL10n {
       'onboardingAssignVideoToSubcategory':
           'Subcategory created. To add a video, open the video\'s ⋯ menu, then choose this subcategory.',
       'onboardingGotIt': 'Got it',
+      'fallibleNoticeTitle':
+          'Reelr sorts your links… but it can get it wrong.',
+      'fallibleNoticeBody':
+          "If a link isn't in the right place, move it: Reelr remembers it for the next ones.",
+      'fallibleNoticeOk': 'OK',
       'add_subcategory_tooltip': 'Add a subcategory',
       'add_subsubcategory_tooltip': 'Add a subfolder',
       'sharePlaylist': 'Share playlist',
