@@ -320,6 +320,39 @@ class OEmbedService {
     return null;
   }
 
+  /// Lien court partage depuis l'appli Booking : booking.com/Share-xxxx.
+  static bool _isBookingShareLink(Uri uri) {
+    final host = uri.host.toLowerCase();
+    if (host != 'booking.com' && !host.endsWith('.booking.com')) return false;
+    return uri.pathSegments.length == 1 &&
+        RegExp(r'^Share-[A-Za-z0-9]+$').hasMatch(uri.pathSegments.first);
+  }
+
+  /// Suit la redirection d'un lien Share-xxxx avec l'identite d'un robot
+  /// d'apercu. Renvoie l'adresse de la fiche (sans parametres), ou null si
+  /// la redirection ne mene pas a un chemin /hotel/.
+  static Future<String?> _resolveBookingShareLink(Uri uri) async {
+    try {
+      final response = await Net.client.get(
+        uri,
+        headers: const {
+          'User-Agent': 'facebookexternalhit/1.1',
+          'Accept': 'text/html,application/xhtml+xml',
+        },
+      ).timeout(const Duration(seconds: 10));
+      final finalUri = response.request?.url;
+      if (response.statusCode == 200 &&
+          finalUri != null &&
+          finalUri.path.contains('/hotel/') &&
+          !finalUri.path.endsWith('/index.html')) {
+        return finalUri.replace(query: '').toString().replaceAll('?', '');
+      }
+    } catch (e) {
+      debugPrint('[oembed] Booking Share echoue: $e');
+    }
+    return null;
+  }
+
   static Future<VideoData?> fetchMetadata(String url) async {
     final trimmed = url.trim();
     final lower = trimmed.toLowerCase();
@@ -396,6 +429,20 @@ class OEmbedService {
     }
 
     final uri = _parseHttpUri(trimmed);
+
+    // Lien court de l'appli Booking (booking.com/Share-xxxx) : il redirige
+    // vers la fiche de l'hotel, mais seulement pour un robot d'apercu (un
+    // navigateur recoit une page de verification, code 202, sans photo).
+    // On retrouve la fiche, puis on lit ses metadonnees comme celles d'un
+    // lien partage depuis Safari.
+    if (uri != null && _isBookingShareLink(uri)) {
+      final hotelUrl = await _resolveBookingShareLink(uri);
+      if (hotelUrl != null && hotelUrl != trimmed) {
+        debugPrint('[oembed] Booking Share -> $hotelUrl');
+        return fetchMetadata(hotelUrl);
+      }
+      debugPrint('[oembed] Booking Share : fiche introuvable');
+    }
 
     // Lien de l'appli Booking (booking.com?...&app_hotel_id=123) : la page
     // d'accueil, l'hotel n'est qu'un numero. On tente de retrouver la fiche.
