@@ -49,6 +49,9 @@ const String _kOnboardingAssignVideoPendingKey =
     'onboarding_assign_video_to_subcategory_pending';
 const String _kOnboardingSharePlaylistKey = 'onboarding_share_playlist';
 
+/// Pop-up unique « Reelr peut se tromper » (2026-10-08).
+const String _kFallibleNoticeKey = 'fallible_notice_seen';
+
 /// Affiche (une seule fois) la bulle expliquant comment classer une vidéo
 /// dans une sous-catégorie fraîchement créée, uniquement si un menu ⋯ de
 /// vidéo est visible sur l'écran courant (anchorKey monté). Si aucun menu
@@ -143,6 +146,40 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  bool _fallibleNoticeChecking = false;
+
+  /// Pop-up unique : Reelr peut se tromper, corriger l'aide. Apres au moins
+  /// 5 liens enregistres, et seulement une fois la bulle d'aide de la grille
+  /// passee (jamais deux messages en meme temps).
+  Future<void> _maybeShowFallibleNotice(AppL10n l) async {
+    if (_fallibleNoticeChecking) return;
+    if (widget.state.totalCount < 5) return;
+    _fallibleNoticeChecking = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_kFallibleNoticeKey) ?? false) return;
+      if (!(prefs.getBool(_kOnboardingReorderTilesKey) ?? false)) return;
+      if (!mounted) return;
+      await prefs.setBool(_kFallibleNoticeKey, true);
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(l.t('fallibleNoticeTitle')),
+          content: Text(l.t('fallibleNoticeBody')),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(l.t('fallibleNoticeOk')),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      _fallibleNoticeChecking = false;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
@@ -161,6 +198,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!mounted) return;
           if (!searching && widget.state.totalCount > 0) {
             _maybeShowReorderTilesHint(l);
+            _maybeShowFallibleNotice(l);
           } else if (searching && filtered.isNotEmpty) {
             _maybeShowAssignVideoHint(context, l, _firstSearchClipMenuKey);
           }
@@ -2691,8 +2729,8 @@ class ClipCard extends StatelessWidget {
     final lang = Localizations.localeOf(context).languageCode;
     final thumbUrl =
         OEmbedService.bestThumbnailUrl(clip.url, clip.thumbnailUrl);
-    final isPendingClassification = category == null &&
-        DateTime.now().difference(clip.addedAt) < const Duration(seconds: 20);
+    final isPendingClassification =
+        category == null && state.isClassificationPending(clip);
 
     return GlassCard(
       padding: EdgeInsets.zero,
