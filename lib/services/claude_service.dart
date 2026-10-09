@@ -23,9 +23,11 @@ class ClaudeService {
           'anthropic-version': '2023-06-01',
         },
         body: jsonEncode({
-          'model': 'claude-haiku-4-5',
-          'max_tokens': 20,
-          'temperature': 0,
+          'model': 'claude-haiku-5-5',
+          // 100 : Haiku 5.x compte sa reflexion dans max_tokens.
+          'max_tokens': 100,
+          // Gen 5 : pas de `temperature` (erreur 400).
+          'output_config': {'effort': 'low'},
           'messages': [
             {
               'role': 'user',
@@ -58,7 +60,14 @@ Règles absolues :
         return null;
       }
       final data = jsonDecode(response.body);
-      final result = (data['content'][0]['text'] as String).trim();
+      // Premier bloc `text` : Haiku 5.x peut faire preceder la reponse de
+      // blocs `thinking`.
+      final block = (data['content'] as List).firstWhere(
+        (b) => b is Map && b['type'] == 'text',
+        orElse: () => null,
+      );
+      if (block == null) return null;
+      final result = (block['text'] as String).trim();
       debugPrint('CLAUDE REPONSE: "$result"');
       return result.isEmpty ? null : result;
     } catch (e) {
