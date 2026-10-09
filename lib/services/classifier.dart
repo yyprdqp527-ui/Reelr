@@ -1287,10 +1287,10 @@ class VideoData {
 
 /// Classifieur basé sur Claude Haiku via l'API Anthropic.
 class ClaudeClassifier {
-  /// Modele du classement. Defaut = Haiku 4.5 (comportement historique).
-  /// Pour mesurer un autre modele : --dart-define=REELR_MODEL=claude-haiku-5-5
+  /// Modele du classement. Defaut = Haiku 5.5 (decision du 2026-10-08).
+  /// Pour mesurer un autre modele : --dart-define=REELR_MODEL=claude-haiku-4-5-20251001
   static const String _model = String.fromEnvironment('REELR_MODEL',
-      defaultValue: 'claude-haiku-4-5-20251001');
+      defaultValue: 'claude-haiku-5-5');
 
   /// Haiku 5.x et Sonnet 5.x : pas de `temperature` (erreur 400), la
   /// reflexion se regle par `output_config.effort`.
