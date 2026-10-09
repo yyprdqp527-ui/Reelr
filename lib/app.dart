@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/purchase_service.dart';
+import 'services/lifetime_counter_store.dart';
 import 'package:uuid/uuid.dart';
 
 import 'core/l10n.dart';
@@ -225,9 +226,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     // le nombre de clips actuellement présents, puis il ne fera plus
     // que croître.
     final storedLifetime = p.getInt('lifetime_clips_added');
-    final lifetime = storedLifetime ?? widget.state.totalClipsCount;
-    if (storedLifetime == null) {
+    // Reinstallation : SharedPreferences est vide mais le Keychain a garde
+    // le compteur. On retient le plus grand des deux.
+    final keychainLifetime = await LifetimeCounterStore.read();
+    if (!mounted) return;
+    var lifetime = storedLifetime ?? widget.state.totalClipsCount;
+    if (keychainLifetime != null && keychainLifetime > lifetime) {
+      lifetime = keychainLifetime;
+    }
+    if (storedLifetime == null || lifetime != storedLifetime) {
       unawaited(p.setInt('lifetime_clips_added', lifetime));
+    }
+    if (keychainLifetime == null || lifetime > keychainLifetime) {
+      unawaited(LifetimeCounterStore.write(lifetime));
     }
     final lastCountdownWarningShownAt =
         p.getInt('last_countdown_warning_shown_at') ?? 0;
@@ -533,6 +544,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       SharedPreferences.getInstance()
           .then((p) => p.setInt('lifetime_clips_added', _lifetimeClipsAdded)),
     );
+    unawaited(LifetimeCounterStore.write(_lifetimeClipsAdded));
     if (_isPremium ||
         _lifetimeClipsAdded < freeClipsLimit - 3 ||
         _lifetimeClipsAdded >= freeClipsLimit ||
@@ -1425,6 +1437,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     _lifetimeClipsAdded =
         (_lifetimeClipsAdded - doomed.length).clamp(0, _lifetimeClipsAdded);
     await prefs.setInt('lifetime_clips_added', _lifetimeClipsAdded);
+    await LifetimeCounterStore.write(_lifetimeClipsAdded);
     await prefs.setBool(_contentlessPurgeDoneKey, true);
     debugPrint(
       '[purge] ${doomed.length} carte(s) vide(s) supprimee(s), '
