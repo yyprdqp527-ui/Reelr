@@ -88,8 +88,8 @@ class _T {
   String get s3Lead => fr ? 'Dans la liste des applications,' : 'In the app list,';
   String get s3Verb => fr ? 'choisis ' : 'tap ';
   String get s3Foot => fr
-      ? 'Après quelques partages, Reelr\nremontera en tête de liste.'
-      : 'After a few shares,\nReelr moves up front.';
+      ? 'Astuce : touche Modifier puis +\npour mettre Reelr en favori.'
+      : 'Tip: tap Edit, then +,\nto make Reelr a favorite.';
   // Écran « Essaie »
   String get tryTop => fr ? 'Essaie avec' : 'Try it with';
   String get tryAccent => fr ? 'ton premier contenu' : 'your first save';
