@@ -40,7 +40,7 @@ Ces données restent sur votre appareil. Elles sont supprimées automatiquement 
 
 ## Traitement par intelligence artificielle pour la classification automatique
 
-Pour classer automatiquement une vidéo que vous partagez, Reelr transmet certaines métadonnées de cette vidéo (titre, description, éventuels tags, plateforme d'origine, et un court extrait de transcription lorsqu'il est disponible) à un service tiers d'intelligence artificielle, Claude, développé par Anthropic.
+Pour classer automatiquement une vidéo que vous partagez, Reelr transmet certaines informations sur ce contenu (titre, description, éventuels tags, plateforme d'origine, adresse du lien, image de prévisualisation ou miniature, court extrait de transcription lorsqu'il est disponible, et, pour une page web, son texte de présentation) à un service tiers d'intelligence artificielle, Claude, développé par Anthropic.
 
 Ce transfert ne passe jamais directement entre votre téléphone et Anthropic : il est systématiquement relayé par un serveur intermédiaire que nous exploitons (un « Cloudflare Worker »), dont le rôle est de protéger nos clés d'accès techniques et de limiter les abus. Ce serveur intermédiaire ne conserve, ne journalise et n'enregistre aucune des données qui transitent par lui : il les relaie et les efface immédiatement après usage.
 
@@ -211,7 +211,7 @@ This data stays on your device. It is automatically deleted if you uninstall the
 
 ## AI processing for automatic classification
 
-To automatically classify a video you share, Reelr sends certain metadata about that video (title, description, any tags, source platform, and a short transcript excerpt when available) to a third-party AI service, Claude, developed by Anthropic.
+To automatically classify a video you share, Reelr sends certain information about that content (title, description, any tags, source platform, link address, preview image or thumbnail, a short transcript excerpt when available and, for a web page, its summary text) to a third-party AI service, Claude, developed by Anthropic.
 
 This data never travels directly between your phone and Anthropic: it is always relayed through an intermediary server that we operate (a "Cloudflare Worker"), whose role is to protect our technical access keys and limit abuse. This intermediary server does not retain, log, or store any of the data that passes through it: it relays it and deletes it immediately after use.
 
