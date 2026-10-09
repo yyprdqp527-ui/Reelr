@@ -125,6 +125,27 @@ import UIKit
       LinkPreviewFetcher.fetch(url: url) { payload in result(payload) }
     }
     silentShareChannels.append(previewChannel)
+
+    // Compteur a vie copie dans le Keychain (survit a la reinstallation).
+    let lifetimeChannel = FlutterMethodChannel(
+      name: "reelr/lifetime_counter",
+      binaryMessenger: binaryMessenger
+    )
+    lifetimeChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "get":
+        result(LifetimeCounterKeychain.read())
+      case "set":
+        guard let value = call.arguments as? Int else {
+          result(false)
+          return
+        }
+        result(LifetimeCounterKeychain.write(value))
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+    silentShareChannels.append(lifetimeChannel)
   }
 
   private func drainPendingUrls() -> [String] {
@@ -274,5 +295,49 @@ enum SafariPreviewStore {
     }
     components.fragment = nil
     return (components.string ?? rawURL).lowercased()
+  }
+}
+
+
+/// Compteur a vie des sauvegardes gratuites, conserve dans le Keychain.
+/// Synchronisable : il suit l'utilisateur sur ses appareils (trousseau
+/// iCloud) sans entitlement supplementaire.
+enum LifetimeCounterKeychain {
+  private static let service = "com.reelr.app.lifetime-counter"
+  private static let account = "lifetime_clips_added"
+
+  private static func baseQuery() -> [String: Any] {
+    return [
+      kSecClass as String: kSecClassGenericPassword,
+      kSecAttrService as String: service,
+      kSecAttrAccount as String: account,
+      kSecAttrSynchronizable as String: kSecAttrSynchronizableAny,
+    ]
+  }
+
+  static func read() -> Int? {
+    var query = baseQuery()
+    query[kSecReturnData as String] = true
+    query[kSecMatchLimit as String] = kSecMatchLimitOne
+    var item: CFTypeRef?
+    guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+          let data = item as? Data,
+          let text = String(data: data, encoding: .utf8) else { return nil }
+    return Int(text)
+  }
+
+  static func write(_ value: Int) -> Bool {
+    guard let data = String(value).data(using: .utf8) else { return false }
+    let status = SecItemUpdate(
+      baseQuery() as CFDictionary,
+      [kSecValueData as String: data] as CFDictionary
+    )
+    if status == errSecSuccess { return true }
+    guard status == errSecItemNotFound else { return false }
+    var add = baseQuery()
+    add[kSecAttrSynchronizable as String] = true
+    add[kSecValueData as String] = data
+    add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+    return SecItemAdd(add as CFDictionary, nil) == errSecSuccess
   }
 }
