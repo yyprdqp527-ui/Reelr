@@ -67,6 +67,12 @@ class PurchaseService {
     await _loadProduct();
   }
 
+  /// Recharge le produit s'il manque (StoreKit lent ou echec precedent).
+  Future<void> ensureProduct() async {
+    if (premiumProduct != null || isLoadingProduct || !isAvailable) return;
+    await _loadProduct();
+  }
+
   Future<void> _loadProduct() async {
     isLoadingProduct = true;
     try {
@@ -130,6 +136,7 @@ class PurchaseService {
           : 'Purchases are not available on this device.');
       return false;
     }
+    if (premiumProduct == null) await ensureProduct();
     final product = premiumProduct;
     if (product == null) {
       onError?.call(isFr()

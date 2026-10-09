@@ -64,6 +64,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   int _lastCountdownWarningShownAt = 0;
   late final PurchaseService _purchaseService;
   bool _purchaseServiceReady = false;
+  /// Incremente quand l'etat StoreKit change : fait se reconstruire le
+  /// paywall deja ouvert (une route poussee ne suit pas le setState du parent).
+  final ValueNotifier<int> _storeRevision = ValueNotifier<int>(0);
   /// Route du paywall actuellement affiche, pour pouvoir la refermer depuis
   /// l'exterieur quand l'achat aboutit.
   Route<void>? _paywallRoute;
@@ -187,6 +190,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final purchaseInitFuture = _purchaseService.init();
     purchaseInitFuture.then((_) {
       if (mounted) setState(() => _purchaseServiceReady = true);
+      _storeRevision.value++;
     });
     // Une fois les prefs (dont le statut Premium local persisté) ET le
     // service d'achat prêts, on lance une resynchronisation silencieuse en
@@ -608,10 +612,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (existing != null && existing.isActive) return;
 
     final route = MaterialPageRoute<void>(
-      builder: (_) => PaywallScreen(
+      builder: (_) => ValueListenableBuilder<int>(
+      valueListenable: _storeRevision,
+      builder: (context, revision, child) => PaywallScreen(
         priceText: _purchaseService.premiumProduct?.price,
+        // Bloque seulement pendant un chargement reel. Si le produit manque
+        // apres coup, le bouton reste actif : buyPremium() le recharge et
+        // affiche une erreur claire au lieu d'un bouton mort.
         isLoading:
-            !_purchaseServiceReady || _purchaseService.premiumProduct == null,
+            !_purchaseServiceReady || _purchaseService.isLoadingProduct,
         heldCount: heldCount,
         // On attend l'etat terminal cote StoreKit (achete, annule, erreur)
         // avant de rendre la main : le paywall garde son indicateur pendant
@@ -645,8 +654,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         },
         onClose: () => _navigatorKey.currentState?.pop(),
       ),
+      ),
     );
     _paywallRoute = route;
+    if (_purchaseService.premiumProduct == null) {
+      _purchaseService.ensureProduct().whenComplete(() {
+        if (mounted) _storeRevision.value++;
+      });
+    }
     navigator.push(route).whenComplete(() {
       if (identical(_paywallRoute, route)) _paywallRoute = null;
     });
@@ -1710,6 +1725,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _storeRevision.dispose();
     _shareSub?.cancel();
     _deepLinkSub?.cancel();
     _purchaseService.dispose();
