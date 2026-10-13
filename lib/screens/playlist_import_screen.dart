@@ -24,12 +24,19 @@ class PlaylistImportScreen extends StatefulWidget {
   /// silencieux : cet écran importe en boucle, et tout retour visuel émis
   /// par l'ingestion se répéterait autant de fois qu'il y a de vidéos.
   final Future<bool> Function(String url) onImportUrl;
+  /// Vrai tant que la limite gratuite permet d'ajouter un clip.
+  final bool Function() canAddMore;
+  /// Appelée une seule fois, après la fermeture de l'écran, avec les
+  /// vidéos non importées faute de place (limite gratuite atteinte).
+  final void Function(List<String> heldUrls) onLimitReached;
 
   const PlaylistImportScreen({
     super.key,
     required this.state,
     required this.playlist,
     required this.onImportUrl,
+    required this.canAddMore,
+    required this.onLimitReached,
   });
 
   @override
@@ -73,8 +80,15 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     }
     setState(() => _importing = true);
     var imported = 0;
+    final held = <String>[];
     for (final index in _selected.toList()..sort()) {
       final url = widget.playlist.items[index].url;
+      // Limite gratuite atteinte : les vidéos restantes sont gardées en
+      // attente, pas perdues. Un doublon n'a pas besoin d'être gardé.
+      if (!widget.canAddMore()) {
+        if (!widget.state.isDuplicate(url)) held.add(url);
+        continue;
+      }
       // On compte les clips REELLEMENT crees. `onImportUrl` refuse
       // silencieusement les doublons, les URLs sans contenu et tout ce
       // qui depasse la limite gratuite : annoncer « 10 importees » quand
@@ -86,6 +100,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       SnackBar(content: Text(l.playlistImportedCount(imported))),
     );
     Navigator.of(context).pop();
+    if (held.isNotEmpty) widget.onLimitReached(held);
   }
 
   @override
