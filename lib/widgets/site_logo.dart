@@ -49,6 +49,15 @@ class SiteLogo extends StatelessWidget {
         height: size,
         fit: BoxFit.contain,
         fadeInDuration: Duration.zero,
+        // Pastille blanche : un logo sombre sur fond transparent reste
+        // lisible sur les cartes sombres.
+        imageBuilder: (context, provider) => Container(
+          width: size,
+          height: size,
+          color: Colors.white,
+          padding: EdgeInsets.all(size * 0.12),
+          child: Image(image: provider, fit: BoxFit.contain),
+        ),
         placeholder: (context, url) => fallback,
         errorWidget: (context, url, error) => fallback,
       ),
