@@ -299,6 +299,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             uri.host == 'yyprdqp527-ui.github.io' &&
             uri.path.startsWith('/reelr-support/playlist'));
     if (isPlaylistLink) {
+      // Au démarrage par un lien, app_links le livre deux fois
+      // (getInitialLink + uriLinkStream) : sans ce garde-fou, deux écrans
+      // d'import s'empilaient.
+      final now = DateTime.now();
+      final key = uri.toString();
+      if (key == _lastPlaylistUri &&
+          _lastPlaylistAt != null &&
+          now.difference(_lastPlaylistAt!).inSeconds < 15) {
+        debugPrint('[deeplink] lien de playlist en double ignore');
+        return;
+      }
+      _lastPlaylistUri = key;
+      _lastPlaylistAt = now;
       final playlist = await PlaylistLink.tryDecodeAsync(uri);
       if (playlist != null) {
         debugPrint('[deeplink] playlist decode -> ${playlist.items.length} vidéos');
@@ -330,6 +343,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   DateTime? _lastSharedAt;
   String? _pendingSharedUrl;
   PlaylistLink? _pendingPlaylist;
+  // Anti-doublon du lien de playlist (livré deux fois au démarrage).
+  String? _lastPlaylistUri;
+  DateTime? _lastPlaylistAt;
+  bool _playlistImportOpen = false;
   final Set<String> _ingestingUrls = {};
 
   /// Met la playlist reçue en file d'attente et tente d'ouvrir l'écran
@@ -354,6 +371,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         _pendingPlaylist = playlist;
         return;
       }
+      // Jamais deux écrans d'import l'un sur l'autre.
+      if (_playlistImportOpen) {
+        debugPrint('[deeplink] ecran d\'import deja ouvert, ignore');
+        return;
+      }
+      _playlistImportOpen = true;
       Navigator.of(ctx).push(MaterialPageRoute(
         builder: (_) => PlaylistImportScreen(
           state: widget.state,
@@ -370,7 +393,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           onLimitReached: (urls) => unawaited(_holdSharedUrls(urls)
               .then((total) => showPaywall(heldCount: total))),
         ),
-      ));
+      )).whenComplete(() => _playlistImportOpen = false);
     });
   }
 
