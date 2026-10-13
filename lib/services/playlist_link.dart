@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/clip.dart';
 import 'oembed.dart';
+import 'thumbnail_store.dart';
 
 /// Encodage/décodage du lien de partage de playlist (Part 6 — étape 1).
 ///
@@ -34,6 +35,20 @@ class PlaylistLinkItem {
         if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) 'th': thumbnailUrl,
       };
 
+  /// Vignette à enregistrer sur le clip du destinataire : l'adresse
+  /// d'origine, sans le passage par le proxy /thumb (l'app le rajoute
+  /// elle-même à l'affichage), et rien pour une vignette locale.
+  String? get rawThumbnailUrl {
+    final th = thumbnailUrl?.trim();
+    if (th == null || th.isEmpty || ThumbnailStore.isLocalUrl(th)) return null;
+    final uri = Uri.tryParse(th);
+    if (uri != null && uri.path.endsWith('/thumb')) {
+      final inner = uri.queryParameters['url'];
+      if (inner != null && inner.isNotEmpty) return inner;
+    }
+    return th;
+  }
+
   factory PlaylistLinkItem.fromJson(Map<String, dynamic> json) =>
       PlaylistLinkItem(
         title: (json['t'] as String?) ?? '',
@@ -55,10 +70,16 @@ class PlaylistLink {
             .map((c) => PlaylistLinkItem(
                   title: c.title,
                   url: c.url,
-                  thumbnailUrl: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl),
+                  thumbnailUrl: _shareableThumbnail(
+                      OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl)),
                 ))
             .toList(),
       );
+
+  /// Une vignette locale (reelr-local://) n'existe que sur cet appareil :
+  /// inutile, et trompeuse, pour le destinataire.
+  static String? _shareableThumbnail(String? url) =>
+      (url == null || ThumbnailStore.isLocalUrl(url)) ? null : url;
 
   String _encodedPayload() {
     final jsonList = items.map((i) => i.toJson()).toList();
