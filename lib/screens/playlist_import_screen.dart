@@ -5,6 +5,7 @@ import '../services/oembed.dart';
 import '../services/playlist_link.dart';
 import '../state/clips_state.dart';
 import '../widgets/resilient_thumbnail.dart';
+import '../widgets/site_logo.dart';
 
 // ─────────────────────────────────────────────
 // PLAYLIST IMPORT SCREEN
@@ -168,7 +169,18 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
                   fit: BoxFit.cover,
                   fallbackBuilder: (_) => Container(
                     color: platform.color.withValues(alpha: 0.12),
-                    child: Icon(platform.icon, color: platform.color, size: 20),
+                    // Site quelconque : son logo plutôt qu'une icône
+                    // générique. Jamais de case vide.
+                    child: platform.id == 'other'
+                        ? Center(
+                            child: SiteLogo(
+                              url: item.url,
+                              size: 24,
+                              fallback: Icon(platform.icon,
+                                  color: platform.color, size: 20),
+                            ),
+                          )
+                        : Icon(platform.icon, color: platform.color, size: 20),
                   ),
                 ),
               ),
