@@ -359,7 +359,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           state: widget.state,
           playlist: playlist,
           // Mode silencieux obligatoire : l'ecran importe en boucle.
-          onImportUrl: (url) => _ingestSharedUrl(url, silent: true),
+          onImportItem: (item) => _ingestSharedUrl(
+                item.url,
+                silent: true,
+                sharedTitle: item.title,
+                sharedThumbnailUrl: item.rawThumbnailUrl,
+              ),
           canAddMore: () => canAddClip(silent: true),
           // Un seul écran Premium à la fin, comme pour les partages gardés.
           onLimitReached: (urls) => unawaited(_holdSharedUrls(urls)
@@ -475,7 +480,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   ///
   /// L'appelant en boucle est responsable d'afficher UN seul message à la
   /// fin, à partir du nombre de succès.
-  Future<bool> _ingestSharedUrl(String url, {bool silent = false}) async {
+  ///
+  /// [sharedTitle] / [sharedThumbnailUrl] : déjà connus (playlist reçue).
+  /// Posés sur le clip dès sa création ; l'extraction les remplace si
+  /// elle trouve mieux, sinon ils restent.
+  Future<bool> _ingestSharedUrl(
+    String url, {
+    bool silent = false,
+    String? sharedTitle,
+    String? sharedThumbnailUrl,
+  }) async {
     // Resout les liens courts connus (pin.it, Reddit /s/xxxx) vers leur
     // URL canonique avant la verification de doublon, pour que deux
     // liens courts differents pointant vers le meme contenu soient
@@ -505,12 +519,18 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       final clip = Clip(
         id: const Uuid().v4(),
         url: dedupUrl,
-        title: platform.name,
+        title: (sharedTitle != null &&
+                !OEmbedService.isPlaceholderTitle(sharedTitle))
+            ? sharedTitle.trim()
+            : platform.name,
         platform: platform.id,
         categoryId: null,
         tags: const [],
         addedAt: DateTime.now(),
-        thumbnailUrl: OEmbedService.bestThumbnailUrl(dedupUrl, null),
+        // Adresse brute, comme l'écrit l'extraction : le proxy éventuel
+        // (Facebook, Reddit) est ajouté à l'affichage par bestThumbnailUrl.
+        thumbnailUrl: sharedThumbnailUrl ??
+            OEmbedService.bestThumbnailUrl(dedupUrl, null),
       );
       if (!await widget.state.addClip(clip)) return false;
       registerClipAdded();
@@ -886,7 +906,16 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final channel = updated.channel?.trim() ?? '';
     final hasUsableChannel =
         channel.isNotEmpty && !OEmbedService.isPlaceholderTitle(channel);
-    if (!hasRealTitle && !hasDescription && !hasUsableChannel) {
+    // Titre déjà connu avant l'extraction (playlist reçue) et resté sur
+    // le clip : c'est un vrai signal. Le nom de la plateforme n'en est pas un.
+    final keptTitle = updated.title.trim();
+    final hasKeptTitle = !OEmbedService.isPlaceholderTitle(keptTitle) &&
+        keptTitle.toLowerCase() !=
+            SocialPlatform.detect(updated.url).name.toLowerCase();
+    if (!hasRealTitle &&
+        !hasKeptTitle &&
+        !hasDescription &&
+        !hasUsableChannel) {
       debugPrint(
         '[classify] ignore (aucun signal exploitable): "${updated.title}"',
       );
