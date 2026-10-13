@@ -23,7 +23,7 @@ class PlaylistImportScreen extends StatefulWidget {
   /// Renvoie `true` si un clip a bien été créé. Doit être appelée en mode
   /// silencieux : cet écran importe en boucle, et tout retour visuel émis
   /// par l'ingestion se répéterait autant de fois qu'il y a de vidéos.
-  final Future<bool> Function(String url) onImportUrl;
+  final Future<bool> Function(PlaylistLinkItem item) onImportItem;
   /// Vrai tant que la limite gratuite permet d'ajouter un clip.
   final bool Function() canAddMore;
   /// Appelée une seule fois, après la fermeture de l'écran, avec les
@@ -34,7 +34,7 @@ class PlaylistImportScreen extends StatefulWidget {
     super.key,
     required this.state,
     required this.playlist,
-    required this.onImportUrl,
+    required this.onImportItem,
     required this.canAddMore,
     required this.onLimitReached,
   });
@@ -82,7 +82,8 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
     var imported = 0;
     final held = <String>[];
     for (final index in _selected.toList()..sort()) {
-      final url = widget.playlist.items[index].url;
+      final item = widget.playlist.items[index];
+      final url = item.url;
       // Limite gratuite atteinte : les vidéos restantes sont gardées en
       // attente, pas perdues. Un doublon n'a pas besoin d'être gardé.
       if (!widget.canAddMore()) {
@@ -93,7 +94,7 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
       // silencieusement les doublons, les URLs sans contenu et tout ce
       // qui depasse la limite gratuite : annoncer « 10 importees » quand
       // trois seulement le sont serait mentir a l'utilisateur.
-      if (await widget.onImportUrl(url)) imported++;
+      if (await widget.onImportItem(item)) imported++;
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
