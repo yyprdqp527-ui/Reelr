@@ -305,6 +305,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         _openPlaylistImportWhenReady(playlist);
       } else {
         debugPrint('[deeplink] playlist decode failed');
+        _showPlaylistLinkFailedNotice();
       }
       return;
     }
@@ -575,6 +576,33 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
                   : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
         ),
         duration: const Duration(seconds: 6),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  /// Message affiché quand un lien de playlist reçu n'a pas pu être lu.
+  /// Même report au démarrage à froid que [_showContentlessUrlNotice].
+  void _showPlaylistLinkFailedNotice({int attempt = 0}) {
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null || !ctx.mounted) {
+      if (attempt >= 3) {
+        debugPrint('[deeplink] notice playlist non affichable (pas de contexte)');
+        return;
+      }
+      Future<void>.delayed(const Duration(milliseconds: 600), () {
+        if (mounted) _showPlaylistLinkFailedNotice(attempt: attempt + 1);
+      });
+      return;
+    }
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(
+          _locale.languageCode == 'fr'
+              ? "Cette playlist n'a pas pu être ouverte. Vérifie ta connexion, ou demande à ton ami de te renvoyer le lien."
+              : "This playlist couldn't be opened. Check your connection, or ask your friend to send the link again.",
+        ),
+        duration: const Duration(seconds: 5),
         behavior: SnackBarBehavior.floating,
       ),
     );
