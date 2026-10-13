@@ -2778,7 +2778,7 @@ class ClipCard extends StatelessWidget {
                             fit: BoxFit.contain,
                           ),
                         )
-                      : Center(child: SiteLogo(url: displayUrl, size: 20, fallback: Icon(platform.icon, color: platform.color, size: 20))),
+                      : Center(child: SiteLogo(url: displayUrl, size: 26, fallback: Icon(platform.icon, color: platform.color, size: 20))),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
