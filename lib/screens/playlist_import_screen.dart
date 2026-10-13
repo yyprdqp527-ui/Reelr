@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../core/l10n.dart';
-import '../services/oembed.dart';
 import '../services/playlist_link.dart';
 import '../state/clips_state.dart';
-import '../widgets/resilient_thumbnail.dart';
-import '../widgets/site_logo.dart';
+import '../widgets/playlist_pick_row.dart';
 
 // ─────────────────────────────────────────────
 // PLAYLIST IMPORT SCREEN
@@ -124,79 +122,38 @@ class _PlaylistImportScreenState extends State<PlaylistImportScreen> {
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          IconButton(
-            icon: Icon(allSelected
-                ? Icons.deselect_rounded
-                : Icons.select_all_rounded),
-            tooltip: allSelected
-                ? l.t('playlist_import_deselect_all')
-                : l.t('playlist_import_select_all'),
+          TextButton(
             onPressed: allSelectable.isEmpty
                 ? null
                 : () => _toggleAll(!allSelected),
+            child: Text(allSelected
+                ? l.t('playlist_import_deselect_all')
+                : l.t('playlist_import_select_all')),
           ),
+          const SizedBox(width: 4),
         ],
       ),
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+      body: ListView.builder(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 16),
         itemCount: items.length,
-        separatorBuilder: (_, _) => const Divider(height: 1),
         itemBuilder: (context, index) {
           final item = items[index];
           final duplicate = _alreadySaved[index];
-          final platform = SocialPlatform.detect(item.url);
-          return CheckboxListTile(
-            value: _selected.contains(index),
-            // Toujours cochable, y compris pour les vidéos déjà présentes
-            // (l'import ignore silencieusement les doublons) — seul l'état
-            // par défaut (décochée) diffère pour celles-ci.
-            onChanged: (checked) => setState(() {
-              if (checked ?? false) {
-                _selected.add(index);
-              } else {
-                _selected.remove(index);
-              }
-            }),
-            secondary: SizedBox(
-              width: 48,
-              height: 48,
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: ResilientThumbnail(
-                  url: item.thumbnailUrl,
-                  cacheKeyId: 'playlist_import_$index',
-                  platformId: platform.id,
-                  fit: BoxFit.cover,
-                  fallbackBuilder: (_) => Container(
-                    color: platform.color.withValues(alpha: 0.12),
-                    // Site quelconque : son logo plutôt qu'une icône
-                    // générique. Jamais de case vide.
-                    child: platform.id == 'other'
-                        ? Center(
-                            child: SiteLogo(
-                              url: item.url,
-                              size: 24,
-                              fallback: Icon(platform.icon,
-                                  color: platform.color, size: 20),
-                            ),
-                          )
-                        : Icon(platform.icon, color: platform.color, size: 20),
-                  ),
-                ),
-              ),
-            ),
-            title: Text(
-              item.title.isEmpty ? item.url : item.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
+          // Toujours cochable, y compris pour les liens déjà présents
+          // (l'import ignore les doublons) : seul l'état par défaut
+          // (décoché) diffère pour ceux-ci.
+          return PlaylistPickRow(
+            url: item.url,
+            title: item.title,
+            thumbnailUrl: item.thumbnailUrl,
+            cacheKeyId: 'playlist_import_$index',
             subtitle: duplicate
-                ? Text(l.t('playlist_import_already_saved'))
-                : Text(
-                    item.url,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                ? l.t('playlist_import_already_saved')
+                : PlaylistPickRow.sourceLabel(item.url),
+            selected: _selected.contains(index),
+            onTap: () => setState(() {
+              if (!_selected.remove(index)) _selected.add(index);
+            }),
           );
         },
       ),
