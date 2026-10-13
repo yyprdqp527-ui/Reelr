@@ -360,6 +360,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           playlist: playlist,
           // Mode silencieux obligatoire : l'ecran importe en boucle.
           onImportUrl: (url) => _ingestSharedUrl(url, silent: true),
+          canAddMore: () => canAddClip(silent: true),
+          // Un seul écran Premium à la fin, comme pour les partages gardés.
+          onLimitReached: (urls) => unawaited(_holdSharedUrls(urls)
+              .then((total) => showPaywall(heldCount: total))),
         ),
       ));
     });
