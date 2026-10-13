@@ -1283,8 +1283,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     if (!context.mounted) return;
 
     final message = isFr
-        ? 'Un ami te propose de découvrir sa playlist « $name » sur Reelr 🎬\n\n$link'
-        : 'A friend wants to share their playlist "$name" on Reelr 🎬\n\n$link';
+        ? 'Je te fais découvrir ma playlist « $name » sur Reelr :\n\n$link'
+        : 'Check out my playlist "$name" on Reelr:\n\n$link';
     Share.share(message, sharePositionOrigin: origin);
   }
 
