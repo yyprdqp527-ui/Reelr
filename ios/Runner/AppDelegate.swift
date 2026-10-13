@@ -146,6 +146,35 @@ import UIKit
       }
     }
     silentShareChannels.append(lifetimeChannel)
+
+    // Lien différé de playlist : savoir si le presse-papiers contient
+    // probablement un lien, SANS lire son contenu (pas de demande
+    // « Autoriser à coller »).
+    let pasteboardChannel = FlutterMethodChannel(
+      name: "reelr/pasteboard",
+      binaryMessenger: binaryMessenger
+    )
+    pasteboardChannel.setMethodCallHandler { call, result in
+      guard call.method == "hasProbableWebURL" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      if #available(iOS 14.0, *) {
+        UIPasteboard.general.detectPatterns(for: [.probableWebURL]) { outcome in
+          DispatchQueue.main.async {
+            switch outcome {
+            case .success(let patterns):
+              result(patterns.contains(.probableWebURL))
+            case .failure:
+              result(false)
+            }
+          }
+        }
+      } else {
+        result(UIPasteboard.general.hasStrings)
+      }
+    }
+    silentShareChannels.append(pasteboardChannel)
   }
 
   private func drainPendingUrls() -> [String] {
