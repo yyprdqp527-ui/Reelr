@@ -115,6 +115,25 @@ class PlaylistLink {
     }
   }
 
+  /// Récupère la playlist stockée par le Worker pour ce code.
+  /// Renvoie null en cas d'échec (réseau, délai, code inconnu, données
+  /// illisibles) : l'appelant tente alors le décodage local.
+  static Future<PlaylistLink?> _fetchFromWorker(String code) async {
+    try {
+      final response = await http
+          .get(Uri.parse('$_dataEndpoint$code'))
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final name = data['name'] as String?;
+      final encoded = data['items'] as String?;
+      if (name == null || encoded == null) return null;
+      return _decodeItemsPayload(name, encoded);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Décode un lien de playlist reçu. Le format récent (`code=...`)
   /// nécessite un appel réseau vers le Worker pour récupérer les vraies
   /// données ; l'ancien format (`name=...&items=...`, gardé pour les liens
@@ -134,22 +153,15 @@ class PlaylistLink {
 
     final code = uri.queryParameters['code'];
     if (code != null && code.isNotEmpty) {
-      try {
-        final response = await http
-            .get(Uri.parse('$_dataEndpoint$code'))
-            .timeout(const Duration(seconds: 8));
-        if (response.statusCode != 200) return null;
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final name = data['name'] as String?;
-        final encoded = data['items'] as String?;
-        if (name == null || encoded == null) return null;
-        return _decodeItemsPayload(name, encoded);
-      } catch (_) {
-        return null;
-      }
+      final fromWorker = await _fetchFromWorker(code);
+      if (fromWorker != null) return fromWorker;
+      // Worker injoignable ou code inconnu : on ne s'arrête pas là.
+      // playlist.html ajoute aussi name + items au lien reelr://, donc
+      // les vidéos sont souvent déjà là — on tente le décodage local.
     }
 
     // Ancien format, tout dans l'URL — décodage local, sans réseau.
+    // Sert aussi de repli quand le Worker n'a pas répondu (voir plus haut).
     final name = uri.queryParameters['name'];
     final encoded = uri.queryParameters['items'];
     if (name == null || encoded == null) return null;
