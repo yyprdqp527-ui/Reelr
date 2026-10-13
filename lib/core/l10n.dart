@@ -116,6 +116,7 @@ class AppL10n {
       'playlist_import_deselect_all': 'Tout désélectionner',
       'playlist_import_already_saved': 'Déjà enregistré',
       'playlist_import_none_selected': 'Sélectionne au moins un lien à importer.',
+      'playlist_share_none_selected': 'Choisis au moins un lien',
     },
     'en': {
       'app_name': 'Reelr',
@@ -221,6 +222,7 @@ class AppL10n {
       'playlist_import_deselect_all': 'Deselect all',
       'playlist_import_already_saved': 'Already saved',
       'playlist_import_none_selected': 'Select at least one link to import.',
+      'playlist_share_none_selected': 'Choose at least one link',
     },
   };
 
@@ -251,6 +253,26 @@ class AppL10n {
       return '$count ${count == 1 ? "link" : "links"} imported';
     }
     return '$count lien${count > 1 ? "s" : ""} importé${count > 1 ? "s" : ""}';
+  }
+
+  /// Titre de l'écran de choix avant envoi : « Partager « Voyage » ».
+  String playlistShareTitle(String name) =>
+      locale.languageCode == 'en' ? 'Share "$name"' : 'Partager « $name »';
+
+  /// « 12 liens · choisis ceux à envoyer ».
+  String playlistShareSummary(int count) {
+    if (locale.languageCode == 'en') {
+      return '$count ${count == 1 ? "link" : "links"} · choose which to send';
+    }
+    return '$count lien${count > 1 ? "s" : ""} · choisis ceux à envoyer';
+  }
+
+  /// Bouton « Envoyer 12 liens ».
+  String playlistShareSend(int count) {
+    if (locale.languageCode == 'en') {
+      return 'Send $count ${count == 1 ? "link" : "links"}';
+    }
+    return 'Envoyer $count lien${count > 1 ? "s" : ""}';
   }
 
   String subcategoriesCount(int count) {
