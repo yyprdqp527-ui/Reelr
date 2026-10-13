@@ -33,6 +33,7 @@ import '../widgets/search_query_card.dart';
 import '../widgets/sheet_field.dart';
 import '../widgets/site_logo.dart';
 import 'categories_screen.dart';
+import 'playlist_share_select_screen.dart';
 
 // ─────────────────────────────────────────────
 // ONBOARDING COACH MARKS — clés persistantes partagées
@@ -1270,13 +1271,30 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   /// mécanisme natif déjà utilisé pour le partage d'une vidéo unique.
   /// Aucun backend : la playlist entière est encodée dans l'URL.
   Future<void> _sharePlaylist(
-      BuildContext context, String name, List<Clip> clips) async {
-    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+      BuildContext context, String name, List<Clip> allClips) async {
+    // Ancrage de la feuille de partage, mesuré AVANT d'ouvrir l'écran de
+    // choix : au retour, l'écran est encore en pleine animation (décalé
+    // hors de l'écran) et iOS refuse une position hors de la vue.
     final box = context.findRenderObject() as RenderBox?;
     final screenSize = MediaQuery.of(context).size;
-    final origin = (box != null && box.hasSize)
+    final screenRect = Offset.zero & screenSize;
+    final measured = (box != null && box.hasSize)
         ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    final origin = (measured != null &&
+            !measured.isEmpty &&
+            screenRect.intersect(measured) == measured)
+        ? measured
         : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
+
+    // Choix des liens à envoyer (tout coché au départ).
+    final clips = await Navigator.of(context).push<List<Clip>>(
+      MaterialPageRoute(
+        builder: (_) => PlaylistShareSelectScreen(name: name, clips: allClips),
+      ),
+    );
+    if (clips == null || clips.isEmpty || !context.mounted) return;
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
 
     final playlistLink = PlaylistLink.fromClips(name, clips);
     final link = await PlaylistLinkShortener.shorten(playlistLink);
@@ -1285,7 +1303,18 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     final message = isFr
         ? 'Je te fais découvrir ma playlist « $name » sur Reelr :\n\n$link'
         : 'Check out my playlist "$name" on Reelr:\n\n$link';
-    Share.share(message, sharePositionOrigin: origin);
+    try {
+      await Share.share(message, sharePositionOrigin: origin);
+    } catch (e) {
+      // Avant : échec silencieux, on revenait sur la liste sans rien.
+      debugPrint('[share] erreur feuille de partage: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isFr
+            ? "Le partage n'a pas pu s'ouvrir. Réessaie."
+            : "Sharing couldn't open. Try again."),
+      ));
+    }
   }
 
   List<Clip> _sorted(List<Clip> src) => sortClipsByOrder(src, _sortOrder);
@@ -1441,7 +1470,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   key: _sharePlaylistKey,
                   icon: const Icon(Icons.share_rounded),
                   tooltip: l.t('sharePlaylist'),
-                  onPressed: () => unawaited(_sharePlaylist(context, widget.title, raw)),
+                  // Même ordre que l'affichage de la catégorie.
+                  onPressed: () => unawaited(
+                      _sharePlaylist(context, widget.title, _sorted(raw))),
                 ),
               const SizedBox(width: 8),
             ],
