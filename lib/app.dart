@@ -48,6 +48,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   static const MethodChannel _silentShareInboxChannel = MethodChannel(
     'reelr/share_inbox',
   );
+  static const MethodChannel _pasteboardChannel = MethodChannel(
+    'reelr/pasteboard',
+  );
+  // Lien différé : vrai si l'onboarding n'était pas fait au lancement
+  // (première installation ou réinstallation).
+  bool _wasFirstLaunch = false;
+  bool _deferredPlaylistChecked = false;
   ThemeMode _themeMode = ThemeMode.dark;
   Locale _locale = const Locale('en');
   bool _onboardingDone = false;
@@ -133,6 +140,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
     _drainPendingShare();
     _drainPendingPlaylist();
+    unawaited(_maybeOfferDeferredPlaylist());
   }
 
   /// Variante qui attend la persistance avant de rendre la main.
@@ -145,6 +153,95 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     setState(() => _onboardingDone = true);
     _drainPendingShare();
     _drainPendingPlaylist();
+    unawaited(_maybeOfferDeferredPlaylist());
+  }
+
+  /// Lien différé : l'ami a ouvert la page playlist SANS avoir Reelr, la
+  /// page a copié le lien, il a installé Reelr. Au premier lancement, après
+  /// l'onboarding, on propose d'ouvrir la playlist. Une seule fois.
+  Future<void> _maybeOfferDeferredPlaylist() async {
+    if (!_wasFirstLaunch || _deferredPlaylistChecked) return;
+    _deferredPlaylistChecked = true;
+    // Playlist déjà reçue par un vrai lien : rien à proposer.
+    if (_lastPlaylistUri != null) return;
+    bool hasLink;
+    try {
+      hasLink = await _pasteboardChannel.invokeMethod<bool>(
+            'hasProbableWebURL',
+          ) ??
+          false;
+    } catch (_) {
+      // Android (pas de canal natif) : simple présence de texte. Android
+      // ne demande pas d'autorisation pour lire le presse-papiers.
+      hasLink = await Clipboard.hasStrings();
+    }
+    if (!hasLink) return;
+    // Laisser l'écran principal s'afficher.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    final ctx = _navigatorKey.currentContext;
+    if (!mounted || ctx == null || !ctx.mounted) return;
+    final fr = _locale.languageCode == 'fr';
+    final open = await showDialog<bool>(
+      context: ctx,
+      builder: (c) => AlertDialog(
+        title: Text(fr
+            ? "Un ami t'a envoyé une playlist ?"
+            : 'Did a friend send you a playlist?'),
+        content: Text(fr
+            ? "Si tu as installé Reelr depuis le lien d'une playlist, Reelr peut l'ouvrir pour toi."
+            : 'If you installed Reelr from a playlist link, Reelr can open it for you.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(c).pop(false),
+            child: Text(fr ? 'Non merci' : 'No thanks'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(c).pop(true),
+            child: Text(fr ? 'Ouvrir la playlist' : 'Open the playlist'),
+          ),
+        ],
+      ),
+    );
+    if (open != true) return;
+    // iOS affiche ici sa demande « Autoriser à coller ».
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final uri = _playlistUriFromText(data?.text ?? '');
+    if (uri == null) {
+      final c2 = _navigatorKey.currentContext;
+      if (c2 == null || !c2.mounted) return;
+      ScaffoldMessenger.of(c2).showSnackBar(SnackBar(
+        content: Text(fr
+            ? "Aucun lien de playlist trouvé. Rouvre le lien reçu de ton ami."
+            : 'No playlist link found. Open the link your friend sent again.'),
+      ));
+      return;
+    }
+    await _handleDeepLink(uri);
+  }
+
+  /// Retrouve un lien de playlist dans un texte : page playlist, lien
+  /// court du Worker (converti en page ?code=) ou reelr://playlist.
+  Uri? _playlistUriFromText(String text) {
+    final match =
+        RegExp(r'(reelr://playlist\S*|https?://\S+)').firstMatch(text.trim());
+    if (match == null) return null;
+    final uri = Uri.tryParse(match.group(0)!);
+    if (uri == null) return null;
+    if (uri.scheme == 'reelr' && uri.host == 'playlist') return uri;
+    if (uri.host == 'yyprdqp527-ui.github.io' &&
+        uri.path.startsWith('/reelr-support/playlist')) {
+      return uri;
+    }
+    if (uri.host == 'reelr-link-shortener.myreelr.workers.dev' &&
+        uri.pathSegments.length == 1 &&
+        uri.pathSegments.first.isNotEmpty) {
+      return Uri.https(
+        'yyprdqp527-ui.github.io',
+        '/reelr-support/playlist.html',
+        {'code': uri.pathSegments.first},
+      );
+    }
+    return null;
   }
 
   @override
@@ -242,6 +339,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     }
     final lastCountdownWarningShownAt =
         p.getInt('last_countdown_warning_shown_at') ?? 0;
+    _wasFirstLaunch = !onboarding;
     setState(() {
       _onboardingDone = onboarding;
       _isPremium = premium;
