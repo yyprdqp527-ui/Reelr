@@ -114,8 +114,8 @@ class AppL10n {
       'playlist_import_action': 'Importer',
       'playlist_import_select_all': 'Tout sélectionner',
       'playlist_import_deselect_all': 'Tout désélectionner',
-      'playlist_import_already_saved': 'Déjà enregistrée',
-      'playlist_import_none_selected': 'Sélectionnez au moins une vidéo à importer.',
+      'playlist_import_already_saved': 'Déjà enregistré',
+      'playlist_import_none_selected': 'Sélectionne au moins un lien à importer.',
     },
     'en': {
       'app_name': 'Reelr',
@@ -220,7 +220,7 @@ class AppL10n {
       'playlist_import_select_all': 'Select all',
       'playlist_import_deselect_all': 'Deselect all',
       'playlist_import_already_saved': 'Already saved',
-      'playlist_import_none_selected': 'Select at least one video to import.',
+      'playlist_import_none_selected': 'Select at least one link to import.',
     },
   };
 
@@ -245,12 +245,12 @@ class AppL10n {
   }
 
   /// Message de confirmation après import d'une playlist reçue par lien
-  /// ("1 vidéo importée" / "3 vidéos importées").
+  /// ("1 lien importé" / "3 liens importés").
   String playlistImportedCount(int count) {
     if (locale.languageCode == 'en') {
-      return '$count ${count == 1 ? "video" : "videos"} imported';
+      return '$count ${count == 1 ? "link" : "links"} imported';
     }
-    return '$count vidéo${count > 1 ? "s" : ""} importée${count > 1 ? "s" : ""}';
+    return '$count lien${count > 1 ? "s" : ""} importé${count > 1 ? "s" : ""}';
   }
 
   String subcategoriesCount(int count) {
