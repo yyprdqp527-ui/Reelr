@@ -52,11 +52,14 @@ class ThumbnailCache {
   /// Centralise ici pour que l'affichage (CachedNetworkImage) et le
   /// pre-cache (downloadFile) ne puissent pas diverger.
   static Map<String, String>? headersFor(String url) {
+    // Prefere JPEG/PNG : un site qui negocie le format (CDN d'images) ne
+    // renvoie plus de l'AVIF que Flutter ne sait pas afficher.
+    const accept = 'image/jpeg,image/png,image/webp;q=0.8,image/*;q=0.5,*/*;q=0.1';
     if (!url.contains('workers.dev/thumb') &&
         !url.contains('workers.dev/screenshot') &&
         !url.contains('workers.dev/favicon')) {
-      return null;
+      return {'Accept': accept};
     }
-    return {'x-reelr-secret': Secrets.appSharedSecret};
+    return {'x-reelr-secret': Secrets.appSharedSecret, 'Accept': accept};
   }
 }
