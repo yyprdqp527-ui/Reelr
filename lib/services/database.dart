@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 18, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 19, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 18, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 19, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -196,6 +196,12 @@ class DatabaseHelper {
       // qu'une mise a jour du clip ne l'ecrase jamais.
       await db.execute(
           'ALTER TABLE clips ADD COLUMN toBuy INTEGER DEFAULT 0');
+    }
+    if (oldVersion < 19) {
+      // Pastille « X ou Y ? » : les deux categories proposees pour un lien
+      // laisse a trier, separees par une virgule.
+      await db.execute(
+          'ALTER TABLE clips ADD COLUMN classification_alt TEXT');
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
@@ -402,6 +408,7 @@ class DatabaseHelper {
         classification_reason TEXT,
         classification_tags TEXT,
         toBuy INTEGER DEFAULT 0,
+        classification_alt TEXT,
         channel TEXT,
         description TEXT
       )
@@ -491,6 +498,14 @@ class DatabaseHelper {
       await db.insert('clips', map,
           conflictAlgorithm: ConflictAlgorithm.replace);
     }
+  }
+
+  /// Enregistre (ou efface, liste vide) les categories proposees pour un lien
+  /// laisse « a trier ».
+  Future<void> setClipCandidates(String clipId, List<String> ids) async {
+    final db = await database;
+    await db.update('clips', {'classification_alt': ids.join(',')},
+        where: 'id = ?', whereArgs: [clipId]);
   }
 
   /// Pose ou retire l'etiquette « a acheter » (colonne `toBuy`).
