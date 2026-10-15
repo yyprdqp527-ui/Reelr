@@ -66,7 +66,9 @@ Future<void> _maybeShowAssignVideoHint(
   final pending = prefs.getBool(_kOnboardingAssignVideoPendingKey) ?? false;
   if (!pending) return;
   if (!context.mounted) return;
-  final shown = await CoachMark.showOnce(
+  // `pending` reste arme : la bulle peut disparaitre sans avoir ete vue
+  // (changement de page) ; une fois vue, showOnce ne l'affiche plus.
+  await CoachMark.showOnce(
     context: context,
     prefsKey: _kOnboardingAssignVideoKey,
     anchorKey: anchorKey,
@@ -74,9 +76,6 @@ Future<void> _maybeShowAssignVideoHint(
     dismissLabel: l.t('onboardingGotIt'),
     preferredSide: CoachMarkSide.above,
   );
-  if (shown) {
-    await prefs.setBool(_kOnboardingAssignVideoPendingKey, false);
-  }
 }
 
 /// Arme l'affichage différé de la bulle ci-dessus — à appeler juste après

@@ -46,22 +46,74 @@ class CoachMark {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.getBool(prefsKey) ?? false) return false;
     if (!context.mounted) return false;
+    // Plusieurs appels partent a chaque reconstruction de l'ecran : pendant
+    // l'attente des preferences, un autre a pu afficher sa bulle. Sans cette
+    // seconde verification, deux bulles s'empilaient.
+    if (_visible) return false;
 
     final renderObject = anchorKey.currentContext?.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return false;
+
+    // Jamais pendant ou entre deux pages : l'ecran de l'ancre doit etre
+    // celui qu'on voit, immobile (ni en train d'arriver, ni recouvert, ni
+    // onglet cache). Sinon la bulle clignotait au-dessus de la mauvaise page.
+    final anchorContext = anchorKey.currentContext!;
+    final route = ModalRoute.of(anchorContext);
+    if (route != null) {
+      if (!route.isCurrent) return false;
+      if (route.animation?.status != AnimationStatus.completed) return false;
+      if (route.secondaryAnimation?.status != AnimationStatus.dismissed) {
+        return false;
+      }
+    }
+    if (!TickerMode.valuesOf(anchorContext).enabled) return false;
+    // L'ancre doit etre reellement a l'ecran.
+    final screen = Offset.zero & MediaQuery.sizeOf(context);
+    final anchorRect = renderObject.localToGlobal(Offset.zero) & renderObject.size;
+    if (!anchorRect.overlaps(screen)) return false;
 
     final overlay = Overlay.maybeOf(context, rootOverlay: true);
     if (overlay == null) return false;
 
     _visible = true;
     late OverlayEntry entry;
+    void Function(AnimationStatus)? onPageChange;
+    void Function(AnimationStatus)? onPageCovered;
+
+    void detach() {
+      if (onPageChange != null) {
+        route?.animation?.removeStatusListener(onPageChange);
+      }
+      if (onPageCovered != null) {
+        route?.secondaryAnimation?.removeStatusListener(onPageCovered);
+      }
+    }
 
     Future<void> dismiss() async {
       if (!_visible) return;
       _visible = false;
+      detach();
       entry.remove();
       await prefs.setBool(prefsKey, true);
     }
+
+    // La page change (retour, ou une autre page arrive par-dessus) : la
+    // bulle disparait SANS etre marquee « vue » et reviendra plus tard.
+    void hideWithoutMarkingSeen() {
+      if (!_visible) return;
+      _visible = false;
+      detach();
+      entry.remove();
+    }
+
+    onPageChange = (status) {
+      if (status == AnimationStatus.reverse) hideWithoutMarkingSeen();
+    };
+    onPageCovered = (status) {
+      if (status != AnimationStatus.dismissed) hideWithoutMarkingSeen();
+    };
+    route?.animation?.addStatusListener(onPageChange);
+    route?.secondaryAnimation?.addStatusListener(onPageCovered);
 
     entry = OverlayEntry(
       builder: (overlayContext) => _CoachMarkOverlay(
