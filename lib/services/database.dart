@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 16, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 18, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 16, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 18, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -186,6 +186,17 @@ class DatabaseHelper {
       // deux categories personnelles au nom identique a l'accent pres.
       await _mergeLanguageDuplicateCategories(db);
     }
+    if (oldVersion < 17) {
+      // Entrepreneuriat est fusionne dans Business (decision du 2026-10-15).
+      await _retireCategory(db, 'cat_entrepreneuriat', 'cat_business');
+    }
+    if (oldVersion < 18) {
+      // Etiquette « a acheter » : transversale aux tuiles (un produit garde
+      // la tuile de son sujet). Colonne a part, hors Clip.toMap(), pour
+      // qu'une mise a jour du clip ne l'ecrase jamais.
+      await db.execute(
+          'ALTER TABLE clips ADD COLUMN toBuy INTEGER DEFAULT 0');
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -276,6 +287,23 @@ class DatabaseHelper {
         await db.delete('categories', where: 'id = ?', whereArgs: [loserId]);
       }
     }
+  }
+
+  /// Retire la categorie [fromId] : ses liens et sous-categories passent a
+  /// [toId]. Si [toId] n'existe pas encore, la ligne [fromId] est renommee.
+  Future<void> _retireCategory(Database db, String fromId, String toId) async {
+    final from = await db.query('categories', where: 'id = ?', whereArgs: [fromId]);
+    if (from.isEmpty) return;
+    final to = await db.query('categories', where: 'id = ?', whereArgs: [toId]);
+    if (to.isEmpty) {
+      final row = Map<String, Object?>.from(from.first)..['id'] = toId;
+      await db.insert('categories', row);
+    }
+    await db.update('clips', {'categoryId': toId},
+        where: 'categoryId = ?', whereArgs: [fromId]);
+    await db.update('subcategories', {'categoryId': toId},
+        where: 'categoryId = ?', whereArgs: [fromId]);
+    await db.delete('categories', where: 'id = ?', whereArgs: [fromId]);
   }
 
   // ignore: unused_element
@@ -373,6 +401,7 @@ class DatabaseHelper {
         classification_confidence INTEGER,
         classification_reason TEXT,
         classification_tags TEXT,
+        toBuy INTEGER DEFAULT 0,
         channel TEXT,
         description TEXT
       )
@@ -462,6 +491,13 @@ class DatabaseHelper {
       await db.insert('clips', map,
           conflictAlgorithm: ConflictAlgorithm.replace);
     }
+  }
+
+  /// Pose ou retire l'etiquette « a acheter » (colonne `toBuy`).
+  Future<void> setClipToBuy(String clipId, bool toBuy) async {
+    final db = await database;
+    await db.update('clips', {'toBuy': toBuy ? 1 : 0},
+        where: 'id = ?', whereArgs: [clipId]);
   }
 
   Future<void> updateClipClassification({
