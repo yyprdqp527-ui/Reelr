@@ -8,6 +8,7 @@ import '../services/oembed.dart';
 import '../services/sorting_notebook.dart';
 import '../state/clips_state.dart';
 import '../widgets/resilient_thumbnail.dart';
+import '../widgets/thumbnail_fallback.dart';
 
 /// Ecran « Ce que Reelr a appris » : les rangements faits a la main, que
 /// l'appli utilise comme exemples pour classer les liens du meme sujet.
@@ -92,10 +93,12 @@ class _SortingNotebookScreenState extends State<SortingNotebookScreen> {
   }
 
   Widget _thumbnail(Clip? clip, Color accent) {
-    Widget fallback(BuildContext _) => Container(
-          color: accent.withValues(alpha: 0.15),
-          child: Icon(Icons.link_rounded, color: accent, size: 22),
-        );
+    Widget fallback(BuildContext _) => clip == null
+        ? Container(
+            color: accent.withValues(alpha: 0.15),
+            child: Icon(Icons.link_rounded, color: accent, size: 22),
+          )
+        : ThumbnailFallback(url: clip.url, title: clip.title, compact: true);
     return SizedBox(
       width: 64,
       height: 64,
