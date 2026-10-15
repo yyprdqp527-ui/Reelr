@@ -35,11 +35,15 @@ void main() {
     same('Wellness', 'Bien-être');
     same('Music', 'Musique');
     same('Animaux', 'Pets');
+    same('Restaurants', 'Restaurant');
+    same('Resto', 'Restaurant');
   });
 
   test('Voisins volontairement separes', () {
     different('Sport', 'Fitness');
     different('Nutrition', 'Food');
+    different('Restaurant', 'Food');
+    different('Restaurant', 'Recette');
     different('Couture', 'Tricot');
     different('Santé', 'Bien-être');
     different('Bébé', 'Famille');
