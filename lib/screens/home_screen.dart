@@ -32,7 +32,9 @@ import '../widgets/resilient_thumbnail.dart';
 import '../widgets/search_query_card.dart';
 import '../widgets/sheet_field.dart';
 import '../widgets/site_logo.dart';
+import '../widgets/thumbnail_fallback.dart';
 import 'categories_screen.dart';
+import 'onboarding_screen.dart';
 import 'playlist_share_select_screen.dart';
 
 // ─────────────────────────────────────────────
@@ -50,8 +52,6 @@ const String _kOnboardingAssignVideoPendingKey =
     'onboarding_assign_video_to_subcategory_pending';
 const String _kOnboardingSharePlaylistKey = 'onboarding_share_playlist';
 
-/// Pop-up unique « Reelr peut se tromper » (2026-10-08).
-const String _kFallibleNoticeKey = 'fallible_notice_seen';
 
 /// Affiche (une seule fois) la bulle expliquant comment classer une vidéo
 /// dans une sous-catégorie fraîchement créée, uniquement si un menu ⋯ de
@@ -147,40 +147,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  bool _fallibleNoticeChecking = false;
-
-  /// Pop-up unique : Reelr peut se tromper, corriger l'aide. Apres au moins
-  /// 5 liens enregistres, et seulement une fois la bulle d'aide de la grille
-  /// passee (jamais deux messages en meme temps).
-  Future<void> _maybeShowFallibleNotice(AppL10n l) async {
-    if (_fallibleNoticeChecking) return;
-    if (widget.state.totalCount < 5) return;
-    _fallibleNoticeChecking = true;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getBool(_kFallibleNoticeKey) ?? false) return;
-      if (!(prefs.getBool(_kOnboardingReorderTilesKey) ?? false)) return;
-      if (!mounted) return;
-      await prefs.setBool(_kFallibleNoticeKey, true);
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(l.t('fallibleNoticeTitle')),
-          content: Text(l.t('fallibleNoticeBody')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(l.t('fallibleNoticeOk')),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      _fallibleNoticeChecking = false;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l = AppL10n.of(context);
@@ -199,7 +165,6 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!mounted) return;
           if (!searching && widget.state.totalCount > 0) {
             _maybeShowReorderTilesHint(l);
-            _maybeShowFallibleNotice(l);
           } else if (searching && filtered.isNotEmpty) {
             _maybeShowAssignVideoHint(context, l, _firstSearchClipMenuKey);
           }
@@ -262,7 +227,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (widget.state.totalCount == 0)
-              SliverFillRemaining(child: _EmptyState(l: l, state: widget.state))
+              SliverFillRemaining(
+                child: widget.state.isReceivingLinks
+                    ? const _ArrivingState()
+                    : _EmptyState(l: l, state: widget.state),
+              )
             else if (searching)
               filtered.isEmpty
                   ? SliverFillRemaining(child: _EmptyState(l: l, state: widget.state))
@@ -380,6 +349,23 @@ class _HomeScreenState extends State<HomeScreen> {
       actions: clips.isEmpty
           ? []
           : [
+          if (widget.state.shoppingClips.isNotEmpty)
+            HeaderActionButton(
+              icon: Icons.shopping_bag_outlined,
+              tooltip: Localizations.localeOf(context).languageCode == 'fr'
+                  ? 'À acheter'
+                  : 'To buy',
+              onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => CategoryDetailScreen(
+                  state: widget.state,
+                  categoryId: null,
+                  title: Localizations.localeOf(context).languageCode == 'fr'
+                      ? 'À acheter'
+                      : 'To buy',
+                  toBuyOnly: true,
+                ),
+              )),
+            ),
           HeaderActionButton(
             icon: Icons.add_link_rounded,
             tooltip: Localizations.localeOf(context).languageCode == 'fr'
@@ -652,7 +638,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
 
   /// Les vignettes des videos les plus recemment enregistrees, pour la
   /// mosaique de la tuile « Tout ». Liste vide si moins de 4 disponibles.
-  List<({String clipId, String url})> _allTileMosaic() {
+  List<({String clipId, String url, String linkUrl})> _allTileMosaic() {
     final withThumb = widget.state.allClips
         .where((c) =>
             c.thumbnailUrl != null &&
@@ -666,13 +652,14 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
               clipId: c.id,
               url: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl) ??
                   c.thumbnailUrl!,
+              linkUrl: c.url,
             ))
         .toList();
   }
 
   /// Moins de 4 vignettes : la tuile « Tout » montre au moins la dernière
   /// vidéo enregistrée (même s'il n'y en a qu'une).
-  ({String clipId, String url})? _allTileLatest() {
+  ({String clipId, String url, String linkUrl})? _allTileLatest() {
     final withThumb = widget.state.allClips
         .where((c) =>
             c.thumbnailUrl != null &&
@@ -684,6 +671,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     return (
       clipId: c.id,
       url: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl) ?? c.thumbnailUrl!,
+      linkUrl: c.url,
     );
   }
 
@@ -751,6 +739,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                 mosaicThumbs: _allTileMosaic(),
                 thumbnailUrl: latest?.url,
                 thumbnailClipId: latest?.clipId,
+                thumbnailLinkUrl: latest?.linkUrl,
                 onTap: () => widget.onOpenCategory(context, null, l.t('all')),
               );
             }
@@ -781,6 +770,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
                   : OEmbedService.bestThumbnailUrl(
                       thumbClip.url, thumbClip.thumbnailUrl),
               thumbnailClipId: thumbClip?.id,
+              thumbnailLinkUrl: thumbClip?.url,
               showBadge:
                   widget.state.newlyClassifiedCategoryIds.contains(cat.id),
             );
@@ -833,9 +823,12 @@ class _CategoryTile extends StatefulWidget {
   /// Id du clip dont la miniature illustre la tuile (stockage permanent).
   final String? thumbnailClipId;
 
+  /// Adresse du lien de ce clip : sert au logo de secours si l'image echoue.
+  final String? thumbnailLinkUrl;
+
   /// Mosaique 2x2 (tuile « Tout »). Utilisee a la place de [thumbnailUrl]
   /// quand elle contient exactement 4 vignettes.
-  final List<({String clipId, String url})> mosaicThumbs;
+  final List<({String clipId, String url, String linkUrl})> mosaicThumbs;
   final bool showBadge;
   final bool isPending;
   final bool isAllTile;
@@ -850,6 +843,7 @@ class _CategoryTile extends StatefulWidget {
     this.isAdd = false,
     this.thumbnailUrl,
     this.thumbnailClipId,
+    this.thumbnailLinkUrl,
     this.mosaicThumbs = const [],
     this.showBadge = false,
     this.isPending = false,
@@ -951,9 +945,13 @@ class _CategoryTileState extends State<_CategoryTile> {
                         persistId: widget.thumbnailClipId,
                         platformId: 'category_tile',
                         fit: BoxFit.cover,
-                        fallbackBuilder: (_) => Container(
-                          color: tintColor.withValues(alpha: 0.12),
-                        ),
+                        // Jamais de case vide : logo du site de ce clip.
+                        fallbackBuilder: (_) => widget.thumbnailLinkUrl == null
+                            ? Container(color: tintColor.withValues(alpha: 0.12))
+                            : ThumbnailFallback(
+                                url: widget.thumbnailLinkUrl!,
+                                compact: true,
+                              ),
                       ),
                       // Overlay gradient en bas : transparent jusqu'à 40% de
                       // la hauteur, puis assombrissement progressif (deux
@@ -1157,7 +1155,7 @@ class _CategoryTileState extends State<_CategoryTile> {
 
 /// Grille 2x2 de vignettes, separees par un filet fin.
 class _ThumbnailMosaic extends StatelessWidget {
-  final List<({String clipId, String url})> thumbs;
+  final List<({String clipId, String url, String linkUrl})> thumbs;
   final Color fallbackColor;
 
   const _ThumbnailMosaic({required this.thumbs, required this.fallbackColor});
@@ -1182,7 +1180,9 @@ class _ThumbnailMosaic extends StatelessWidget {
         persistId: t.clipId,
         platformId: 'all_tile_mosaic',
         fit: BoxFit.cover,
-        fallbackBuilder: (_) => ColoredBox(color: fallbackColor),
+        fallbackBuilder: (_) => t.linkUrl.isEmpty
+            ? ColoredBox(color: fallbackColor)
+            : ThumbnailFallback(url: t.linkUrl, compact: true),
         ),
       ),
     );
@@ -1221,11 +1221,16 @@ class CategoryDetailScreen extends StatefulWidget {
   final String? categoryId;
   final String title;
 
+  /// Panier « a acheter » : liste uniquement les liens commerciaux
+  /// (pages web de produits), tous sujets confondus. Pas de videos.
+  final bool toBuyOnly;
+
   const CategoryDetailScreen({
     super.key,
     required this.state,
     required this.categoryId,
     required this.title,
+    this.toBuyOnly = false,
   });
 
   @override
@@ -1248,6 +1253,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   }
   String? _selectedSubcategoryId;
   String? _selectedSubSubcategoryId;
+
+  /// Panier : ne montre que les liens commerciaux (pages web de produits,
+  /// `Clip.isShoppingLink`) de la tuile ouverte. Jamais de videos.
+  bool _toBuyOnly = false;
 
   /// Affiche l'aide de première utilisation du tri manuel, une seule fois
   /// (mémorisée via SharedPreferences) : les vidéos se réordonnent
@@ -1345,7 +1354,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     return ListenableBuilder(
       listenable: widget.state,
       builder: (context, _) {
-        final raw = widget.categoryId == null
+        final raw = widget.toBuyOnly
+            ? widget.state.shoppingClips
+            : widget.categoryId == null
             ? List<Clip>.from(widget.state.allClips)
             : widget.state.clipsForCategory(widget.categoryId);
         final subcats = widget.state.getSubCategoriesFor(widget.categoryId);
@@ -1361,7 +1372,10 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                     subSubId == null ||
                     widget.state.subsubcategoryIdForClip(c.id) == subSubId)
                 .toList();
-        final clips = _sorted(filtered);
+        final hasToBuy = raw.any((c) => c.isShoppingLink);
+        final clips = _sorted(_toBuyOnly
+            ? filtered.where((c) => c.isShoppingLink).toList()
+            : filtered);
         final topPad =
             MediaQuery.of(context).padding.top + kToolbarHeight + 8;
 
@@ -1416,6 +1430,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   letterSpacing: -0.5),
             ),
             actions: [
+              if (!widget.toBuyOnly && (hasToBuy || _toBuyOnly))
+                IconButton(
+                  icon: Icon(_toBuyOnly
+                      ? Icons.shopping_bag_rounded
+                      : Icons.shopping_bag_outlined),
+                  tooltip: Localizations.localeOf(context).languageCode == 'fr'
+                      ? (_toBuyOnly ? 'Tout afficher' : 'À acheter')
+                      : (_toBuyOnly ? 'Show all' : 'To buy'),
+                  onPressed: () => setState(() => _toBuyOnly = !_toBuyOnly),
+                ),
               IconButton(
                 icon: Icon(_gridView ? Icons.list_rounded : Icons.grid_view_rounded),
                 tooltip: Localizations.localeOf(context).languageCode == 'fr'
@@ -1512,7 +1536,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                             ? _SubcategoryEmptyState(l: l)
                             : (widget.categoryId != null
                                 ? _CategoryEmptyState(l: l)
-                                : _EmptyState(l: l, state: widget.state)))
+                                : (widget.state.isReceivingLinks
+                                    ? const _ArrivingState()
+                                    : _EmptyState(l: l, state: widget.state))))
                         : _sortOrder == SortOrder.manual && clips.length >= 2
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
@@ -1616,17 +1642,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                       platformId: c.platform,
                                                       fit: BoxFit.cover,
                                                       fallbackBuilder: (_) =>
-                                                          SearchQueryCard.queryFor(c.url) != null
-                                                              ? SearchQueryCard(query: SearchQueryCard.queryFor(c.url)!)
-                                                              : (c.platform == 'other' && c.title.trim().isNotEmpty
-                                                          ? LinkFallbackCard(url: c.url, title: c.title, logoFallback: const Icon(Icons.link_rounded, color: Colors.white70, size: 36))
-                                                          : Container(color: AppTheme.orange.withValues(alpha: 0.2))),
+                                                          ThumbnailFallback(url: c.url, title: c.title),
                                                     )
-                                                  : (SearchQueryCard.queryFor(c.url) != null
-                                                      ? SearchQueryCard(query: SearchQueryCard.queryFor(c.url)!)
-                                                      : (c.platform == 'other' && c.title.trim().isNotEmpty
-                                                          ? LinkFallbackCard(url: c.url, title: c.title, logoFallback: const Icon(Icons.link_rounded, color: Colors.white70, size: 36))
-                                                          : Container(color: AppTheme.orange.withValues(alpha: 0.2)))),
+                                                  : ThumbnailFallback(url: c.url, title: c.title),
                                               const IgnorePointer(
                                                 child: DecoratedBox(
                                                   decoration: BoxDecoration(
@@ -2395,14 +2413,189 @@ class _SuggestionsList extends StatelessWidget {
   }
 }
 
-/// État vide de l'accueil : volontairement vide. Les raccourcis vers les
-/// applis sont désormais dans le dernier écran de l'onboarding.
+/// Accueil pendant qu'un premier lien arrive : remplace l'état vide, qui
+/// serait faux (et clignotait) avant l'apparition du clip. L'état vide ne
+/// revient que si rien n'arrive (ou si l'ajout est refusé).
+class _ArrivingState extends StatelessWidget {
+  const _ArrivingState();
+
+  @override
+  Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final color = isDark
+        ? Colors.white.withValues(alpha: 0.7)
+        : AppTheme.lightTextSecondary;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            isFr ? 'Reelr range ton lien…' : 'Reelr is filing your link…',
+            style: TextStyle(color: color, fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// État vide de l'accueil : jamais d'écran vide. Invite à commencer et
+/// réexplique en 3 étapes comment ajouter un lien, avec un accès direct
+/// au tutoriel.
 class _EmptyState extends StatelessWidget {
   final AppL10n l;
   final ClipsState state;
   const _EmptyState({required this.l, required this.state});
+
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
+    final subColor = isDark
+        ? Colors.white.withValues(alpha: 0.6)
+        : AppTheme.lightTextSecondary;
+    final borderColor = isDark
+        ? Colors.white.withValues(alpha: 0.08)
+        : AppTheme.lightBorder.withValues(alpha: 0.6);
+    const accent = Color(0xFFA855F7);
+    final steps = isFr
+        ? const [
+            'Ouvre une vidéo ou une page dans TikTok, Instagram, YouTube, Safari…',
+            'Appuie sur Partager, puis choisis Reelr.',
+            'Reelr range le lien tout seul dans la bonne catégorie.',
+          ]
+        : const [
+            'Open a video or page in TikTok, Instagram, YouTube, Safari…',
+            'Tap Share, then choose Reelr.',
+            'Reelr files the link in the right category for you.',
+          ];
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(color: borderColor, width: 1),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(18),
+                      color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
+                      boxShadow: [
+                        BoxShadow(
+                          color:
+                              const Color(0xFF7C3AED).withValues(alpha: 0.30),
+                          blurRadius: 20,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.bookmark_add_rounded,
+                        size: 30, color: accent),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    isFr ? 'COMMENCE ICI' : 'START HERE',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.4,
+                      color: accent,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    isFr
+                        ? 'Ta bibliothèque est vide\npour l\'instant'
+                        : 'Your library is empty\nfor now',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                      color: textColor,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  for (var i = 0; i < steps.length; i++)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: accent.withValues(alpha: 0.18),
+                            ),
+                            child: Text(
+                              '${i + 1}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: accent,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              steps[i],
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.5,
+                                color: subColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => OnboardingScreen(state: state),
+                      ),
+                    ),
+                    icon: const Icon(Icons.play_circle_outline_rounded,
+                        color: accent),
+                    label: Text(
+                      isFr ? 'Revoir le tutoriel' : 'Watch the tutorial again',
+                      style: const TextStyle(
+                        color: accent,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _SubcategoryEmptyState extends StatelessWidget {
