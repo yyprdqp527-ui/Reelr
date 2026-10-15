@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'receipt_expiry.dart';
 
 /// Service responsable de l'achat et de la restauration de l'abonnement
 /// Reelr Premium via StoreKit (App Store).
@@ -216,28 +219,68 @@ class PurchaseService {
       for (final p in purchases) {
         if (p.productID == premiumYearlyId &&
             (p.status == PurchaseStatus.purchased ||
-                p.status == PurchaseStatus.restored)) {
+                p.status == PurchaseStatus.restored) &&
+            !_isExpiredRestore(p)) {
           found = true;
         }
       }
     });
     try {
       await _iap.restorePurchases();
-      // Les événements de la queue d'achat arrivent de façon asynchrone,
-      // pas nécessairement avant la fin de restorePurchases() : on laisse
-      // un délai raisonnable pour qu'ils remontent.
-      await Future.delayed(const Duration(seconds: 6));
+      // Les evenements de la file d'achat arrivent de facon asynchrone, pas
+      // forcement avant la fin de restorePurchases(). On attend jusqu'a
+      // [_reverifyWait] (reseau lent), mais on s'arrete des qu'un abonnement
+      // actif est retrouve : le cas normal reste rapide.
+      final deadline = DateTime.now().add(_reverifyWait);
+      while (!found && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(const Duration(milliseconds: 250));
+      }
     } catch (e) {
       debugPrint('[purchase] silentlyReverifyEntitlement error: $e');
       await sub.cancel();
       return;
     }
     await sub.cancel();
-    if (currentlyPremium && !found) {
-      debugPrint(
-          '[purchase] Abonnement non retrouvé au démarrage — retrait du statut Premium local.');
-      onPremiumExpired?.call();
+
+    // Deux verifications negatives de suite avant de retirer Premium : une
+    // seule reponse manquante (reseau lent, App Store muet) ne doit jamais
+    // priver un abonne de son acces. Le compteur repart a zero des qu'on
+    // retrouve l'abonnement.
+    final prefs = await SharedPreferences.getInstance();
+    if (found) {
+      await prefs.setInt(_missedKey, 0);
+      return;
     }
+    final missed = (prefs.getInt(_missedKey) ?? 0) + 1;
+    if (missed < _missedLimit) {
+      await prefs.setInt(_missedKey, missed);
+      debugPrint('[purchase] Abonnement non retrouve ($missed/$_missedLimit) '
+          '— Premium conserve, nouvelle verification au prochain demarrage.');
+      return;
+    }
+    await prefs.setInt(_missedKey, 0);
+    debugPrint(
+        '[purchase] Abonnement non retrouve $_missedLimit fois de suite — '
+        'retrait du statut Premium local.');
+    onPremiumExpired?.call();
+  }
+
+  static const String _missedKey = 'premium_reverify_missed';
+  static const int _missedLimit = 2;
+  static const Duration _reverifyWait = Duration(seconds: 20);
+
+  /// Vrai si [p] est une transaction « restauree » dont le recu App Store
+  /// montre que l'abonnement est DEJA expire. StoreKit renvoie aussi ces
+  /// transactions-la : sans ce test, restaurer un abonnement perime redonnait
+  /// Premium. Faux au moindre doute (recu illisible, date absente) : on ne
+  /// refuse jamais un abonne a cause d'un recu mal lu.
+  bool _isExpiredRestore(PurchaseDetails p) {
+    if (p.status != PurchaseStatus.restored) return false;
+    final receipt = p.verificationData.serverVerificationData;
+    if (receipt.isEmpty) return false;
+    final expiry = ReceiptExpiry.latestExpiry(receipt, premiumYearlyId);
+    if (expiry == null) return false;
+    return expiry.isBefore(DateTime.now().toUtc());
   }
 
   void _handlePurchaseUpdates(List<PurchaseDetails> purchases) {
@@ -250,6 +293,17 @@ class PurchaseService {
           break;
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
+          if (_isExpiredRestore(purchase)) {
+            // Abonnement deja expire : pas de Premium. L'ecran d'achat
+            // affiche « Aucun abonnement a restaurer » si rien d'autre ne
+            // debloque.
+            debugPrint('[purchase] Restauration ignoree : abonnement expire.');
+            _settle();
+            if (purchase.pendingCompletePurchase) {
+              _iap.completePurchase(purchase);
+            }
+            break;
+          }
           debugPrint('[purchase] Achat confirmé (${purchase.status}).');
           _settle();
           onPremiumUnlocked();
