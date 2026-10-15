@@ -14,8 +14,10 @@ import 'package:uuid/uuid.dart';
 
 import 'core/l10n.dart';
 import 'core/theme.dart';
+import 'models/category.dart';
 import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/categories_screen.dart' show suggestIconForCategoryName;
 import 'screens/playlist_import_screen.dart';
 import 'services/thumbnail_cache.dart';
 import 'services/thumbnail_store.dart';
@@ -483,17 +485,24 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         return;
       }
       _playlistImportOpen = true;
+      Future<String?>? presetCategory;
       Navigator.of(ctx).push(MaterialPageRoute(
         builder: (_) => PlaylistImportScreen(
           state: widget.state,
           playlist: playlist,
           // Mode silencieux obligatoire : l'ecran importe en boucle.
-          onImportItem: (item) => _ingestSharedUrl(
-                item.url,
-                silent: true,
-                sharedTitle: item.title,
-                sharedThumbnailUrl: item.rawThumbnailUrl,
-              ),
+          onImportItem: (item) async {
+            // Créée au premier lien importé seulement : si on referme
+            // l'écran sans rien importer, aucune catégorie vide.
+            presetCategory ??= _playlistCategoryId(playlist.name);
+            return _ingestSharedUrl(
+              item.url,
+              silent: true,
+              sharedTitle: item.title,
+              sharedThumbnailUrl: item.rawThumbnailUrl,
+              presetCategoryId: await presetCategory,
+            );
+          },
           canAddMore: () => canAddClip(silent: true),
           // Un seul écran Premium à la fin, comme pour les partages gardés.
           onLimitReached: (urls) => unawaited(_holdSharedUrls(urls)
@@ -620,6 +629,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     bool silent = false,
     String? sharedTitle,
     String? sharedThumbnailUrl,
+    String? presetCategoryId,
   }) async {
     widget.state.beginArrival();
     try {
@@ -628,6 +638,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         silent: silent,
         sharedTitle: sharedTitle,
         sharedThumbnailUrl: sharedThumbnailUrl,
+        presetCategoryId: presetCategoryId,
       );
     } finally {
       widget.state.endArrival();
@@ -639,6 +650,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     bool silent = false,
     String? sharedTitle,
     String? sharedThumbnailUrl,
+    String? presetCategoryId,
   }) async {
     // Resout les liens courts connus (pin.it, Reddit /s/xxxx) vers leur
     // URL canonique avant la verification de doublon, pour que deux
@@ -674,7 +686,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             ? sharedTitle.trim()
             : platform.name,
         platform: platform.id,
-        categoryId: null,
+        categoryId: presetCategoryId,
         tags: const [],
         addedAt: DateTime.now(),
         // Adresse brute, comme l'écrit l'extraction : le proxy éventuel
@@ -683,6 +695,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             OEmbedService.bestThumbnailUrl(dedupUrl, null),
       );
       if (!await widget.state.addClip(clip)) return false;
+      if (presetCategoryId != null) _presortedIds.add(clip.id);
       registerClipAdded();
       _enqueueHydration(clip);
       return true;
@@ -1038,6 +1051,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     Completer<void>? hydrated,
   }) async {
     final hasRealTitle = await _hydrateClip(clip, classifyEarly: true);
+    // Playlist reçue : déjà rangée, on ne reclasse pas.
+    if (_presortedIds.remove(clip.id)) {
+      widget.state.markClassificationDone(clip.id);
+      return;
+    }
     // Classement deja lance pendant l'extraction : ne pas payer un
     // second appel (voir _maybeClassifyEarly).
     final classifiedEarly = _earlyClassifiedIds.remove(clip.id);
@@ -1288,6 +1306,25 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// Clips dont le classement est deja parti pendant l'extraction (voir
   /// [_maybeClassifyEarly]) : [_hydrateAndClassify] ne le relance pas.
   final Set<String> _earlyClassifiedIds = {};
+
+  /// Clips d'une playlist reçue, déjà rangés par l'ami qui l'a envoyée :
+  /// l'extraction complète titre et vignette, mais aucun classement n'est
+  /// lancé (pas d'appel à Claude, la catégorie reste celle de la playlist).
+  final Set<String> _presortedIds = {};
+
+  /// Catégorie qui reçoit une playlist : celle qui porte déjà ce nom (à
+  /// l'accent, la casse et le pluriel près), sinon une nouvelle.
+  Future<String?> _playlistCategoryId(String rawName) async {
+    final name = rawName.trim();
+    if (name.isEmpty) return null;
+    final cat = await widget.state.addCategory(ClipCategory(
+      id: const Uuid().v4(),
+      name: name[0].toUpperCase() + name.substring(1),
+      color: const Color(0xFF7C3AED),
+      icon: suggestIconForCategoryName(name),
+    ));
+    return cat.id;
+  }
 
   /// Classement anticipe (2026-10-03).
   ///
