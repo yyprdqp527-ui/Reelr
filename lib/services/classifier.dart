@@ -1710,11 +1710,92 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
   /// Classifie [video] via Claude Haiku.
   /// Si [profile] est fourni et contient des données, le profil utilisateur
   /// est injecté dans le prompt pour améliorer la pertinence.
+  /// Plateformes dont l'URL de vignette est stable : l'image part des la
+  /// premiere passe.
+  static const Set<String> _platformsWithReliableThumbnails = {
+    'youtube',
+    'tiktok',
+    'instagram',
+    'twitch'
+  };
+
+  /// Page web avec une image directe (https, hors capture du proxy).
+  static bool _isWebWithDirectImage(VideoData v) {
+    final thumb = v.thumbnailUrl;
+    return v.platform == 'other' &&
+        thumb != null &&
+        thumb.startsWith('https://') &&
+        !thumb.contains('reelr-proxy');
+  }
+
+  /// L'image part-elle a la premiere passe ?
+  static bool _imageSentFirstPass(VideoData v) {
+    final thumb = v.thumbnailUrl;
+    return thumb != null &&
+        thumb.isNotEmpty &&
+        (_platformsWithReliableThumbnails.contains(v.platform) ||
+            _isWebWithDirectImage(v));
+  }
+
+  /// Une image directe existe pour une 2e passe (hors capture du proxy,
+  /// lente et souvent en erreur).
+  static bool _imageAvailableForSecondPass(VideoData v) {
+    final thumb = v.thumbnailUrl;
+    return thumb != null &&
+        thumb.startsWith('https://') &&
+        !thumb.contains('reelr-proxy');
+  }
+
+  /// Seuil sous lequel Reelr reclasse AVEC la vignette (2e passe).
+  static const int _secondPassBelow = 60;
+
+  /// Classe [video]. Premiere passe comme avant ; si la confiance est basse
+  /// (< 60) et que l'image n'a pas encore ete envoyee, deuxieme passe avec la
+  /// vignette. On garde le resultat le plus confiant. Une erreur de la 2e
+  /// passe ne casse jamais le classement : le 1er resultat est conserve.
   static Future<ClassificationResult> classify({
     required VideoData video,
     ClientProfile? profile,
     List<String> customCategories = const [],
     List<String> userExamples = const [],
+  }) async {
+    final first = await _classifyPass(
+      video: video,
+      profile: profile,
+      customCategories: customCategories,
+      userExamples: userExamples,
+    );
+    if (first.confiance >= _secondPassBelow ||
+        _imageSentFirstPass(video) ||
+        !_imageAvailableForSecondPass(video)) {
+      return first;
+    }
+    try {
+      final second = await _classifyPass(
+        video: video,
+        profile: profile,
+        customCategories: customCategories,
+        userExamples: userExamples,
+        forceImage: true,
+      );
+      final better = second.confiance > first.confiance;
+      debugPrint('[classify] 2e passe avec vignette : '
+          '${first.categoriePrincipale} (${first.confiance}) -> '
+          '${second.categoriePrincipale} (${second.confiance})'
+          '${better ? ' | retenue' : ' | ignoree'}');
+      return better ? second : first;
+    } catch (e) {
+      debugPrint('[classify] 2e passe avec vignette echouee : $e');
+      return first;
+    }
+  }
+
+  static Future<ClassificationResult> _classifyPass({
+    required VideoData video,
+    ClientProfile? profile,
+    List<String> customCategories = const [],
+    List<String> userExamples = const [],
+    bool forceImage = false,
   }) async {
     final userText =
         _buildUserText(video, profile, customCategories, userExamples);
@@ -1726,6 +1807,7 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     // tokens à courte durée de vie qui expirent souvent avant que l'API
     // Anthropic ne récupère l'image côté serveur.
     const platformsWithReliableThumbnails = {'youtube', 'tiktok', 'instagram', 'twitch'};
+    final forceImageOk = forceImage && _imageAvailableForSecondPass(video);
     // Liens web (2026-10-07) : l'image n'etait jamais envoyee, alors qu'une
     // page de recherche d'inspiration (UX, couleurs...) se reconnait au
     // premier coup d'oeil sur la vignette. Seules les images directes
@@ -1739,7 +1821,8 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     if (thumb != null &&
         thumb.isNotEmpty &&
         (platformsWithReliableThumbnails.contains(video.platform) ||
-            isWebWithDirectImage)) {
+            isWebWithDirectImage ||
+            forceImageOk)) {
       messageContent = [
         {
           'type': 'image',
