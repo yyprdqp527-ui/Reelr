@@ -813,6 +813,19 @@ class ClipsState extends ChangeNotifier {
                   "seuil de 40. Raison de Claude : ${result.raison}",
               tags: result.tagsSuggeres,
             );
+            // Pastille « X ou Y ? » : on garde les deux hypotheses.
+            final cands = <String>[];
+            for (final c in [result.categoriePrincipale, result.alternative]) {
+              if (c != null && c.startsWith('cat_') && !cands.contains(c)) {
+                cands.add(c);
+              }
+            }
+            if (cands.length >= 2) {
+              debugPrint('[classify] candidats pour la pastille : $cands');
+              await DatabaseHelper.instance.setClipCandidates(clip.id, cands);
+              _clips = await DatabaseHelper.instance.getAllClips();
+              notifyListeners();
+            }
             return;
           }
         } catch (e) {
@@ -874,46 +887,7 @@ class ClipsState extends ChangeNotifier {
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
-        const catNames = <String, String>{
-          'cat_food': 'Food', 'cat_fitness': 'Fitness',
-          'cat_gaming': 'Gaming', 'cat_beauty': 'Beauté',
-          'cat_mode': 'Mode', 'cat_travel': 'Voyage',
-          'cat_humour': 'Humour', 'cat_musique': 'Musique',
-          'cat_wellness': 'Bien-être', 'cat_podcast': 'Podcast',
-          'cat_famille': 'Famille', 'cat_finance': 'Finance',
-          'cat_business': 'Business', 'cat_actu': 'Actualités',
-          'cat_societe': 'Société', 'cat_diy': 'DIY',
-          'cat_deco': 'Déco', 'cat_auto': 'Auto', 'cat_moto': 'Moto',
-          'cat_culture': 'Culture', 'cat_cinema': 'Cinéma',
-          'cat_growth': 'Dév. Personnel', 'cat_pets': 'Animaux',
-          'cat_nature': 'Nature', 'cat_truecrime': 'True Crime',
-          'cat_astro': 'Astrologie', 'cat_sport': 'Sport',
-          'cat_sante': 'Santé', 'cat_science': 'Science',
-          'cat_bebe': 'Bébé', 'cat_tricot': 'Couture', 'cat_tricotage': 'Tricot', 'cat_crochet': 'Crochet', 'cat_broderie': 'Broderie',
-          'cat_doc': 'Documentaire', 'cat_religion': 'Religion',
-          'cat_immo': 'Immobilier', 'cat_manga': 'Anime & Manga',
-          'cat_politique': 'Politique', 'cat_crypto': 'Crypto',
-          'cat_lang': 'Langues', 'cat_histoire': 'Histoire',
-          'cat_art': 'Art', 'cat_photo': 'Photo',
-          'cat_outdoor': 'Outdoor', 'cat_psycho': 'Psychologie',
-          'cat_luxe': 'Luxe', 'cat_entrepreneuriat': 'Entrepreneuriat',
-          'cat_education': 'Éducation', 'cat_cosplay': 'Cosplay',
-          'cat_dance': 'Danse', 'cat_comedy': 'Stand-up',
-          'cat_jardin': 'Jardinage', 'cat_sport_extreme': 'Extrême',
-          'cat_nutrition': 'Nutrition', 'cat_vintage': 'Vintage',
-          'cat_fail': 'Fails',
-          'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
-          'cat_shopping': 'Shopping',
-          'cat_restaurant': 'Restaurant',
-          'cat_menage': 'Ménage',
-          'cat_travaux': 'Travaux',
-          'cat_rangement': 'Rangement',
-          'cat_coiffure': 'Coiffure',
-          'cat_patisserie': 'Pâtisserie',
-          'cat_boissons': 'Boissons',
-          'cat_livres': 'Livres',
-          'cat_design': 'Design & UX',
-        };
+        final catNames = _aiCategoryNames;
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
         // jamais un ID `cat_xxx` litteral : l'ancien test
         // `catName.startsWith('cat_')` etait donc toujours faux, et CHAQUE
@@ -1727,6 +1701,92 @@ class ClipsState extends ChangeNotifier {
 
   /// Insert idempotent par nom (case-insensitive). Renvoie la cat\u00e9gorie
   /// utilis\u00e9e (existante ou nouvellement cr\u00e9\u00e9e).
+  /// Noms francais des categories du catalogue, pour creer une tuile a partir
+  /// d'un ID cat_xxx (classement automatique ou pastille « X ou Y ? »).
+  static const Map<String, String> _aiCategoryNames = <String, String>{
+          'cat_food': 'Food', 'cat_fitness': 'Fitness',
+          'cat_gaming': 'Gaming', 'cat_beauty': 'Beauté',
+          'cat_mode': 'Mode', 'cat_travel': 'Voyage',
+          'cat_humour': 'Humour', 'cat_musique': 'Musique',
+          'cat_wellness': 'Bien-être', 'cat_podcast': 'Podcast',
+          'cat_famille': 'Famille', 'cat_finance': 'Finance',
+          'cat_business': 'Business', 'cat_actu': 'Actualités',
+          'cat_societe': 'Société', 'cat_diy': 'DIY',
+          'cat_deco': 'Déco', 'cat_auto': 'Auto', 'cat_moto': 'Moto',
+          'cat_culture': 'Culture', 'cat_cinema': 'Cinéma',
+          'cat_growth': 'Dév. Personnel', 'cat_pets': 'Animaux',
+          'cat_nature': 'Nature', 'cat_truecrime': 'True Crime',
+          'cat_astro': 'Astrologie', 'cat_sport': 'Sport',
+          'cat_sante': 'Santé', 'cat_science': 'Science',
+          'cat_bebe': 'Bébé', 'cat_tricot': 'Couture', 'cat_tricotage': 'Tricot', 'cat_crochet': 'Crochet', 'cat_broderie': 'Broderie',
+          'cat_doc': 'Documentaire', 'cat_religion': 'Religion',
+          'cat_immo': 'Immobilier', 'cat_manga': 'Anime & Manga',
+          'cat_politique': 'Politique', 'cat_crypto': 'Crypto',
+          'cat_lang': 'Langues', 'cat_histoire': 'Histoire',
+          'cat_art': 'Art', 'cat_photo': 'Photo',
+          'cat_outdoor': 'Outdoor', 'cat_psycho': 'Psychologie',
+          'cat_luxe': 'Luxe', 'cat_entrepreneuriat': 'Entrepreneuriat',
+          'cat_education': 'Éducation', 'cat_cosplay': 'Cosplay',
+          'cat_dance': 'Danse', 'cat_comedy': 'Stand-up',
+          'cat_jardin': 'Jardinage', 'cat_sport_extreme': 'Extrême',
+          'cat_nutrition': 'Nutrition', 'cat_vintage': 'Vintage',
+          'cat_fail': 'Fails',
+          'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
+          'cat_shopping': 'Shopping',
+          'cat_restaurant': 'Restaurant',
+          'cat_menage': 'Ménage',
+          'cat_travaux': 'Travaux',
+          'cat_rangement': 'Rangement',
+          'cat_coiffure': 'Coiffure',
+          'cat_patisserie': 'Pâtisserie',
+          'cat_boissons': 'Boissons',
+          'cat_livres': 'Livres',
+          'cat_design': 'Design & UX',
+  };
+
+  /// Nom affichable d'une categorie proposee (tuile existante ou catalogue).
+  String candidateName(String catId) {
+    final existing = findBestCategoryMatch(catId);
+    if (existing != null) return existing.name;
+    return _aiCategoryNames[catId] ?? catId;
+  }
+
+  /// Pastille « X ou Y ? » : range [clip] dans la categorie choisie (creee si
+  /// besoin) et enregistre le choix comme un rangement a la main, donc il
+  /// alimente l'apprentissage.
+  Future<void> assignCandidateCategory(Clip clip, String catId) async {
+    try {
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      var cat = findBestCategoryMatch(catId);
+      if (cat == null) {
+        final canonical = AppL10n.canonicalCategoryId(catId) ?? catId;
+        cat = await addCategory(ClipCategory(
+          id: canonical.startsWith('cat_')
+              ? canonical
+              : 'ai_${DateTime.now().millisecondsSinceEpoch}',
+          name: _aiCategoryNames[canonical] ?? catId,
+          color: AppL10n.categoryColors[canonical] ?? const Color(0xFF7C3AED),
+          icon: AppL10n.categoryIcons[canonical] ?? Icons.folder_rounded,
+        ));
+      }
+      Clip current = clip;
+      for (final c in _clips) {
+        if (c.id == clip.id) {
+          current = c;
+          break;
+        }
+      }
+      await updateClip(current.copyWith(categoryId: cat.id));
+      await recordUserCategoryChoice(current, cat.id);
+      await DatabaseHelper.instance.setClipCandidates(clip.id, const []);
+      _categories = await DatabaseHelper.instance.getAllCategories();
+      _clips = await DatabaseHelper.instance.getAllClips();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('[candidats] erreur: $e');
+    }
+  }
+
   Future<ClipCategory> addCategory(ClipCategory category) async {
     // Idempotent : une categorie equivalente existante est renvoyee au lieu
     // d'en creer une seconde. Equivalente = meme nom a l'accent, la casse
