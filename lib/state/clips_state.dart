@@ -9,6 +9,7 @@ import '../services/database.dart';
 import '../core/l10n.dart';
 import 'dart:async';
 import '../services/oembed.dart';
+import '../services/restaurant_rules.dart';
 import '../services/thumbnail_store.dart';
 import '../services/profile_service.dart';
 import '../services/sorting_notebook.dart';
@@ -234,6 +235,10 @@ class ClipsState extends ChangeNotifier {
     ].join(' '));
   }
 
+  /// Liens commerciaux (pages web de produits), tous sujets confondus.
+  List<Clip> get shoppingClips =>
+      _clips.where((c) => c.isShoppingLink).toList();
+
   List<Clip> get clips {
     var result = _clips;
     if (_searchQuery.isNotEmpty) {
@@ -346,6 +351,23 @@ class ClipsState extends ChangeNotifier {
   /// entre la verification et l'insertion (deux partages simultanes du
   /// meme lien, double appui sur Enregistrer).
   final Set<String> _addingUrls = {};
+
+  /// Liens en cours d'arrivee (partage recu, import de playlist) : de la
+  /// reception jusqu'a l'enregistrement. Tant que c'est > 0, l'accueil vide
+  /// n'affiche pas son message « Commence ici » : il serait faux, et il
+  /// clignotait avant que le premier clip n'apparaisse.
+  int _arrivals = 0;
+  bool get isReceivingLinks => _arrivals > 0;
+
+  void beginArrival() {
+    _arrivals++;
+    notifyListeners();
+  }
+
+  void endArrival() {
+    if (_arrivals > 0) _arrivals--;
+    notifyListeners();
+  }
 
   /// Enregistre [clip]. Renvoie false, sans rien ecrire, si un clip de
   /// meme adresse normalisee existe deja ou est en cours d'ajout. Dernier
@@ -502,6 +524,7 @@ class ClipsState extends ChangeNotifier {
       var decisionConfidence = 0;
       var decisionReason = "";
       var decisionTags = const <String>[];
+      var decisionToBuy = false;
 
       // Court-circuit local, dans l'ordre de fiabilite :
       // 1) Marque/influenceur/media connu (liste figee, fiable des la 1ere fois)
@@ -515,6 +538,20 @@ class ClipsState extends ChangeNotifier {
             "titre. Claude n'a pas été appelé.";
       }
 
+      // 1 restaurant) Regle d'Anne (2026-10-14) : titre avec « restaurant »,
+      // site qui repertorie des restaurants (TheFork, Uber Eats...) ou
+      // enseigne de restauration (McDonald's, Starbucks...) : toujours
+      // Restaurant, sans Claude, et avant toute autre couche.
+      final restaurantReason = RestaurantRules.reason(
+          title: clip.title, channel: clip.channel, url: clip.url);
+      if (restaurantReason != null) {
+        catName = 'cat_restaurant';
+        debugPrint('[classify] restaurant ($restaurantReason) -> Restaurant (Claude saute)');
+        decisionSource = "couche 1 · règle restaurant";
+        decisionReason = "Règle Restaurant : $restaurantReason. "
+            "Claude n'a pas été appelé.";
+      }
+
       // 1 bis) Site de reservation de voyage (Booking, Airbnb, Expedia,
       // Hotels.com, Trivago, Tripadvisor) : toujours Voyage. Claude
       // hesitait selon le nom de l'hotel (« Suites FL » parti en Immo,
@@ -524,7 +561,8 @@ class ClipsState extends ChangeNotifier {
         final isTravelBooking = RegExp(
           r'(^|\.)(booking\.com|hotels\.com|airbnb\.[a-z.]+|'
           r'expedia\.[a-z.]+|trivago\.[a-z.]+|tripadvisor\.[a-z.]+)$',
-        ).hasMatch(host);
+        ).hasMatch(host) ||
+            RestaurantRules.hotelBookingHost.hasMatch(host);
         if (isTravelBooking) {
           catName = 'cat_travel';
           debugPrint('[classify] site de reservation $host -> Voyage (Claude saute)');
@@ -580,10 +618,15 @@ class ClipsState extends ChangeNotifier {
                 OEmbedService.isShopHost(shopHost))
             ? (_brandInTitle(clip.title) ?? _shopNameFor(clip, shopHost))
             : null;
-        final brand = knownBrand ??
-            ((otherBrand != null && findBestCategoryMatch(otherBrand) != null)
-                ? otherBrand
-                : null);
+        // Decision d'Anne (2026-10-13) : on cherche la chose, pas le
+        // magasin. Aucune tuile d'enseigne n'est creee automatiquement,
+        // meme pour une enseigne connue : on n'en reutilise une que si elle
+        // existe deja. Sinon Claude range le produit par usage.
+        final brandCandidate = knownBrand ?? otherBrand;
+        final brand = (brandCandidate != null &&
+                findBestCategoryMatch(brandCandidate) != null)
+            ? brandCandidate
+            : null;
         if (otherBrand != null && brand == null) {
           debugPrint('[classify] boutique $otherBrand : pas de tuile '
               'automatique, classement par sujet');
@@ -736,6 +779,8 @@ class ClipsState extends ChangeNotifier {
           decisionConfidence = result.confiance;
           decisionReason = result.raison;
           decisionTags = result.tagsSuggeres;
+          decisionToBuy = result.aAcheter;
+          debugPrint('[classify] a_acheter: ${result.aAcheter ? "oui" : "non"}');
           debugPrint('[classify] result: "${clip.title}" -> $catName | confiance: ${result.confiance}');
           debugPrint('[classify] elapsed: ${sw.elapsedMilliseconds}ms');
           if (result.confiance >= 60) {
@@ -797,6 +842,7 @@ class ClipsState extends ChangeNotifier {
             decisionConfidence = retryResult.confiance;
             decisionReason = retryResult.raison;
             decisionTags = retryResult.tagsSuggeres;
+            decisionToBuy = retryResult.aAcheter;
             debugPrint('[classify] retry succeeded: $catName');
           } catch (e2) {
             debugPrint('[classify] retry failed, falling back to keywords: $e2');
@@ -858,6 +904,14 @@ class ClipsState extends ChangeNotifier {
           'cat_fail': 'Fails',
           'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
           'cat_shopping': 'Shopping',
+          'cat_restaurant': 'Restaurant',
+          'cat_menage': 'Ménage',
+          'cat_travaux': 'Travaux',
+          'cat_rangement': 'Rangement',
+          'cat_coiffure': 'Coiffure',
+          'cat_patisserie': 'Pâtisserie',
+          'cat_boissons': 'Boissons',
+          'cat_livres': 'Livres',
           'cat_design': 'Design & UX',
         };
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
@@ -906,6 +960,12 @@ class ClipsState extends ChangeNotifier {
         reason: "[$decisionSource] $decisionReason",
         tags: decisionTags,
       );
+      if (decisionToBuy) {
+        debugPrint('[classify] a_acheter ${clip.platform == 'other' ? 'pose' : 'ignore (video)'} : plateforme=${clip.platform}');
+      }
+      if (decisionToBuy && clip.platform == 'other') {
+        await DatabaseHelper.instance.setClipToBuy(updated.id, true);
+      }
       _newlyClassifiedCategoryIds.add(matchedCat.id);
       _categories = await DatabaseHelper.instance.getAllCategories();
       _clips = await DatabaseHelper.instance.getAllClips();
