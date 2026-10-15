@@ -102,11 +102,6 @@ class AppL10n {
       'onboardingAssignVideoToSubcategory':
           'Sous-catégorie créée. Pour y ajouter une vidéo, ouvrez le menu ⋯ de la vidéo, puis choisissez cette sous-catégorie.',
       'onboardingGotIt': 'Compris',
-      'fallibleNoticeTitle':
-          'Reelr range tes liens… mais il peut se tromper.',
-      'fallibleNoticeBody':
-          "Si un lien n'est pas au bon endroit, déplace-le : Reelr s'en souvient pour les prochains.",
-      'fallibleNoticeOk': 'OK',
       'add_subcategory_tooltip': 'Ajouter une sous-catégorie',
       'add_subsubcategory_tooltip': 'Ajouter un sous-dossier',
       'sharePlaylist': 'Partager la playlist',
@@ -208,11 +203,6 @@ class AppL10n {
       'onboardingAssignVideoToSubcategory':
           'Subcategory created. To add a video, open the video\'s ⋯ menu, then choose this subcategory.',
       'onboardingGotIt': 'Got it',
-      'fallibleNoticeTitle':
-          'Reelr sorts your links… but it can get it wrong.',
-      'fallibleNoticeBody':
-          "If a link isn't in the right place, move it: Reelr remembers it for the next ones.",
-      'fallibleNoticeOk': 'OK',
       'add_subcategory_tooltip': 'Add a subcategory',
       'add_subsubcategory_tooltip': 'Add a subfolder',
       'sharePlaylist': 'Share playlist',
@@ -304,6 +294,14 @@ class AppL10n {
     'cat_auto':           'Auto',
     'cat_moto':           'Moto',
     'cat_shopping':       'Shopping',
+    'cat_restaurant':     'Restaurant',
+    'cat_menage': 'Ménage',
+    'cat_travaux': 'Travaux',
+    'cat_rangement': 'Rangement',
+    'cat_coiffure': 'Coiffure',
+    'cat_patisserie': 'Pâtisserie',
+    'cat_boissons': 'Boissons',
+    'cat_livres': 'Livres',
     'cat_tech':           'Tech',
     'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
@@ -368,6 +366,14 @@ class AppL10n {
     'cat_auto':           'Cars',
     'cat_moto':           'Bikes',
     'cat_shopping':       'Shopping',
+    'cat_restaurant':     'Restaurant',
+    'cat_menage': 'Cleaning',
+    'cat_travaux': 'Renovation',
+    'cat_rangement': 'Organizing',
+    'cat_coiffure': 'Hair',
+    'cat_patisserie': 'Baking',
+    'cat_boissons': 'Drinks',
+    'cat_livres': 'Books',
     'cat_tech':           'Tech',
     'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
@@ -442,6 +448,14 @@ class AppL10n {
     'cat_design': ['design', 'ux', 'ui', 'ui ux', 'ux ui', 'design ux', 'graphisme', 'graphic design'],
     'cat_pets': ['animaux', 'animal', 'pets', 'animaux de compagnie'],
     'cat_shopping': ['bons plans', 'bon plan', 'achats', 'deals', 'promos'],
+    'cat_restaurant': ['restaurant', 'resto', 'restos', 'restaurants'],
+    'cat_menage': ['menage', 'entretien', 'nettoyage', 'linge', 'lessive', 'cleaning', 'laundry'],
+    'cat_travaux': ['travaux', 'renovation', 'chantier', 'plomberie', 'home improvement'],
+    'cat_rangement': ['rangement', 'organisation', 'organizing', 'declutter', 'desencombrement'],
+    'cat_coiffure': ['coiffure', 'cheveux', 'hair', 'hairstyle'],
+    'cat_patisserie': ['patisserie', 'gateau', 'gateaux', 'baking', 'desserts'],
+    'cat_boissons': ['boissons', 'vin', 'cocktails', 'drinks', 'wine'],
+    'cat_livres': ['livres', 'livre', 'lecture', 'books', 'booktok'],
     'cat_broderie': ['broderie', 'embroidery', 'point de croix', 'cross stitch', 'crossstitch', 'cross stich', 'punto croce', 'punto de cruz', 'kreuzstich'],
   };
 
@@ -519,6 +533,14 @@ class AppL10n {
     'cat_broderie': Color(0xFFE1A6C8),
     'cat_moto': Color(0xFF7FA0D8),
     'cat_shopping': Color(0xFFF48FB1),
+    'cat_restaurant': Color(0xFFD9667A),
+    'cat_menage': Color(0xFF80CBC4),
+    'cat_travaux': Color(0xFFFFB74D),
+    'cat_rangement': Color(0xFF90A4AE),
+    'cat_coiffure': Color(0xFFBA68C8),
+    'cat_patisserie': Color(0xFFF8BBD0),
+    'cat_boissons': Color(0xFFAED581),
+    'cat_livres': Color(0xFFA1887F),
   };
 
   static const Map<String, IconData> categoryIcons = {
@@ -557,6 +579,14 @@ class AppL10n {
     'cat_broderie': Icons.grid_on_rounded,
     'cat_moto': Icons.two_wheeler_rounded,
     'cat_shopping': Icons.shopping_bag_rounded,
+    'cat_restaurant': Icons.restaurant_menu_rounded,
+    'cat_menage': Icons.cleaning_services_rounded,
+    'cat_travaux': Icons.construction_rounded,
+    'cat_rangement': Icons.inventory_2_rounded,
+    'cat_coiffure': Icons.face_3_rounded,
+    'cat_patisserie': Icons.cake_rounded,
+    'cat_boissons': Icons.local_bar_rounded,
+    'cat_livres': Icons.menu_book_rounded,
   };
 
   /// Résout un libellé brut de catégorie (renvoyé par Claude, saisi à la
