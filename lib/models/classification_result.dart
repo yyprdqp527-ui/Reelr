@@ -13,6 +13,10 @@ class ClassificationResult {
   /// Le lien montre un produit qu'on peut acheter (etiquette « a acheter »).
   final bool aAcheter;
 
+  /// Deuxieme hypothese (ID cat_xxx), quand Claude hesite. Sert a proposer
+  /// « X ou Y ? » sur un lien laisse a trier.
+  final String? alternative;
+
   const ClassificationResult({
     required this.categoriePrincipale,
     required this.sousCategories,
@@ -25,7 +29,23 @@ class ClassificationResult {
     required this.raison,
     required this.tagsSuggeres,
     this.aAcheter = false,
+    this.alternative,
   });
+
+  ClassificationResult withAlternative(String? alt) => ClassificationResult(
+        categoriePrincipale: categoriePrincipale,
+        sousCategories: sousCategories,
+        influenceurDetecte: influenceurDetecte,
+        marqueDetectee: marqueDetectee,
+        styleDeVie: styleDeVie,
+        ambiance: ambiance,
+        audienceCible: audienceCible,
+        confiance: confiance,
+        raison: raison,
+        tagsSuggeres: tagsSuggeres,
+        aAcheter: aAcheter,
+        alternative: alt,
+      );
 
   factory ClassificationResult.fromJson(Map<String, dynamic> json) {
     final influenceur = json['influenceur_detecte'];
@@ -53,6 +73,7 @@ class ClassificationResult {
               .toList() ??
           [],
       aAcheter: json['a_acheter'] == true || json['a_acheter'] == 'true',
+      alternative: json['categorie_alternative'] as String?,
     );
   }
 
@@ -68,5 +89,6 @@ class ClassificationResult {
         'raison': raison,
         'tags_suggeres': tagsSuggeres,
         'a_acheter': aAcheter,
+        'categorie_alternative': alternative,
       };
 }
