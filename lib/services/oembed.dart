@@ -6,6 +6,7 @@ import 'net.dart';
 
 import '../config/secrets.dart';
 import 'classifier.dart';
+import 'restaurant_rules.dart';
 import 'thumbnail_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -247,6 +248,11 @@ class OEmbedService {
     final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
     return '$proxyBase/screenshot?url=${Uri.encodeComponent(pageUrl)}';
   }
+
+  /// Adresse de [rawUrl] a travers le Worker Cloudflare (`/thumb`), qui la
+  /// telecharge cote serveur avec une identite de navigateur.
+  static String proxiedThumbnailUrl(String rawUrl) =>
+      _proxiedThumbnailUrl(rawUrl);
 
   static String _proxiedThumbnailUrl(String rawUrl) {
     final proxyBase = Secrets.reelrProxyUrl.replaceAll('/v1/messages', '');
@@ -1601,6 +1607,12 @@ class OEmbedService {
           debugPrint('[oembed] page produit -> boutique ${uri.host}');
           markShopHost(uri.host).ignore();
         }
+        // Page qui se declare restaurant (og:type ou schema.org) : permet
+        // de ranger en Restaurant un site qu'aucune liste ne connait.
+        if (RestaurantRules.looksLikeRestaurantPage(body, ogType)) {
+          debugPrint('[oembed] page restaurant -> ${uri.toString()}');
+          RestaurantRules.markPage(uri.toString());
+        }
       }
 
       var cleanedTitle = (title ?? '').trim();
@@ -1624,6 +1636,7 @@ class OEmbedService {
         debugPrint('[oembed] image generique ignoree: $cleanedThumb');
         cleanedThumb = null;
       }
+      _rememberImageCandidates(originalUri, uri, body, platformId);
       final lowerTitle = cleanedTitle.toLowerCase();
       if (lowerTitle.contains('please wait') ||
           lowerTitle.contains('verification') ||
@@ -1686,6 +1699,64 @@ class OEmbedService {
     final match = patternA.firstMatch(html) ?? patternB.firstMatch(html);
     if (match == null) return null;
     return _decodeHtmlEntities(match.group(2)?.trim() ?? '');
+  }
+
+  /// Images candidates de chaque page web lue (og:image, twitter:image,
+  /// image_src, JSON-LD), dans l'ordre. Sert de plan B quand la premiere
+  /// n'est pas affichable (video, format illisible).
+  static final Map<String, List<String>> _imageCandidates = {};
+
+  static void _rememberImageCandidates(
+      Uri originalUri, Uri uri, String body, String platformId) {
+    if (platformId != 'other') return;
+    final raw = <String?>[
+      _extractMetaContent(body, property: 'og:image'),
+      _extractMetaContent(body, property: 'og:image:url'),
+      _extractMetaContent(body, name: 'twitter:image'),
+      _extractMetaContent(body, name: 'twitter:image:src'),
+      _extractFallbackImage(body),
+    ];
+    final out = <String>[];
+    for (final r in raw) {
+      if (r == null) continue;
+      final t = _decodeHtmlEntities(r.trim());
+      if (t.isEmpty) continue;
+      var abs = t;
+      if (!t.toLowerCase().startsWith('http')) {
+        try {
+          abs = uri.resolve(t).toString();
+        } catch (_) {
+          continue;
+        }
+      }
+      final c = _sanitizeMediaUrl(abs);
+      if (c == null || _isGenericPlatformImage(c) || out.contains(c)) continue;
+      out.add(c);
+    }
+    _imageCandidates[originalUri.toString()] = out;
+  }
+
+  /// Autre image de la page [pageUrl] que [rejected], ni deja refusee ni
+  /// identique ; null s'il n'y en a pas.
+  static String _candidatesKey(String pageUrl) =>
+      Uri.tryParse(pageUrl)?.toString() ?? pageUrl;
+
+  /// Images candidates connues de la page [pageUrl] (vide si pas lue).
+  static List<String> imageCandidatesFor(String pageUrl) =>
+      List<String>.unmodifiable(
+          _imageCandidates[_candidatesKey(pageUrl)] ?? const <String>[]);
+
+  static bool hasImageCandidates(String pageUrl) =>
+      _imageCandidates.containsKey(_candidatesKey(pageUrl));
+
+  static String? alternativeImageFor(String pageUrl, String rejected) {
+    final list = _imageCandidates[_candidatesKey(pageUrl)];
+    if (list == null) return null;
+    for (final c in list) {
+      if (c == rejected || ThumbnailStore.isUnreadable(c)) continue;
+      return c;
+    }
+    return null;
   }
 
   /// Image de secours pour un site quelconque sans og:image ni
