@@ -3130,6 +3130,22 @@ class ClipCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  // Pastille « X ou Y ? » : les deux hypotheses gardees quand
+                  // Claude a hesite. Un appui range le lien (et l'apprend).
+                  if (category == null &&
+                      !isPendingClassification &&
+                      clip.candidates.length >= 2)
+                    ...clip.candidates.take(2).map((id) => InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => state.assignCandidateCategory(clip, id),
+                          child: _Badge(
+                            label:
+                                '${l.localizeCategoryDisplay(id, state.candidateName(id))} ?',
+                            color: AppL10n.categoryColors[id] ?? _toSortAccent,
+                            icon: AppL10n.categoryIcons[id] ??
+                                Icons.help_outline_rounded,
+                          ),
+                        )),
                   ...clip.tags.map((t) => _Badge(
                         label: '#$t',
                         color: Theme.of(context).colorScheme.primary,
