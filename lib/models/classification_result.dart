@@ -10,6 +10,9 @@ class ClassificationResult {
   final String raison;
   final List<String> tagsSuggeres;
 
+  /// Le lien montre un produit qu'on peut acheter (etiquette « a acheter »).
+  final bool aAcheter;
+
   const ClassificationResult({
     required this.categoriePrincipale,
     required this.sousCategories,
@@ -21,6 +24,7 @@ class ClassificationResult {
     required this.confiance,
     required this.raison,
     required this.tagsSuggeres,
+    this.aAcheter = false,
   });
 
   factory ClassificationResult.fromJson(Map<String, dynamic> json) {
@@ -48,6 +52,7 @@ class ClassificationResult {
               ?.map((e) => e as String)
               .toList() ??
           [],
+      aAcheter: json['a_acheter'] == true || json['a_acheter'] == 'true',
     );
   }
 
@@ -62,5 +67,6 @@ class ClassificationResult {
         'confiance': confiance,
         'raison': raison,
         'tags_suggeres': tagsSuggeres,
+        'a_acheter': aAcheter,
       };
 }
