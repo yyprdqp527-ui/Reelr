@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'site_logo.dart';
+import 'thumbnail_fallback.dart' show LetterBadge;
 
 /// Vignette d'une recherche Google : la page ne fournit que le logo « G »
 /// de Google, identique pour toutes les recherches. On affiche donc la
@@ -64,11 +65,15 @@ class LinkFallbackCard extends StatelessWidget {
   final String url;
   final String title;
   final Widget logoFallback;
+
+  /// Petite case : logo seul, centre, sans titre ni domaine.
+  final bool compact;
   const LinkFallbackCard({
     super.key,
     required this.url,
     required this.title,
     required this.logoFallback,
+    this.compact = false,
   });
 
   @override
@@ -78,6 +83,27 @@ class LinkFallbackCard extends StatelessWidget {
         .toDouble();
     final c1 = HSLColor.fromAHSL(1, hue, 0.45, 0.22).toColor();
     final c2 = HSLColor.fromAHSL(1, (hue + 40) % 360, 0.45, 0.30).toColor();
+    if (compact) {
+      return LayoutBuilder(builder: (context, box) {
+        final side = box.biggest.shortestSide;
+        final size = side.isFinite ? (side * 0.5).clamp(20.0, 52.0) : 36.0;
+        return Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [c1, c2],
+            ),
+          ),
+          alignment: Alignment.center,
+          child: SiteLogo(
+            url: url,
+            size: size,
+            fallback: LetterBadge(host: host, size: size),
+          ),
+        );
+      });
+    }
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
