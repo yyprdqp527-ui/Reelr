@@ -46,12 +46,13 @@ class CategoryClassifier {
       // correspondance se fait au mot entier. Voir _weights.
       'cuisine', 'cuisson', 'culinaire', 'gastronomie', 'gastronomique',
       'food', 'meal', 'dish', 'chef', 'restaurant', 'repas', 'plat', 'manger',
-      'boulangerie', 'patisserie', 'pâtisserie', 'dessert', 'gateau', 'gâteau',
-      'baking', 'pasta', 'pizza', 'soupe', 'soup', 'salade', 'salad',
+      // Pâtisserie, gâteaux, desserts, boulangerie, vin et cocktails ont leur
+      // propre tuile (2026-10-15) : ils vont à Claude, pas à la couche locale.
+      'pasta', 'pizza', 'soupe', 'soup', 'salade', 'salad',
       'breakfast', 'lunch', 'dinner', 'snack', 'apero', 'apéro',
       'raclette', 'tartiflette', 'fondue', 'quiche', 'tarte', 'crepe', 'crêpe',
       'lasagne', 'risotto', 'curry', 'ramen', 'sushi', 'burger', 'sandwich',
-      'wrap', 'bowl', 'brunch', 'smoothie', 'cocktail', 'vin', 'wine',
+      'wrap', 'bowl', 'brunch', 'smoothie',
       'grillades', 'barbecue', 'bbq', 'plancha', 'street food', 'mukbang',
     ],
     'fitness': [
@@ -83,8 +84,9 @@ class CategoryClassifier {
       'maquillage', 'makeup', 'skincare', 'soin visage', 'routine beaute',
       'routine beauté', 'fond de teint', 'mascara', 'rouge levres', 'rouge lèvres',
       'highlighter', 'contouring', 'blush', 'palette', 'tutorial makeup',
-      'tuto maquillage', 'nail', 'nails', 'manucure', 'coiffure', 'cheveux',
-      'hair', 'lissage', 'coloration', 'beaute', 'beauté', 'beauty',
+      'tuto maquillage', 'nail', 'nails', 'manucure',
+      // Coiffure, cheveux, coloration ont leur propre tuile (2026-10-15).
+      'beaute', 'beauté', 'beauty',
       'serum', 'creme visage', 'crème visage', 'acne', 'acné', 'peau',
     ],
     'mode': [
@@ -163,6 +165,11 @@ class CategoryClassifier {
       'revenue', 'chiffre affaires', 'client', 'freelance', 'autoentrepreneur',
       'auto-entrepreneur', 'formation business', 'dropshipping', 'ecommerce',
       'e-commerce', 'amazon fba', 'personal branding', 'linkedin',
+      'creer entreprise', 'créer entreprise', 'lancer startup',
+      'levee fonds', 'levée de fonds', 'pitch investor', 'business plan',
+      'product market fit', 'mvp', 'saas', 'bootstrapping', 'side project',
+      'side hustle', 'passive income', 'revenu passif', 'indie maker',
+      'solopreneur', 'fondateur startup', 'pivot startup',
     ],
     'crypto': [
       'crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'nft', 'blockchain',
@@ -232,7 +239,7 @@ class CategoryClassifier {
     ],
     'deco': [
       'decoration', 'décoration', 'deco', 'déco', 'interieur', 'intérieur',
-      'ikea', 'amenagement', 'aménagement', 'rangement', 'organisation',
+      'ikea', 'amenagement', 'aménagement',
       'maisons du monde', 'leroy merlin', 'home tour', 'room tour',
       'before after deco', 'avant apres deco', 'renovation interieure',
       'rénovation intérieure', 'cuisine renovation', 'salle de bain',
@@ -263,7 +270,7 @@ class CategoryClassifier {
       'yamaha', 'kawasaki', 'honda moto', 'bmw moto',
     ],
     'culture': [
-      'culture', 'litterature', 'littérature', 'lecture', 'livre', 'book',
+      'culture',
       'philosophie', 'philosophy', 'histoire culture', 'cinema culture',
       'art culture', 'musee visite', 'musée visite', 'exposition visite',
       'theatre', 'théâtre', 'opera', 'opéra', 'danse classique',
@@ -452,13 +459,6 @@ class CategoryClassifier {
       'ferrari luxe', 'lamborghini luxe', 'yacht', 'jet prive', 'jet privé',
       'villa luxe', 'hotel luxe', 'palace hotel', 'champagne', 'caviar',
       'haute couture luxe', 'bijoux luxe', 'investissement luxe',
-    ],
-    'entrepreneuriat': [
-      'creer entreprise', 'créer entreprise', 'lancer startup',
-      'levee fonds', 'levée de fonds', 'pitch investor', 'business plan',
-      'product market fit', 'mvp', 'saas', 'bootstrapping', 'side project',
-      'side hustle', 'passive income', 'revenu passif', 'indie maker',
-      'solopreneur', 'fondateur startup', 'pivot startup',
     ],
     'cosplay': [
       'cosplay', 'costume', 'deguisement', 'déguisement', 'convention',
@@ -777,11 +777,6 @@ class CategoryClassifier {
       key: 'luxe', name: 'Luxe',
       color: Color(0xFFFFD700),
       icon: Icons.diamond_outlined,
-    ),
-    'entrepreneuriat': CategorySuggestion(
-      key: 'entrepreneuriat', name: 'Entrepreneuriat',
-      color: Color(0xFF4CAF50),
-      icon: Icons.lightbulb_outlined,
     ),
     'education': CategorySuggestion(
       key: 'education', name: 'Éducation',
@@ -1455,7 +1450,8 @@ Grande distribution : Lidl, Aldi, Leclerc, Intermarché, Carrefour, Monoprix, Pi
 Mode : Zara, H&M, Primark, Mango, Uniqlo, Sézane, Jacquemus, Nike, Adidas, New Balance, Jordan, Palace, Supreme, Stüssy, Carhartt, Balenciaga, Louis Vuitton, Dior, Chanel, Hermès
 Beauté : Sephora, Nocibé, Yves Rocher, L'Oréal, Maybelline, NYX, MAC, Charlotte Tilbury, Rare Beauty, Glossier, CeraVe, La Roche-Posay, Vichy, Bioderma, Nuxe, Caudalie
 Tech : Apple, Samsung, Sony, Google, Microsoft, Fnac, Darty, Amazon, Dyson, Xiaomi, OnePlus, Nothing Phone
-Food : McDonald's, Burger King, KFC, Starbucks, Domino's, Five Guys, Häagen-Dazs, Nutella, Red Bull, Monster
+Restaurant (→ cat_restaurant) : McDonald's, Burger King, KFC, Starbucks, Domino's, Five Guys, Pizza Hut, Quick, Flunch, Buffalo Grill, Hippopotamus, Paul, Brioche Dorée, Columbus Café, Chipotle, Taco Bell, Popeyes, Dunkin', Chick-fil-A, Shake Shack, Panera
+Food (produits → cat_food) : Häagen-Dazs, Nutella, Red Bull, Monster
 Maison : IKEA, Maisons du Monde, Leroy Merlin, Castorama, La Redoute
 Sport : Decathlon, Go Sport, Salomon, The North Face, Patagonia, Arc'teryx
 Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
@@ -1464,10 +1460,18 @@ Voiture : Renault, Peugeot, Citroën, Tesla, BMW, Mercedes, Uber, BlaBlaCar
 
 CATÉGORIES — Tu DOIS retourner EXACTEMENT un de ces IDs dans "categorie_principale", rien d'autre :
 
-cat_food            → cuisine, recettes, restaurants, chefs, gastronomie. Diff. cat_humour : si la vidéo montre réellement une recette/un plat (même raté ou tourné sur un ton comique), reste cat_food ; cat_humour seulement si le comique est le vrai sujet et la nourriture n'est qu'un prétexte accessoire.
+cat_food            → cuisine, recettes, chefs, gastronomie. Diff. cat_restaurant : food = on cuisine, goûte ou présente un plat ; restaurant = on parle d'un établissement. Diff. cat_humour : si la vidéo montre réellement une recette/un plat (même raté ou tourné sur un ton comique), reste cat_food ; cat_humour seulement si le comique est le vrai sujet et la nourriture n'est qu'un prétexte accessoire.
+cat_restaurant      → restaurants, brasseries, bistrots, bars à vin, cafés-restaurants, adresses où manger, cartes et menus d'établissements, critiques et bonnes adresses. Diff. cat_food : restaurant = le lieu/l'établissement ; food = la recette, le plat, la cuisine faite maison.
+cat_menage          → ménage, nettoyage, entretien de la maison, linge (lessive, adoucissant, repassage, séchage), détachage, produits ménagers, astuces de nettoyage. Diff. cat_deco : déco = l'allure de la maison ; ménage = son entretien. Diff. cat_rangement : ménage = nettoyer ; rangement = organiser.
+cat_rangement       → rangement, organisation de la maison, désencombrement, minimalisme, optimisation de l'espace, organiseurs. Diff. cat_menage : rangement = placer et organiser ; ménage = nettoyer. Diff. cat_deco : déco = le style.
+cat_travaux         → gros chantier de la maison : maçonnerie, gros œuvre, électricité, plomberie lourde, carrelage, isolation, rénovation complète, artisans. Diff. cat_diy : tout tuto de petit bricolage ou de réparation à faire soi-même (poncer un meuble, changer un joint, monter une étagère, customiser) reste cat_diy ; travaux = chantier lourd ou pose de matériaux. Diff. cat_deco : une pièce rénovée montrée par son RÉSULTAT, son style ou son budget reste cat_deco. Diff. cat_immo : immo = achat, location, investissement.
+cat_coiffure        → coiffure, coupes, colorations, balayage, brushing, soins des cheveux, tutos coiffure. Diff. cat_beauty : beauty = visage et peau ; coiffure = cheveux.
+cat_patisserie      → technique et métier de la pâtisserie : pâtissier, entremets, macarons, viennoiseries, pain et boulangerie, cake design, décoration de gâteaux. Diff. cat_food : TOUTE recette avec liste d'ingrédients reste cat_food, même sucrée (tarte tatin, brownie, crêpes, gâteau au yaourt) ; pâtisserie = le savoir-faire du pâtissier ou du boulanger, pas une recette du quotidien. Un tuto de pâte de base (brisée, sablée, à pizza) est une recette : cat_food. Les grands classiques de pâtissier (éclairs, choux, religieuse, millefeuille, macarons, entremets) restent cat_patisserie.
+cat_boissons        → vin, cocktails, bières, spiritueux, café, thé, sodas, boissons énergisantes (Monster, Red Bull), tests et classements de boissons, mixologie, accords. Une enseigne de restauration (Starbucks, McDonald's) reste cat_restaurant, même quand la vidéo ne montre que ses boissons. Diff. cat_restaurant : un bar ou un restaurant = lieu ; la boisson elle-même = boissons. Diff. cat_food : food = plat ; boissons = ce qui se boit.
+cat_livres          → livres, romans, lectures, critiques, BookTok, bibliothèque, auteurs, nouveautés littéraires. Diff. cat_culture : culture = analyse, explication d'une œuvre ou d'un auteur, philosophie, culture générale ; livres = recommandations, chroniques de lecture, BookTok, bibliothèque, nouveautés.
 cat_nutrition       → diététique, rééquilibrage alimentaire, calories, macros, régimes. Diff. cat_food : food = plaisir de cuisiner/manger ; nutrition = logique diététique/santé.
 cat_fitness         → musculation, entraînement, yoga, running, cardio. Diff. cat_sport_extreme : ici entraînement classique, pas la prise de risque.
-cat_sport           → sport en général, compétition, matchs, résultats, équipes
+cat_sport           → sport en général, compétition, matchs, résultats, équipes. Le karting (indoor ou en compétition) et les sports mécaniques pratiqués en loisir = cat_sport ; cat_auto = voitures, mécanique, essais
 cat_sport_extreme   → sports à sensations et prise de risque (parkour, base jump, surf de gros, freeride). Diff. cat_fitness : ici risque/adrénaline, pas entraînement classique.
 cat_sante           → santé physique, maladies, médecine, système de santé. Diff. cat_fitness : santé/médical vs entraînement volontaire.
 cat_gaming          → jeux vidéo, gaming, streaming, esport, Twitch
@@ -1491,8 +1495,7 @@ cat_podcast         → interview longue durée, débat, talk-show, format micro
 cat_famille         → vie de famille, parentalité, vlog familial (enfants déjà nés)
 cat_bebe            → grossesse, nouveau-né, petite enfance. Diff. cat_famille : bebe cible grossesse/tout-petit, famille = vie de famille au sens large.
 cat_finance         → finance personnelle, épargne, bourse, budget individuel
-cat_business        → entrepreneuriat au sens large, startup, marketing, management
-cat_entrepreneuriat → parcours/récit de création d'entreprise, storytelling de fondateur. Diff. cat_business : business = techniques/conseils ; entrepreneuriat = histoire d'un fondateur.
+cat_business        → entrepreneuriat, création d'entreprise, récits de fondateurs, startup, marketing, management, conseils business
 cat_crypto          → cryptomonnaies, blockchain, Web3, NFT
 cat_actu            → actualité chaude, news, élections, guerre
 cat_politique       → analyse/débat politique, partis, personnalités. Diff. cat_actu : actu = événement brut, politique = angle partisan explicite.
@@ -1518,7 +1521,7 @@ cat_auto            → voitures, mécanique auto, conduite, essais de voitures.
 cat_moto            → motos, scooters, balades et road trips à moto, mécanique et équipement moto, motocross. Diff. cat_auto : deux-roues motorisés uniquement. Diff. cat_sport_extreme : figures freestyle et prise de risque spectaculaire vont dans cat_sport_extreme.
 cat_culture         → culture générale, littérature, philosophie
 cat_histoire        → faits et récits historiques passés. Diff. cat_culture : histoire = événements du passé, culture = réflexion actuelle.
-cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré.
+cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré. Révisions d'examen (bac, brevet, concours) et méthodes de travail = cat_education, même si la matière est la philosophie ou la littérature ; cat_culture seulement si la vidéo explique le fond (une œuvre, une idée) sans viser un examen.
 cat_lang            → apprentissage des langues étrangères
 cat_science         → sciences dures, espace, physique, biologie
 cat_doc             → documentaire long format, reportage de fond. Le SUJET prime sur le format : un documentaire sur une affaire criminelle va dans cat_truecrime, un doc sur l'espace dans cat_science. cat_doc ne recueille que les documentaires dont le sujet n'a pas de catégorie propre.
@@ -1585,11 +1588,20 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 
 11. Un lieu de sortie se classe selon ce qu'on y fait, jamais en
     cat_travel ni cat_business. Restaurant, brasserie, bistrot, bar à vin,
-    carte ou menu d'un établissement → cat_food. Club, discothèque, salle
+    carte ou menu d'un établissement → cat_restaurant. Club, discothèque, salle
     de concert, programmation de soirées, billetterie d'un DJ ou d'un
     concert → cat_musique. cat_travel = hébergement ou destination.
-    Ex : "OGAM / Restaurant Traditionnel / LYON" → cat_food.
+    Ex : "OGAM / Restaurant Traditionnel / LYON" → cat_restaurant.
     Ex : "Evenements Archive - AZAR Club" → cat_musique.
+
+    Tout ce qui parle d'un restaurant va dans cat_restaurant : le mot
+    « restaurant » dans le titre, une enseigne de restauration (McDonald's,
+    Starbucks, Flunch, Buffalo Grill, Five Guys, KFC…), un site qui
+    réserve, livre ou répertorie des restaurants (TheFork, Uber Eats,
+    Deliveroo, Guide Michelin, Yelp, Tripadvisor restaurants), une page qui
+    se présente comme un restaurant ou une liste de restaurants.
+    Ex : "Les 10 meilleurs restaurants de Lyon" → cat_restaurant.
+    Ex : "Starbucks : menu de Noël" → cat_restaurant.
 
 12. Une ACTIVITÉ pratiquée bat cat_travel, même dans une destination
     célèbre : trek, randonnée, escalade, alpinisme, camping, plongée →
@@ -1637,7 +1649,7 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     stand-up sur la nourriture, le sport, les animaux, la famille… →
     cat_comedy (spectacle, humoriste sur scène) ou cat_humour (sketch
     court). cat_food exige qu'on cuisine, goûte, teste ou présente
-    réellement de la nourriture, une boisson ou un lieu où manger.
+    réellement de la nourriture ou une boisson (un lieu où manger = cat_restaurant).
     Ex : "Humoriste : les Français au restaurant" → cat_comedy.
     Ex : "I ranked every gas station snack" → cat_food.
 
@@ -1666,18 +1678,34 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     Ignore une image de mur de connexion ou de pause (logo, écran "Take a break", "Log in").
     Ex : "#recette" → cat_food. Ex : "#voyage" → cat_travel.
 
+26. Maison : le sujet décide. Lessive, linge, adoucissant, nettoyage, détachage,
+    produits ménagers → cat_menage. Ranger, trier, désencombrer → cat_rangement.
+    Chantier technique (plomberie, électricité, carrelage, isolation, peinture
+    des murs) → cat_travaux. Une pièce ou un meuble montré par son style, son
+    résultat ou son budget → cat_deco. Un produit d'entretien précis va en
+    cat_menage, jamais en cat_shopping.
+    Ex : "Lenor Fresh Air" → cat_menage. Ex : "Poser du carrelage au sol" → cat_travaux.
+    Ex : "Avant / après : ma cuisine rénovée" → cat_deco.
+
+27. Pâtisserie, gâteaux, desserts, pain → cat_patisserie (le salé reste
+    cat_food). Cheveux, coupes, colorations → cat_coiffure (le visage et la
+    peau restent cat_beauty). Boire (vin, cocktails, café, thé) → cat_boissons.
+    Un roman, une lecture, une critique de livre → cat_livres.
+    Ex : "Tarte au citron meringuée" → cat_patisserie. Ex : "Balayage maison" → cat_coiffure.
+
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
 RÈGLES FINALES :
 - `influenceur_detecte` : nom du créateur si reconnu, sinon null
 - `raison` : UNE phrase courte, 15 mots maximum
 - `tags_suggeres` : 3 mots-clés maximum
+- `a_acheter` : true UNIQUEMENT si le lien est une PAGE WEB marchande d'un produit précis (fiche produit, page d'un article en vente sur le site d'une enseigne ou d'une marque). false pour TOUTE vidéo (YouTube, TikTok, Instagram, Facebook, reel, short), même si elle présente ou teste un produit ; false aussi pour une recette, un tuto, un lieu, un article, une page d'accueil ou d'enseigne. Cette étiquette ne change JAMAIS la catégorie : un pull reste cat_mode, des écouteurs cat_tech.
 - `confiance` : sois HONNÊTE. Si le titre est court, vague ou peut être interprété de plusieurs façons sans autre signal (pas de chaîne, pas de description, pas d'image révélatrice), mets confiance ≤ 40. Mieux vaut admettre le doute que se tromper avec certitude.
   Exemples de titres ambigus (→ confiance ≤ 40) : "elle s'est effondrée", "incroyable", "je suis choquée", "vous allez pas le croire", "omg", "wtf", "c'est fou", "you won't believe this", "Part 3"
   Exemples clairs (→ confiance élevée) : "tuto maquillage naturel" (cat_beauty), "Squeezie vs ZeratoR" (cat_gaming)
 
-Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucun texte autour, exactement ces 5 champs :
-{"categorie_principale": "cat_food", "confiance": 0, "influenceur_detecte": null, "raison": "...", "tags_suggeres": ["...", "..."]}''';
+Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucun texte autour, exactement ces 6 champs :
+{"categorie_principale": "cat_food", "confiance": 0, "influenceur_detecte": null, "raison": "...", "tags_suggeres": ["...", "..."], "a_acheter": false}''';
 
   /// Classifie [video] via Claude Haiku.
   /// Si [profile] est fourni et contient des données, le profil utilisateur
@@ -1783,13 +1811,29 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
 
   /// Variantes inventees deja observees -> vrai ID.
   static const Map<String, String> _categoryIdAliases = {
+    'cat_entrepreneuriat': 'cat_business',
+    'cat_entrepreneurship': 'cat_business',
     'cat_anime': 'cat_manga',
     'cat_recette': 'cat_food',
     'cat_cuisine': 'cat_food',
     'cat_voyage': 'cat_travel',
+    'cat_resto': 'cat_restaurant',
+    'cat_restaurants': 'cat_restaurant',
     'cat_beaute': 'cat_beauty',
     'cat_humor': 'cat_humour',
     'cat_music': 'cat_musique',
+    'cat_linge': 'cat_menage',
+    'cat_cleaning': 'cat_menage',
+    'cat_entretien': 'cat_menage',
+    'cat_renovation': 'cat_travaux',
+    'cat_organisation': 'cat_rangement',
+    'cat_organizing': 'cat_rangement',
+    'cat_hair': 'cat_coiffure',
+    'cat_baking': 'cat_patisserie',
+    'cat_drinks': 'cat_boissons',
+    'cat_vin': 'cat_boissons',
+    'cat_books': 'cat_livres',
+    'cat_livre': 'cat_livres',
   };
 
   /// Garde-fou (2026-10-03) : Claude a renvoye « cat_anime », absent
@@ -2116,7 +2160,27 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
       end = partial.lastIndexOf('}');
       return partial.substring(0, end + 1);
     }
-    return text.substring(start, end + 1);
+    return _escapeControlChars(text.substring(start, end + 1));
+  }
+
+  /// Claude met parfois un saut de ligne brut dans une valeur : jsonDecode
+  /// le refuse (« Control character in string »). On l'echappe, seulement
+  /// a l'interieur des chaines.
+  static String _escapeControlChars(String json) {
+    final out = StringBuffer();
+    var inString = false;
+    var escaped = false;
+    for (final r in json.runes) {
+      final c = String.fromCharCode(r);
+      if (inString && !escaped && r < 0x20) {
+        out.write(r == 10 ? r'\n' : r == 13 ? r'\r' : r == 9 ? r'\t' : ' ');
+        continue;
+      }
+      if (c == '"' && !escaped) inString = !inString;
+      escaped = inString && c == r'\' && !escaped;
+      out.write(c);
+    }
+    return out.toString();
   }
 }
 
