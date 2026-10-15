@@ -6,7 +6,7 @@ g004,Femmes infanticides : le tabou,,youtube,cat_truecrime,BUG PROD: classé DIY
 g005,Révélations dans l'affaire Jubillar,,youtube,cat_truecrime,BUG PROD: classé DIY
 g006,Le vrai risotto aux cèpes en 20 minutes,Chef Damien,youtube,cat_food,
 g007,3 recettes de meal prep pour la semaine,,tiktok,cat_food,
-g008,J'ai testé le McDonald's japonais,,youtube,cat_food,
+g008,J'ai testé le McDonald's japonais,,youtube,cat_restaurant,
 g009,Combien de protéines par jour vraiment ?,,youtube,cat_nutrition,
 g010,Rééquilibrage alimentaire : mes 5 erreurs,,instagram,cat_nutrition,
 g011,Programme haut du corps 3x par semaine,Tibo InShape,youtube,cat_fitness,
@@ -62,8 +62,8 @@ g060,Semer ses tomates en février,,youtube,cat_jardin,
 g061,Créer un potager en carré,,youtube,cat_jardin,
 g062,5 leviers d'acquisition pour un SaaS,,youtube,cat_business,
 g063,Comment fixer ses prix en freelance,,linkedin,cat_business,
-g064,"J'ai monté ma boîte à 22 ans, le vrai récit",,youtube,cat_entrepreneuriat,
-g065,De 0 à 1M de CA : mon parcours,,youtube,cat_entrepreneuriat,
+g064,"J'ai monté ma boîte à 22 ans, le vrai récit",,youtube,cat_business,
+g065,De 0 à 1M de CA : mon parcours,,youtube,cat_business,
 g066,PEA ou assurance-vie : que choisir,,youtube,cat_finance,
 g067,Comprendre les ETF en 5 minutes,,tiktok,cat_finance,
 g068,Le halving Bitcoin expliqué,,youtube,cat_crypto,
@@ -114,7 +114,7 @@ g112,Norman fait des vidéos,Norman,youtube,cat_humour,PIÈGE: influenceur
 g113,Ma vie de maman solo,,tiktok,cat_famille,PIÈGE: mot 'vie' pollué vers Business
 g114,Une nouvelle vie à la campagne,,youtube,cat_societe,PIÈGE: mot 'vie'
 g115,L'affaire des faux diplômes,,youtube,cat_actu,PIÈGE: mot 'affaire' pollué vers DIY
-g116,Femmes entrepreneures : 3 parcours,,linkedin,cat_entrepreneuriat,PIÈGE: mot 'femmes'
+g116,Femmes entrepreneures : 3 parcours,,linkedin,cat_business,PIÈGE: mot 'femmes'
 g117,Tuto Procreate : illustration en 10 étapes,,youtube,cat_diy,"PIÈGE: 'tuto' générique, ici légitimement DIY"
 g118,Tuto : changer un joint de robinet,,youtube,cat_diy,
 g119,Tuto : conjuguer au prétérit,,youtube,cat_lang,PIÈGE: 'tuto' ne doit PAS forcer DIY
@@ -133,7 +133,7 @@ g131,Routine du soir : méditation et tisane pour mieux dormir,,instagram,cat_we
 g132,Rénovation de ma cuisine pour moins de 2000 €,,youtube,cat_deco,
 g133,Cuisine anti-gaspi avec les restes du frigo,,tiktok,cat_food,
 g134,"Скрывайте ЭТО от всех! Можешь Навредить Себе... - Никон Воробьев",,youtube,cat_religion,"BUG PROD: classé Bien-être. Nikon Vorobiev = higoumène orthodoxe ; frontière Bien-être/Religion"
-g135,OGAM / Restaurant Traditionnel / LYON,Zenchef,other,cat_food,"BUG PROD: classé Voyage"
+g135,OGAM / Restaurant Traditionnel / LYON,Zenchef,other,cat_restaurant,"BUG PROD: classé Voyage"
 g136,Evenements Archive - AZAR Club,AZAR Club,other,cat_musique,"BUG PROD: classé Business"
 g137,CLAPTONE - AZAR Club,AZAR Club,other,cat_musique,
 g138,"A pixel art design of an acorn on a grid. A cross stitch, Cross-stitch, Counted cross stitch",,pinterest,cat_broderie,"BUG PROD: tableau point de croix éparpillé DIY/Tricot/Crochet/Art"
@@ -181,7 +181,7 @@ g179,Cross stitch pattern free download: poppies,,pinterest,cat_broderie,AJOUT 2
 g180,Small living room makeover on a budget,,instagram,cat_deco,AJOUT 2026-10-03 : anglais
 g181,How to start a vegetable garden from scratch,,youtube,cat_jardin,AJOUT 2026-10-03 : anglais
 g182,How I got my first 100 SaaS customers,,youtube,cat_business,AJOUT 2026-10-03 : anglais
-g183,I quit my job and built a $1M company: my story,,youtube,cat_entrepreneuriat,AJOUT 2026-10-03 : anglais
+g183,I quit my job and built a $1M company: my story,,youtube,cat_business,AJOUT 2026-10-03 : anglais
 g184,Roth IRA vs 401k explained,,youtube,cat_finance,AJOUT 2026-10-03 : anglais
 g185,Bitcoin halving explained in 5 minutes,,tiktok,cat_crypto,AJOUT 2026-10-03 : anglais
 g186,How to analyze a rental property deal,,youtube,cat_immo,AJOUT 2026-10-03 : anglais
@@ -216,8 +216,8 @@ g214,Apple Watch Ultra 3 review,,youtube,cat_tech,AJOUT 2026-10-03 : anglais
 g215,Amazon Prime Day deals you shouldn't miss,,youtube,cat_shopping,AJOUT 2026-10-03 : anglais
 g216,Nike Air Max on feet styling,,tiktok,cat_mode,AJOUT 2026-10-03 : anglais
 g217,Michael Jordan's best plays of all time,,youtube,cat_sport,AJOUT 2026-10-03 : anglais
-g218,Monster energy taste test ranking,,tiktok,cat_food,AJOUT 2026-10-03 : anglais
-g219,Starbucks secret menu drinks I tried,,tiktok,cat_food,AJOUT 2026-10-03 : anglais
+g218,Monster energy taste test ranking,,tiktok,cat_boissons,AJOUT 2026-10-03 : anglais
+g219,Starbucks secret menu drinks I tried,,tiktok,cat_restaurant,AJOUT 2026-10-03 : anglais
 g220,Uber driver tells his craziest story,,tiktok,cat_humour,AJOUT 2026-10-03 : anglais
 g221,Mango sticky rice recipe,,youtube,cat_food,AJOUT 2026-10-03 : anglais
 g222,The new Sony A7 V for video shooters,,youtube,cat_photo,AJOUT 2026-10-03 : anglais
@@ -259,3 +259,37 @@ g257,Mon chat fait une bêtise,,tiktok,cat_pets,AJOUT 2026-10-03 : piège couche
 g258,Ce plat est parfait car rapide à faire,,tiktok,cat_food,AJOUT 2026-10-03 : piège couche locale
 g259,Plante verte d'intérieur Dracaena | Livraison par un fleuriste 7j/7 en 4h,L'agitateur Floral,other,cat_jardin,AJOUT 2026-10-07 : plante d'intérieur classée Déco
 g260,10 plantes vertes d'intérieur faciles d'entretien,,other,cat_jardin,AJOUT 2026-10-07 : plante d'intérieur
+g261,Brasserie Georges Lyon : la carte et le menu,Brasserie Georges,other,cat_restaurant,AJOUT 2026-10-14 : restaurant FR
+g262,Le Servan - Restaurant Paris 11e | Réservez sur TheFork,TheFork,other,cat_restaurant,AJOUT 2026-10-14 : restaurant FR
+g263,Le meilleur bistrot de Marseille on a testé pour vous,,tiktok,cat_restaurant,AJOUT 2026-10-14 : restaurant FR
+g264,Best restaurants in New York City - we tried them all,,youtube,cat_restaurant,AJOUT 2026-10-14 : restaurant EN
+g265,Katz's Delicatessen menu and reviews,Katz's Delicatessen,other,cat_restaurant,AJOUT 2026-10-14 : restaurant EN
+g266,Recette de la vraie carbonara italienne,,youtube,cat_food,AJOUT 2026-10-14 : garde-fou recette (pas restaurant)
+g267,Les 10 meilleurs restaurants de Lyon,,youtube,cat_restaurant,AJOUT 2026-10-14 : mot restaurant dans le titre
+g268,Starbucks : le menu de Noël 2026,Starbucks,tiktok,cat_restaurant,AJOUT 2026-10-14 : enseigne
+g269,I tried the new McDonald's burger,,tiktok,cat_restaurant,AJOUT 2026-10-14 : enseigne
+g270,Flunch - Restauration self-service,Flunch,other,cat_restaurant,AJOUT 2026-10-14 : enseigne
+g271,Five Guys menu with prices,,instagram,cat_restaurant,AJOUT 2026-10-14 : enseigne US
+g272,Uber Eats : livraison de repas à domicile,Uber Eats,other,cat_restaurant,AJOUT 2026-10-14 : site de livraison
+g273,Lenor Fresh Air,,other,cat_menage,AJOUT 2026-10-15 : produit d'entretien (jamais Shopping/Déco)
+g274,J'ai étendu mon linge à la japonaise : il a séché deux fois plus vite,Minutes Maison,other,cat_menage,AJOUT 2026-10-15 : linge
+g275,Astuce : détartrer sa bouilloire avec du vinaigre blanc,,tiktok,cat_menage,AJOUT 2026-10-15
+g276,How to get stains out of white clothes,,tiktok,cat_menage,AJOUT 2026-10-15 : anglais
+g277,Poser du carrelage au sol : les erreurs à éviter,,youtube,cat_travaux,AJOUT 2026-10-15
+g278,Changer un robinet qui fuit en 10 minutes,,youtube,cat_diy,AJOUT 2026-10-15
+g279,Tearing down a wall: full bathroom renovation,,youtube,cat_travaux,AJOUT 2026-10-15 : anglais
+g280,Ranger son dressing avec la méthode Marie Kondo,,tiktok,cat_rangement,AJOUT 2026-10-15
+g281,Declutter your entire kitchen in one weekend,,youtube,cat_rangement,AJOUT 2026-10-15 : anglais
+g282,Tuto coiffure : chignon facile pour cheveux mi-longs,,tiktok,cat_coiffure,AJOUT 2026-10-15
+g283,Balayage maison : ma coloration cheveux étape par étape,,instagram,cat_coiffure,AJOUT 2026-10-15
+g284,Haircut transformation: curtain bangs,,tiktok,cat_coiffure,AJOUT 2026-10-15 : anglais
+g285,Tarte au citron meringuée : la recette de pâtisserie,,youtube,cat_patisserie,AJOUT 2026-10-15
+g286,Pâte à choux parfaite : éclairs au chocolat,,tiktok,cat_patisserie,AJOUT 2026-10-15
+g287,Sourdough bread for beginners,,youtube,cat_patisserie,AJOUT 2026-10-15 : anglais
+g288,Cocktails d'été : 3 recettes faciles avec du gin,,instagram,cat_boissons,AJOUT 2026-10-15
+g289,Comment choisir un vin rouge pour un dîner,,youtube,cat_boissons,AJOUT 2026-10-15
+g290,Latte art for beginners,,tiktok,cat_boissons,AJOUT 2026-10-15 : anglais
+g291,Mes lectures du mois : 5 romans à lire absolument,,youtube,cat_livres,AJOUT 2026-10-15
+g292,BookTok: books that made me cry,,tiktok,cat_livres,AJOUT 2026-10-15 : anglais
+g293,Avant / après : ma salle de bain relookée en un week-end,,tiktok,cat_deco,"AJOUT 2026-10-15 : piège voisin, résultat/style = Déco"
+g294,Recette de poulet rôti du dimanche,,youtube,cat_food,"AJOUT 2026-10-15 : piège voisin, le salé reste Food"
