@@ -1,8 +1,11 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show PaintingBinding;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'thumbnail_cache.dart';
 
@@ -102,6 +105,11 @@ class ThumbnailStore {
 
   static const String _extension = '.img';
 
+  /// Change a chaque miniature enregistree : les cartes affichees ecoutent
+  /// ce compteur pour passer du logo de repli a la vraie image des qu'elle
+  /// arrive (reparation, capture d'ecran tardive...).
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+
   /// Fichier de la miniature de [clipId], ou null s'il n'existe pas.
   Future<File?> fileFor(String clipId) async {
     final dir = await _directory();
@@ -122,9 +130,17 @@ class ThumbnailStore {
 
   /// Enregistre [bytes] comme miniature de [clipId], si ce sont bien les
   /// octets d'une image. Ecrase une miniature existante.
-  Future<bool> saveBytes(String clipId, Uint8List bytes) async {
+  Future<bool> saveBytes(String clipId, Uint8List bytes,
+      {bool generated = false}) async {
     if (!looksLikeImage(bytes)) {
       debugPrint('[thumbstore] contenu refuse (pas une image) clip=$clipId');
+      return false;
+    }
+    // Reconnu comme image par sa signature, mais Flutter sait-il
+    // l'afficher ? (AVIF, fichier tronque...) Sinon la carte afficherait
+    // un fichier illisible, supprime puis retelecharge a chaque lancement.
+    if (!await canDecode(bytes)) {
+      debugPrint('[thumbstore] image illisible par Flutter, refusee clip=$clipId');
       return false;
     }
     final dir = await _directory();
@@ -138,6 +154,16 @@ class ThumbnailStore {
       await tmp.writeAsBytes(bytes, flush: true);
       final saved = await tmp.rename(p.join(dir.path, '$name$_extension'));
       _known[name] = saved;
+      await _setGenerated(clipId, generated);
+      // Une image decodee garde l'ancien contenu du meme fichier (carte
+      // remplacee par une vraie photo) : on vide le cache d'images, puis on
+      // previent les cartes deja affichees pour qu'elles se rechargent.
+      try {
+        PaintingBinding.instance.imageCache
+          ..clear()
+          ..clearLiveImages();
+      } catch (_) {}
+      revision.value++;
       return true;
     } catch (e) {
       debugPrint('[thumbstore] ecriture impossible clip=$clipId: $e');
@@ -210,6 +236,85 @@ class ThumbnailStore {
     return removed;
   }
 
+  /// Vrai si [bytes] sont une image que l'app sait afficher : signature
+  /// reconnue (ni video, ni page d'erreur) ET decodage reussi.
+  static Future<bool> isUsableImage(Uint8List bytes) async =>
+      looksLikeImage(bytes) && await canDecode(bytes);
+
+  /// Vrai si Flutter sait decoder [bytes].
+  static Future<bool> canDecode(Uint8List bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(bytes, targetWidth: 32);
+      final frame = await codec.getNextFrame();
+      frame.image.dispose();
+      codec.dispose();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ---- Adresses d'images refusees (video, format illisible) ----
+  static final Set<String> _unreadable = <String>{};
+  static Future<void>? _unreadableLoading;
+  static const String _unreadableKey = 'unreadable_thumb_urls';
+
+  static Future<void> loadUnreadable() => _unreadableLoading ??= () async {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          _unreadable.addAll(prefs.getStringList(_unreadableKey) ?? const <String>[]);
+        } catch (_) {}
+      }();
+
+  /// Retient qu'on ne peut pas afficher l'image de [url] : elle ne sera
+  /// plus telechargee (une video de 10 Mo servie comme « image »).
+  static Future<void> markUnreadable(String url) async {
+    await loadUnreadable();
+    if (url.isEmpty || !_unreadable.add(url)) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final list = _unreadable.toList();
+      await prefs.setStringList(
+          _unreadableKey, list.length > 300 ? list.sublist(list.length - 300) : list);
+    } catch (_) {}
+  }
+
+  static bool isUnreadable(String url) => _unreadable.contains(url);
+
+  // ---- Cartes dessinees par l'app (pas une vraie photo) ----
+  // La reparation les retente plus tard et les remplace des qu'une vraie
+  // image est obtenue.
+  static final Set<String> _generated = <String>{};
+  static Future<void>? _generatedLoading;
+  static const String _generatedKey = 'generated_thumb_ids';
+
+  static Future<void> loadGenerated() => _generatedLoading ??= () async {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          _generated.addAll(prefs.getStringList(_generatedKey) ?? const <String>[]);
+        } catch (_) {}
+      }();
+
+  static bool isGenerated(String clipId) => _generated.contains(clipId);
+
+  static Future<void> _setGenerated(String clipId, bool value) async {
+    await loadGenerated();
+    final changed = value ? _generated.add(clipId) : _generated.remove(clipId);
+    if (!changed) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_generatedKey, _generated.toList());
+    } catch (_) {}
+  }
+
+  /// Marques « ftyp » des videos et du son : meme boite que HEIC/AVIF,
+  /// mais ce ne sont pas des images.
+  static const Set<String> _videoBrands = {
+    'isom', 'iso2', 'iso3', 'iso4', 'iso5', 'iso6', 'mp41', 'mp42', 'mp71',
+    'avc1', 'm4v ', 'm4a ', 'qt  ', 'dash', 'mmp4', 'f4v ', '3gp4', '3gp5',
+    '3gp6', '3g2a', 'msdh', 'msix',
+  };
+
   /// Vrai si [bytes] commencent par la signature d'un format d'image
   /// connu (JPEG, PNG, GIF, WebP, HEIC/AVIF).
   ///
@@ -235,7 +340,8 @@ class ThumbnailStore {
     }
     // HEIC / AVIF : boite "ftyp" a l'octet 4
     if (b[4] == 0x66 && b[5] == 0x74 && b[6] == 0x79 && b[7] == 0x70) {
-      return true;
+      final brand = String.fromCharCodes(b.sublist(8, 12));
+      return !_videoBrands.contains(brand);
     }
     return false;
   }

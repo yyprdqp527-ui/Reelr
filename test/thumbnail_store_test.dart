@@ -27,6 +27,22 @@ void main() {
       );
     });
 
+    test('refuse une video MP4 (meme boite ftyp que HEIC/AVIF)', () {
+      // Cas reel : la « vignette » d'Oh My Resto etait une video de 10 Mo.
+      final mp4 = _withHeader(
+          [0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
+      expect(ThumbnailStore.looksLikeImage(mp4), isFalse);
+      final qt = _withHeader(
+          [0, 0, 0, 0x14, 0x66, 0x74, 0x79, 0x70, 0x71, 0x74, 0x20, 0x20]);
+      expect(ThumbnailStore.looksLikeImage(qt), isFalse);
+    });
+
+    test('accepte HEIC', () {
+      final heic = _withHeader(
+          [0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]);
+      expect(ThumbnailStore.looksLikeImage(heic), isTrue);
+    });
+
     test('refuse HTML, JSON et fichiers minuscules', () {
       expect(
         ThumbnailStore.looksLikeImage(
