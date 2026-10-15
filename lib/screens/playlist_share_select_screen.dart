@@ -10,7 +10,7 @@ import '../widgets/playlist_pick_row.dart';
 // ─────────────────────────────────────────────
 //
 // Ouvert par le bouton partager d'une catégorie, avant de générer le lien.
-// Tout est coché au départ ; on décoche ce qu'on ne veut pas envoyer.
+// Rien n'est coché au départ ; on coche les liens qu'on veut envoyer.
 // Renvoie (Navigator.pop) la liste des clips choisis, dans l'ordre de la
 // catégorie, ou null si on revient en arrière.
 
@@ -30,9 +30,8 @@ class PlaylistShareSelectScreen extends StatefulWidget {
 }
 
 class _PlaylistShareSelectScreenState extends State<PlaylistShareSelectScreen> {
-  late final Set<int> _selected = {
-    for (var i = 0; i < widget.clips.length; i++) i,
-  };
+  // Rien n'est coché au départ : on choisit soi-même les liens à envoyer.
+  final Set<int> _selected = {};
 
   @override
   Widget build(BuildContext context) {
