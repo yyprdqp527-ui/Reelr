@@ -16,6 +16,16 @@ class Clip {
   /// et la classification. Aucun affichage ne s'en sert.
   final String? description;
 
+  /// Etiquette « a acheter » : le lien montre un produit qu'on peut acheter.
+  /// Transversale aux tuiles. Lue par `fromMap`, jamais ecrite par `toMap`
+  /// (colonne `toBuy` geree par `DatabaseHelper.setClipToBuy`).
+  final bool toBuy;
+
+  /// Lien commercial a montrer dans le panier « a acheter » : une PAGE WEB
+  /// etiquetee produit. Jamais une video (reel, short, TikTok...), meme si
+  /// elle presente un produit.
+  bool get isShoppingLink => toBuy && platform == 'other';
+
   const Clip({
     required this.id,
     required this.url,
@@ -28,6 +38,7 @@ class Clip {
     this.position = 0,
     this.channel,
     this.description,
+    this.toBuy = false,
   });
 
   Map<String, dynamic> toMap() => {
@@ -61,9 +72,10 @@ class Clip {
         position: (map['position'] as int?) ?? 0,
         channel: map['channel'] as String?,
         description: map['description'] as String?,
+        toBuy: (map['toBuy'] as int?) == 1,
       );
 
-  Clip copyWith({String? categoryId, int? position}) => Clip(
+  Clip copyWith({String? categoryId, int? position, bool? toBuy}) => Clip(
         id: id,
         url: url,
         title: title,
@@ -75,5 +87,6 @@ class Clip {
         position: position ?? this.position,
         channel: channel,
         description: description,
+        toBuy: toBuy ?? this.toBuy,
       );
 }
