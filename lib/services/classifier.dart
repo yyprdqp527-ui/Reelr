@@ -1699,13 +1699,14 @@ RÈGLES FINALES :
 - `influenceur_detecte` : nom du créateur si reconnu, sinon null
 - `raison` : UNE phrase courte, 15 mots maximum
 - `tags_suggeres` : 3 mots-clés maximum
-- `a_acheter` : true UNIQUEMENT si le lien est une PAGE WEB marchande d'un produit précis (fiche produit, page d'un article en vente sur le site d'une enseigne ou d'une marque). false pour TOUTE vidéo (YouTube, TikTok, Instagram, Facebook, reel, short), même si elle présente ou teste un produit ; false aussi pour une recette, un tuto, un lieu, un article, une page d'accueil ou d'enseigne. Cette étiquette ne change JAMAIS la catégorie : un pull reste cat_mode, des écouteurs cat_tech.
+- `categorie_alternative` : si ta confiance est inférieure à 60, l'ID cat_xxx de ta deuxième hypothèse (différente de categorie_principale) ; sinon null
+- `a_acheter` : true UNIQUEMENT si le lien est une PAGE WEB marchande d'un produit précis (fiche produit, page d'un article en vente sur le site d'une enseigne ou d'une marque). false pour TOUTE vidéo (YouTube, TikTok, Instagram, Facebook, reel, short), même si elle présente ou teste un produit ; false aussi pour une recette, un tuto, un lieu, un article, une page d'accueil ou d'enseigne, une banque d'images ou de vecteurs (Shutterstock, Getty, Adobe Stock, Freepik), ou un titre réduit à un nom de site. Cette étiquette ne change JAMAIS la catégorie : un pull reste cat_mode, des écouteurs cat_tech.
 - `confiance` : sois HONNÊTE. Si le titre est court, vague ou peut être interprété de plusieurs façons sans autre signal (pas de chaîne, pas de description, pas d'image révélatrice), mets confiance ≤ 40. Mieux vaut admettre le doute que se tromper avec certitude.
   Exemples de titres ambigus (→ confiance ≤ 40) : "elle s'est effondrée", "incroyable", "je suis choquée", "vous allez pas le croire", "omg", "wtf", "c'est fou", "you won't believe this", "Part 3"
   Exemples clairs (→ confiance élevée) : "tuto maquillage naturel" (cat_beauty), "Squeezie vs ZeratoR" (cat_gaming)
 
-Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucun texte autour, exactement ces 6 champs :
-{"categorie_principale": "cat_food", "confiance": 0, "influenceur_detecte": null, "raison": "...", "tags_suggeres": ["...", "..."], "a_acheter": false}''';
+Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucun texte autour, exactement ces 7 champs :
+{"categorie_principale": "cat_food", "confiance": 0, "influenceur_detecte": null, "raison": "...", "tags_suggeres": ["...", "..."], "categorie_alternative": null, "a_acheter": false}''';
 
   /// Classifie [video] via Claude Haiku.
   /// Si [profile] est fourni et contient des données, le profil utilisateur
@@ -1779,11 +1780,22 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         forceImage: true,
       );
       final better = second.confiance > first.confiance;
+      final winner = better ? second : first;
+      final loser = better ? first : second;
       debugPrint('[classify] 2e passe avec vignette : '
           '${first.categoriePrincipale} (${first.confiance}) -> '
           '${second.categoriePrincipale} (${second.confiance})'
           '${better ? ' | retenue' : ' | ignoree'}');
-      return better ? second : first;
+      // Les deux hypotheses servent a la pastille « X ou Y ? » : le
+      // perdant de la comparaison devient l'alternative du gagnant.
+      String? alt = winner.alternative;
+      if (alt == null || alt == winner.categoriePrincipale) {
+        alt = loser.categoriePrincipale != winner.categoriePrincipale
+            ? loser.categoriePrincipale
+            : loser.alternative;
+      }
+      if (alt == winner.categoriePrincipale) alt = null;
+      return winner.withAlternative(alt);
     } catch (e) {
       debugPrint('[classify] 2e passe avec vignette echouee : $e');
       return first;
@@ -1882,6 +1894,12 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     final json = jsonDecode(jsonStr) as Map<String, dynamic>;
     json['categorie_principale'] =
         _validCategoryId(json['categorie_principale'], customCategories);
+    final altRaw = json['categorie_alternative'];
+    json['categorie_alternative'] = (altRaw is String &&
+            altRaw.trim().isNotEmpty &&
+            altRaw.trim().toLowerCase() != 'null')
+        ? _validCategoryId(altRaw, customCategories)
+        : null;
     return ClassificationResult.fromJson(json);
   }
 
@@ -2059,9 +2077,23 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
         debugPrint('[lot] lecture groupee : HTTP ${resp.statusCode}');
         return null;
       }
-      final text = (jsonDecode(utf8.decode(resp.bodyBytes))['content'] as List)
+      final lotBody = jsonDecode(utf8.decode(resp.bodyBytes)) as Map;
+      final text = (lotBody['content'] as List)
           .map((b) => (b as Map)['text'] ?? '')
           .join();
+      if (!text.contains('{')) {
+        // Diagnostic (2026-10-15) : « Aucun JSON trouve » sans savoir pourquoi.
+        // Une reflexion qui mange les 900 tokens laisse un texte vide ; un
+        // refus ou une reponse en prose laisse un texte sans accolade.
+        final types = [
+          for (final b in (lotBody['content'] as List)) (b as Map)['type']
+        ];
+        final head = text.length > 200 ? text.substring(0, 200) : text;
+        debugPrint('[lot] reponse sans JSON : stop_reason='
+            '${lotBody['stop_reason']} blocs=$types '
+            'sortie=${(lotBody['usage'] as Map?)?['output_tokens']} '
+            'debut="${head.replaceAll('\n', ' ')}"');
+      }
       final data = jsonDecode(_extractJson(text)) as Map<String, dynamic>;
       final out = <LotGroup>[];
       final seen = <int>{};
