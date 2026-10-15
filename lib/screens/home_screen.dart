@@ -3573,6 +3573,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                           _clip = updated;
                         }
                         await widget.state.setClipSubcategory(_clip.id, sc.id);
+                        await widget.state.recordUserSubcategoryChoice(_clip.id, sc.id);
                         await widget.state.setClipSubSubcategory(_clip.id, null);
                         if (!ctx.mounted) return;
                         // S'il y a des sous-dossiers, on les propose ;
@@ -3730,6 +3731,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                           GestureDetector(
                             onTap: () {
                               state.setClipSubcategory(clipId, s.id);
+                              state.recordUserSubcategoryChoice(clipId, s.id);
                               state.setClipSubSubcategory(clipId, null);
                               Navigator.pop(context);
                             },
@@ -3771,6 +3773,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                                 children: subsubs.map((ss) => GestureDetector(
                                       onTap: () {
                                         state.setClipSubcategory(clipId, s.id);
+                                        state.recordUserSubcategoryChoice(clipId, s.id);
                                         state.setClipSubSubcategory(clipId, ss.id);
                                         Navigator.pop(context);
                                       },

@@ -1871,12 +1871,22 @@ class ClipsState extends ChangeNotifier {
         // Le nom n'est pas dans le titre (« Keshi Yena » -> « Pates ») : Claude
         // lit le titre, la description et la vignette et choisit parmi les
         // sous-tuiles du client. Jamais de creation de sous-tuile.
+        final subNames = [for (final s in subs) s.name];
+        // Ce que la personne a deja range a la main dans ces sous-tuiles.
+        final examples = (await SortingNotebook(key: _subNotebookKey)
+                .promptExamples(
+                    [clip.title, clip.channel ?? '', clip.description ?? '']
+                        .join(' '),
+                    excludeId: clip.id))
+            .where((e) => subNames.any((n) => e.endsWith('→ $n')))
+            .toList();
         final picked = await ClaudeClassifier.pickSubcategory(
           title: clip.title,
           description: clip.description,
           imageUrl: clip.thumbnailUrl,
           categoryName: categoryById(clip.categoryId)?.name ?? '',
-          names: [for (final s in subs) s.name],
+          names: subNames,
+          userExamples: examples,
         );
         if (picked != null) {
           sub = subs.where((s) => s.name == picked).firstOrNull;
@@ -1894,6 +1904,69 @@ class ClipsState extends ChangeNotifier {
     } catch (e) {
       debugPrint('[sous-cat] erreur: $e');
     }
+  }
+
+  static const String _subNotebookKey = 'sorting_notebook_subcat_v1';
+
+  /// Rangement a la main dans une sous-tuile : Reelr s'en souvient et le
+  /// donne comme exemple a Claude pour les prochains liens. Appele
+  /// UNIQUEMENT depuis les gestes de la personne, jamais depuis le rangement
+  /// automatique (pas de boucle fermee sur nos propres predictions).
+  Future<void> recordUserSubcategoryChoice(String clipId, String subId) async {
+    try {
+      final clip = _clips.where((c) => c.id == clipId).firstOrNull;
+      final sub = _subCategoryById(subId);
+      if (clip == null || sub == null) return;
+      final desc = clip.description?.trim() ?? '';
+      await SortingNotebook(key: _subNotebookKey).record(NotebookEntry(
+        id: clip.id,
+        title: clip.title,
+        text: [
+          clip.title,
+          clip.channel ?? '',
+          desc.length > 200 ? desc.substring(0, 200) : desc,
+        ].join(' '),
+        categoryRef: sub.name,
+        categoryLabel: sub.name,
+        addedAtMs: DateTime.now().millisecondsSinceEpoch,
+      ));
+    } catch (e) {
+      debugPrint('[sous-cat] apprentissage impossible : $e');
+    }
+  }
+
+  /// Liens de la categorie de [sub] qui ne sont dans aucune sous-tuile.
+  List<Clip> candidateClipsForSubcategory(SubCategory sub) => _clips
+      .where((c) =>
+          c.categoryId == sub.categoryId && _clipSubcategoryMap[c.id] == null)
+      .toList();
+
+  /// Liens deja enregistres qui vont dans la nouvelle sous-tuile [sub] :
+  /// d'abord par le nom, puis Claude lit les autres (titre, description,
+  /// vignette) en un seul appel. En cas d'echec : seulement ceux du nom.
+  Future<List<Clip>> findClipsForNewSubcategory(SubCategory sub) async {
+    final byName = clipsMatchingSubcategory(sub);
+    final nameIds = byName.map((c) => c.id).toSet();
+    final rest = candidateClipsForSubcategory(sub)
+        .where((c) => !nameIds.contains(c.id))
+        .toList()
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    final batch = rest.take(40).toList();
+    if (batch.isEmpty) return byName;
+    String line(Clip c) {
+      final d = (c.description ?? '').replaceAll(RegExp(r'\s+'), ' ').trim();
+      final short = d.length > 120 ? d.substring(0, 120) : d;
+      return short.isEmpty ? c.title : '${c.title} — $short';
+    }
+
+    final picked = await ClaudeClassifier.pickClipsForSubcategory(
+      subName: sub.name,
+      categoryName: categoryById(sub.categoryId)?.name ?? '',
+      lines: [for (final c in batch) line(c)],
+      images: [for (final c in batch) c.thumbnailUrl],
+    );
+    if (picked == null) return byName;
+    return [...byName, for (final i in picked) batch[i]];
   }
 
   /// Liens deja presents dans la categorie de [sub], pas encore ranges dans

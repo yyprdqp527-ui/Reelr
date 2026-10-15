@@ -77,7 +77,11 @@ class NotebookEntry {
 /// Claude. Le signal vient d'un geste humain, jamais d'une prediction de la
 /// machine : pas de boucle fermee.
 class SortingNotebook {
-  static const String _key = 'sorting_notebook_v1';
+  /// [key] : un carnet par usage (categories par defaut, sous-tuiles a part).
+  // ignore: prefer_initializing_formals
+  SortingNotebook({String key = 'sorting_notebook_v1'}) : _key = key;
+
+  final String _key;
   static const int _maxEntries = 300;
 
   /// Nombre de mots (hors mots vides) qu'un exemple doit partager avec le

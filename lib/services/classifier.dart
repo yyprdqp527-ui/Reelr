@@ -2131,11 +2131,13 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
     String? imageUrl,
     required String categoryName,
     required List<String> names,
+    List<String> userExamples = const [],
   }) async {
     if (names.isEmpty) return null;
     final desc = (description ?? '').trim();
     final text = 'Tuile : $categoryName\n'
         'Sous-tuiles : ${names.join(' | ')}\n'
+        '${userExamples.isEmpty ? '' : 'Rangements deja faits a la main par la personne (a suivre en priorite) :\n${userExamples.join('\n')}\n'}'
         'Titre : $title\n'
         '${desc.isEmpty ? '' : 'Description : ${desc.length > 400 ? desc.substring(0, 400) : desc}\n'}'
         'Choisis la sous-tuile ou ranger ce lien, d\'apres le titre, la '
@@ -2201,6 +2203,97 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
       return null;
     } catch (e) {
       debugPrint('[sous-cat] choix par Claude echoue : $e');
+      return null;
+    }
+  }
+
+  /// Quand le client cree une sous-tuile : parmi des liens deja enregistres
+  /// dans la tuile, lesquels y vont ? Lecture groupee (un seul appel) des
+  /// titres, descriptions et vignettes. Renvoie les numeros (0-based) des
+  /// liens qui correspondent clairement, ou null si l'appel echoue.
+  static Future<List<int>?> pickClipsForSubcategory({
+    required String subName,
+    required String categoryName,
+    required List<String> lines,
+    List<String?> images = const [],
+  }) async {
+    if (lines.isEmpty) return const [];
+    final header = 'Tuile : $categoryName\n'
+        'Sous-tuile creee par la personne : $subName\n'
+        'Quels liens ci-dessous vont dans cette sous-tuile ? Ne garde que '
+        'ceux qui y correspondent clairement (le sujet visible dans l\'image '
+        'compte, meme si le titre est un nom propre). Reponds UNIQUEMENT en '
+        'JSON : {"liens": [numeros]} (liste vide si aucun).\n';
+    final textOnly = '$header'
+        '${[for (var i = 0; i < lines.length; i++) '${i + 1}. ${lines[i]}'].join('\n')}';
+    final usable = <int>{};
+    for (var i = 0; i < lines.length && i < images.length; i++) {
+      final u = images[i];
+      if (u != null &&
+          u.startsWith('https://') &&
+          !u.contains('reelr-proxy') &&
+          usable.length < 12) {
+        usable.add(i);
+      }
+    }
+    Future<http.Response> post(dynamic content) {
+      final body = jsonEncode({
+        'model': _model,
+        'max_tokens': 600,
+        if (_isGen5)
+          'output_config': {'effort': 'low'}
+        else
+          'temperature': 0,
+        'system': 'Tu ranges des liens enregistres dans les sous-tuiles '
+            'creees par la personne. Tu n\'inventes rien.',
+        'messages': [
+          {'role': 'user', 'content': content},
+        ],
+      });
+      return Net.client.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          'x-reelr-secret': Secrets.appSharedSecret,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: body,
+      ).timeout(const Duration(seconds: 40));
+    }
+
+    try {
+      http.Response resp;
+      if (usable.isNotEmpty) {
+        resp = await post([
+          {'type': 'text', 'text': header},
+          for (var i = 0; i < lines.length; i++) ...[
+            {'type': 'text', 'text': '${i + 1}. ${lines[i]}'},
+            if (usable.contains(i))
+              {
+                'type': 'image',
+                'source': {'type': 'url', 'url': images[i]!},
+              },
+          ],
+        ]);
+        if (resp.statusCode != 200) resp = await post(textOnly);
+      } else {
+        resp = await post(textOnly);
+      }
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final blocks =
+          (data['content'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final out =
+          blocks.firstWhere((b) => b['type'] == 'text')['text'] as String;
+      final json = jsonDecode(_extractJson(out)) as Map<String, dynamic>;
+      final raw = json['liens'];
+      if (raw is! List) return null;
+      return [
+        for (final n in raw)
+          if (n is int && n >= 1 && n <= lines.length) n - 1,
+      ];
+    } catch (e) {
+      debugPrint('[sous-cat] choix groupe par Claude echoue : $e');
       return null;
     }
   }

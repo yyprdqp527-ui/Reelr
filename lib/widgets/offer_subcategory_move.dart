@@ -7,9 +7,36 @@ import '../state/clips_state.dart';
 /// ranger d'un geste. Ne fait rien s'il n'y en a aucun.
 Future<void> offerMoveMatchingClips(
     BuildContext context, ClipsState state, SubCategory sub) async {
-  final matches = state.clipsMatchingSubcategory(sub);
-  if (matches.isEmpty || !context.mounted) return;
+  if (state.candidateClipsForSubcategory(sub).isEmpty || !context.mounted) {
+    return;
+  }
   final fr = Localizations.localeOf(context).languageCode == 'fr';
+  // Claude lit les liens de la tuile (titre, description, vignette) : on
+  // patiente quelques secondes derriere un indicateur.
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => PopScope(
+      canPop: false,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 14),
+            Material(
+              color: Colors.transparent,
+              child: Text(fr ? 'Reelr cherche les liens…' : 'Reelr is looking…'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+  final matches = await state.findClipsForNewSubcategory(sub);
+  if (!context.mounted) return;
+  Navigator.of(context, rootNavigator: true).pop();
+  if (matches.isEmpty) return;
   final n = matches.length;
   final ok = await showDialog<bool>(
     context: context,
