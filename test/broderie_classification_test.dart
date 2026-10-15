@@ -7,21 +7,38 @@ import 'package:reelr/services/classifier.dart';
 void main() {
   group('Broderie : la couche locale suffit', () {
     const cases = [
-      'A pixel art design featuring a stylized character with a pink and white color scheme. Cross-stitch, Cross stitch patterns, Cross stitching',
-      'Two pixel art dolls, each with distinct colors and patterns. Hama beads, Perler beads, Mini cross stitch',
       'A collection of pixelated illustrations of various fruits and vegetables arranged in two rows. Cute cross stitch ideas, Cross stitch motifs',
-      'A pixel art design of an acorn on a grid. A cross stitch, Cross-stitch, Counted cross stitch',
-      'Create a beautiful bracelet with this alpha friendship pattern #146576. Perfect for DIY and craft enthusiasts. Get inspired by this unique stitch pattern. Cross stitch patterns, Pixel art pattern, Cross stitch designs',
       'Get creative with this cross stitch pattern featuring a vibrant red and green pepper. Perfect for adding a touch of color to your home decor or gifting to a fellow crafter. | Pixeles, Hama, Bordados en punto cruz',
       'Get this adorable watermelon cross stitch pattern for free. Download the PDF and start stitching today! Watermelon slice cross stitch, Crossstitch, Cross stitch designs',
-      'Simple lemon cross stitch pattern in pixel style. This easy embroidery design is perfect for beginners and small handmade projects.',
-      'Create your own adorable cross stitch ladybug with this pattern in pink and black. Perfect for adding a touch of whimsy to your DIY projects. Cross-stitch, Cross stitch designs, Cross stitching',
       'Grille point de croix gratuite : coquelicots',
       'Tuto broderie pour débutantes',
     ];
     for (final t in cases) {
       test(t.length > 50 ? t.substring(0, 50) : t, () {
         expect(CategoryClassifier.detectStrongMatch(t), 'Broderie', reason: t);
+      });
+    }
+  });
+
+  // Depuis la regle du 3 oct. (« couche 1 sans concurrent »), un texte qui
+  // porte aussi des indices d'une autre categorie (« pixel art », « DIY »,
+  // « design ») n'est plus tranche par la couche locale : c'est Claude qui
+  // decide (son prompt classe ces grilles en Broderie). Ce que la couche
+  // locale ne doit JAMAIS faire, c'est ranger ces textes ailleurs.
+  group('Broderie : texte mixte, jamais une autre categorie', () {
+    const mixed = [
+      'A pixel art design featuring a stylized character with a pink and white color scheme. Cross-stitch, Cross stitch patterns, Cross stitching',
+      'Two pixel art dolls, each with distinct colors and patterns. Hama beads, Perler beads, Mini cross stitch',
+      'A pixel art design of an acorn on a grid. A cross stitch, Cross-stitch, Counted cross stitch',
+      'Create a beautiful bracelet with this alpha friendship pattern #146576. Perfect for DIY and craft enthusiasts. Get inspired by this unique stitch pattern. Cross stitch patterns, Pixel art pattern, Cross stitch designs',
+      'Simple lemon cross stitch pattern in pixel style. This easy embroidery design is perfect for beginners and small handmade projects.',
+      'Create your own adorable cross stitch ladybug with this pattern in pink and black. Perfect for adding a touch of whimsy to your DIY projects. Cross-stitch, Cross stitch designs, Cross stitching',
+    ];
+    for (final t in mixed) {
+      test(t.length > 50 ? t.substring(0, 50) : t, () {
+        expect(CategoryClassifier.detectStrongMatch(t),
+            anyOf(equals('Broderie'), isNull),
+            reason: t);
       });
     }
   });
