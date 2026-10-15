@@ -26,6 +26,10 @@ class Clip {
   /// elle presente un produit.
   bool get isShoppingLink => toBuy && platform == 'other';
 
+  /// Deux categories proposees pour un lien laisse « a trier » (IDs cat_xxx).
+  /// Lu par `fromMap`, jamais ecrit par `toMap` (colonne `classification_alt`).
+  final List<String> candidates;
+
   const Clip({
     required this.id,
     required this.url,
@@ -39,6 +43,7 @@ class Clip {
     this.channel,
     this.description,
     this.toBuy = false,
+    this.candidates = const [],
   });
 
   Map<String, dynamic> toMap() => {
@@ -73,6 +78,10 @@ class Clip {
         channel: map['channel'] as String?,
         description: map['description'] as String?,
         toBuy: (map['toBuy'] as int?) == 1,
+        candidates: ((map['classification_alt'] as String?) ?? '')
+            .split(',')
+            .where((c) => c.isNotEmpty)
+            .toList(),
       );
 
   Clip copyWith({String? categoryId, int? position, bool? toBuy}) => Clip(
@@ -88,5 +97,6 @@ class Clip {
         channel: channel,
         description: description,
         toBuy: toBuy ?? this.toBuy,
+        candidates: candidates,
       );
 }
