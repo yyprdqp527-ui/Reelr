@@ -27,6 +27,7 @@ import '../state/clips_state.dart';
 import '../widgets/background.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/offer_subcategory_move.dart';
 import '../widgets/reelr_loader.dart';
 import '../widgets/resilient_thumbnail.dart';
 import '../widgets/search_query_card.dart';
@@ -1407,7 +1408,18 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
           });
         }
 
-        return Scaffold(
+        return PopScope(
+          canPop: _selectedSubcategoryId == null,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            // Dans une sous-categorie : retour a la liste des
+            // sous-categories, pas a l'accueil.
+            setState(() {
+              _selectedSubcategoryId = null;
+              _selectedSubSubcategoryId = null;
+            });
+          },
+          child: Scaffold(
           backgroundColor: Colors.transparent,
           extendBodyBehindAppBar: true,
           appBar: AppBar(
@@ -1420,7 +1432,16 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
             elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded),
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                if (_selectedSubcategoryId != null) {
+                  setState(() {
+                    _selectedSubcategoryId = null;
+                    _selectedSubSubcategoryId = null;
+                  });
+                } else {
+                  Navigator.pop(context);
+                }
+              },
             ),
             title: Text(
               widget.title,
@@ -1759,6 +1780,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
               ),
             ],
           ),
+        ),
         );
       },
     );
@@ -1829,20 +1851,25 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                 onPressed: () => Navigator.pop(ctx),
                 child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Annuler' : 'Cancel')),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 if (nameCtrl.text.trim().isEmpty) return;
-                widget.state.addSubCategory(SubCategory(
+                final newSub = SubCategory(
                   id: const Uuid().v4(),
                   name: nameCtrl.text.trim(),
                   categoryId: widget.categoryId!,
                   color: pickedColor,
                   icon: Icons.label_rounded,
-                ));
+                );
+                await widget.state.addSubCategory(newSub);
                 // Création réussie (et non une annulation) : arme la bulle
                 // d'aide "classer une vidéo dans une sous-catégorie", qui ne
                 // s'affichera qu'une fois, dès qu'un menu ⋯ sera visible.
                 _armAssignVideoHint();
+                if (!ctx.mounted) return;
                 Navigator.pop(ctx);
+                if (context.mounted) {
+                  await offerMoveMatchingClips(context, widget.state, newSub);
+                }
               },
               child: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Créer' : 'Create'),
             ),

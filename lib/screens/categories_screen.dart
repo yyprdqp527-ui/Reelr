@@ -10,6 +10,7 @@ import '../core/theme.dart';
 import '../models/category.dart';
 import '../state/clips_state.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/offer_subcategory_move.dart';
 import '../widgets/sheet_field.dart';
 import 'home_screen.dart';
 
@@ -322,15 +323,17 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
     final name = _subNameCtrl.text.trim();
     if (name.isEmpty) return;
     try {
-      await widget.state.addSubCategory(SubCategory(
+      final newSub = SubCategory(
         id: const Uuid().v4(),
         name: name,
         categoryId: widget.category.id,
         color: _color,
         icon: Icons.label_rounded,
-      ));
+      );
+      await widget.state.addSubCategory(newSub);
       _subNameCtrl.clear();
       if (mounted) setState(() {});
+      if (mounted) await offerMoveMatchingClips(context, widget.state, newSub);
     } catch (e) {
       if (!mounted) return;
       final fr = Localizations.localeOf(context).languageCode == 'fr';

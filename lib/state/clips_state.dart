@@ -923,6 +923,7 @@ class ClipsState extends ChangeNotifier {
       if (current.categoryId != null) return;
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
+      await alignSubcategory(updated.id);
       // L'ordre n'est plus contraint depuis que `updateClip` passe par
       // `upsertClip` : un UPDATE partiel ne touche plus aux colonnes
       // classification_*. On le conserve tel quel, il reste le plus lisible
@@ -1187,6 +1188,7 @@ class ClipsState extends ChangeNotifier {
       if (fresh.categoryId != it.categoryAtStart) continue;
       if (fresh.categoryId == cat.id) continue;
       await updateClip(fresh.copyWith(categoryId: cat.id));
+      await alignSubcategory(fresh.id);
       await DatabaseHelper.instance.updateClipClassification(
         clipId: fresh.id,
         category: anchorCats.length == 1 ? cat.id : target,
@@ -1286,6 +1288,7 @@ class ClipsState extends ChangeNotifier {
         if (fresh.categoryId != it.categoryAtStart) continue;
         if (fresh.categoryId == cat.id) continue;
         await updateClip(fresh.copyWith(categoryId: cat.id));
+        await alignSubcategory(fresh.id);
         await DatabaseHelper.instance.updateClipClassification(
           clipId: fresh.id,
           category: anchorCats.length == 1 ? cat.id : target,
@@ -1777,6 +1780,7 @@ class ClipsState extends ChangeNotifier {
         }
       }
       await updateClip(current.copyWith(categoryId: cat.id));
+      await alignSubcategory(current.id);
       await recordUserCategoryChoice(current, cat.id);
       await DatabaseHelper.instance.setClipCandidates(clip.id, const []);
       _categories = await DatabaseHelper.instance.getAllCategories();
@@ -1784,6 +1788,114 @@ class ClipsState extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       debugPrint('[candidats] erreur: $e');
+    }
+  }
+
+  // ───────────────────────────────────────────
+  // RANGEMENT AUTOMATIQUE EN SOUS-CATEGORIE
+  // Les sous-categories sont creees par le client. Reelr n'en cree jamais ;
+  // il y range seulement les liens dont le titre / les tags / le debut de la
+  // description portent le nom de la sous-categorie (tous les mots, sans
+  // accents, pluriels ignores, ordre libre).
+  // ───────────────────────────────────────────
+  static List<String> _subWords(String raw) {
+    final cleaned =
+        normalizeForSearch(raw).replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
+    if (cleaned.isEmpty) return const [];
+    return cleaned.split(' ').map((w) {
+      if (w.length > 3 && (w.endsWith('s') || w.endsWith('x'))) {
+        return w.substring(0, w.length - 1);
+      }
+      return w;
+    }).toList();
+  }
+
+  static bool _nameMatchesWords(String name, Set<String> clipWords) {
+    final words = _subWords(name);
+    if (words.isEmpty) return false;
+    // Un nom trop court (« ia », « 3d ») est trop ambigu pour un rangement
+    // automatique : le client garde le rangement manuel.
+    if (words.any((w) => w.length < 3)) return false;
+    return words.every(clipWords.contains);
+  }
+
+  Set<String> _clipWordsForSub(Clip c) {
+    final desc = c.description ?? '';
+    final text = [
+      c.title,
+      c.tags.join(' '),
+      desc.length > 300 ? desc.substring(0, 300) : desc,
+    ].join(' ');
+    return _subWords(text).toSet();
+  }
+
+  /// Le nom le plus precis gagne (plus de mots, puis plus long).
+  T? _bestNamed<T>(Iterable<T> items, String Function(T) nameOf, Clip c) {
+    final words = _clipWordsForSub(c);
+    T? best;
+    for (final it in items) {
+      if (!_nameMatchesWords(nameOf(it), words)) continue;
+      if (best == null) {
+        best = it;
+        continue;
+      }
+      final a = _subWords(nameOf(it));
+      final b = _subWords(nameOf(best));
+      if (a.length > b.length ||
+          (a.length == b.length &&
+              nameOf(it).length > nameOf(best).length)) {
+        best = it;
+      }
+    }
+    return best;
+  }
+
+  /// A appeler apres tout changement AUTOMATIQUE de categorie ou toute
+  /// premiere classification : vide une sous-categorie devenue etrangere a la
+  /// categorie du lien, puis range le lien dans la sous-categorie du client
+  /// qui correspond (et son sous-dossier), s'il n'est pas deja range.
+  Future<void> alignSubcategory(String clipId) async {
+    try {
+      final clip = _clips.where((c) => c.id == clipId).firstOrNull;
+      if (clip == null || clip.categoryId == null) return;
+      final cur = _subCategoryById(_clipSubcategoryMap[clipId]);
+      if (cur != null && cur.categoryId != clip.categoryId) {
+        await setClipSubcategory(clipId, null);
+        await setClipSubSubcategory(clipId, null);
+      } else if (cur != null) {
+        return; // deja range dans une sous-categorie valide
+      }
+      final sub = _bestNamed<SubCategory>(
+          getSubCategoriesFor(clip.categoryId), (s) => s.name, clip);
+      if (sub == null) return;
+      await setClipSubcategory(clipId, sub.id);
+      final subSub = _bestNamed<SubSubCategory>(
+          getSubSubCategoriesFor(sub.id), (s) => s.name, clip);
+      await setClipSubSubcategory(clipId, subSub?.id);
+      debugPrint('[sous-cat] ${clip.title} -> ${sub.name}'
+          '${subSub != null ? ' / ${subSub.name}' : ''}');
+    } catch (e) {
+      debugPrint('[sous-cat] erreur: $e');
+    }
+  }
+
+  /// Liens deja presents dans la categorie de [sub], pas encore ranges dans
+  /// une sous-categorie, dont le contenu correspond a son nom. Sert a
+  /// proposer le deplacement a la creation de la sous-categorie.
+  List<Clip> clipsMatchingSubcategory(SubCategory sub) {
+    return _clips
+        .where((c) =>
+            c.categoryId == sub.categoryId &&
+            _clipSubcategoryMap[c.id] == null &&
+            _nameMatchesWords(sub.name, _clipWordsForSub(c)))
+        .toList();
+  }
+
+  Future<void> moveClipsToSubcategory(
+      List<Clip> clips, SubCategory sub) async {
+    for (final c in clips) {
+      await setClipSubcategory(c.id, sub.id);
+      await setClipSubSubcategory(c.id, null);
     }
   }
 
