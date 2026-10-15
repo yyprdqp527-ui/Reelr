@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:app_links/app_links.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/services.dart';
@@ -19,6 +19,10 @@ import 'screens/onboarding_screen.dart';
 import 'screens/playlist_import_screen.dart';
 import 'services/thumbnail_cache.dart';
 import 'services/thumbnail_store.dart';
+import 'services/thumbnail_resolver.dart';
+import 'services/thumbnail_fetch.dart';
+import 'services/thumbnail_card.dart';
+import 'widgets/site_logo.dart';
 import 'services/classifier.dart' show VideoData;
 import 'services/link_preview.dart';
 import 'services/oembed.dart';
@@ -176,6 +180,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       hasLink = await Clipboard.hasStrings();
     }
     if (!hasLink) return;
+    // On ne dérange l'utilisateur que si le presse-papiers contient
+    // réellement un lien de playlist d'un ami. Sinon : silence total.
+    // (iOS affiche sa propre demande « Autoriser à coller » à cette lecture.)
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final uri = _playlistUriFromText(data?.text ?? '');
+    if (uri == null) return;
     // Laisser l'écran principal s'afficher.
     await Future<void>.delayed(const Duration(milliseconds: 800));
     final ctx = _navigatorKey.currentContext;
@@ -185,11 +195,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       context: ctx,
       builder: (c) => AlertDialog(
         title: Text(fr
-            ? "Un ami t'a envoyé une playlist ?"
-            : 'Did a friend send you a playlist?'),
+            ? "Un ami t'a envoyé une playlist"
+            : 'A friend sent you a playlist'),
         content: Text(fr
-            ? "Si tu as installé Reelr depuis le lien d'une playlist, Reelr peut l'ouvrir pour toi."
-            : 'If you installed Reelr from a playlist link, Reelr can open it for you.'),
+            ? "Reelr a trouvé le lien de la playlist. Tu veux l'ouvrir ?"
+            : 'Reelr found the playlist link. Do you want to open it?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(c).pop(false),
@@ -203,19 +213,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       ),
     );
     if (open != true) return;
-    // iOS affiche ici sa demande « Autoriser à coller ».
-    final data = await Clipboard.getData(Clipboard.kTextPlain);
-    final uri = _playlistUriFromText(data?.text ?? '');
-    if (uri == null) {
-      final c2 = _navigatorKey.currentContext;
-      if (c2 == null || !c2.mounted) return;
-      ScaffoldMessenger.of(c2).showSnackBar(SnackBar(
-        content: Text(fr
-            ? "Aucun lien de playlist trouvé. Rouvre le lien reçu de ton ami."
-            : 'No playlist link found. Open the link your friend sent again.'),
-      ));
-      return;
-    }
     await _handleDeepLink(uri);
   }
 
@@ -325,9 +322,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final storedLifetime = p.getInt('lifetime_clips_added');
     // Reinstallation : SharedPreferences est vide mais le Keychain a garde
     // le compteur. On retient le plus grand des deux.
-    final keychainLifetime = await LifetimeCounterStore.read();
+    var keychainLifetime = await LifetimeCounterStore.read();
+    // Test uniquement : en mode debug, le compteur est remis à zéro à chaque
+    // lancement (prefs + Keychain). `--dart-define=KEEP_LIFETIME=1` le garde.
+    // Sans aucun effet dans l'app publiée (kDebugMode est faux).
+    const resetLifetime = !bool.fromEnvironment('KEEP_LIFETIME');
+    if (resetLifetime && kDebugMode) {
+      await p.setInt('lifetime_clips_added', 0);
+      await LifetimeCounterStore.write(0);
+      keychainLifetime = 0;
+    }
     if (!mounted) return;
-    var lifetime = storedLifetime ?? widget.state.totalClipsCount;
+    debugPrint('[lifetime] prefs=${resetLifetime && kDebugMode ? 0 : storedLifetime} keychain=$keychainLifetime reset=$resetLifetime');
+    var lifetime = (resetLifetime && kDebugMode ? 0 : storedLifetime) ??
+        widget.state.totalClipsCount;
     if (keychainLifetime != null && keychainLifetime > lifetime) {
       lifetime = keychainLifetime;
     }
@@ -605,7 +613,28 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// [sharedTitle] / [sharedThumbnailUrl] : déjà connus (playlist reçue).
   /// Posés sur le clip dès sa création ; l'extraction les remplace si
   /// elle trouve mieux, sinon ils restent.
+  /// Enveloppe : signale a l'accueil qu'un lien arrive, de bout en bout
+  /// (resolution reseau comprise), pour ne pas montrer l'ecran vide.
   Future<bool> _ingestSharedUrl(
+    String url, {
+    bool silent = false,
+    String? sharedTitle,
+    String? sharedThumbnailUrl,
+  }) async {
+    widget.state.beginArrival();
+    try {
+      return await _ingestSharedUrlInner(
+        url,
+        silent: silent,
+        sharedTitle: sharedTitle,
+        sharedThumbnailUrl: sharedThumbnailUrl,
+      );
+    } finally {
+      widget.state.endArrival();
+    }
+  }
+
+  Future<bool> _ingestSharedUrlInner(
     String url, {
     bool silent = false,
     String? sharedTitle,
@@ -870,6 +899,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   Future<void> restorePurchases() => _purchaseService.restorePurchases();
 
   Future<void> _drainSilentShareInbox() async {
+    var arrivalMarked = false;
     try {
       debugPrint('[drain] calling drainPendingUrls...');
       final dynamic raw = await _silentShareInboxChannel.invokeMethod(
@@ -880,6 +910,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           ? raw.whereType<String>().map((u) => u.trim()).toList()
           : <String>[];
       debugPrint('[drain] found ${urls.length} urls');
+      // Des liens arrivent : l'accueil vide ne doit pas s'afficher entre
+      // deux enregistrements.
+      if (urls.isNotEmpty) {
+        widget.state.beginArrival();
+        arrivalMarked = true;
+      }
       final prefs = await SharedPreferences.getInstance();
       final previouslyHeld =
           prefs.getStringList(_heldShareUrlsKey) ?? const <String>[];
@@ -910,6 +946,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       if (newlyHeld > 0) showPaywall(heldCount: stillHeld.length);
     } catch (e) {
       debugPrint('[drain] error: $e');
+    } finally {
+      if (arrivalMarked) widget.state.endArrival();
     }
   }
 
@@ -1372,9 +1410,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       );
       return false;
     }
-    final resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
+    var resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
         ? clip.thumbnailUrl
         : thumbnailUrl;
+    // Image deja refusee (video, format illisible) : on ne la remet pas
+    // sur le clip. Autre image de la page, sinon capture d'ecran.
+    await ThumbnailStore.loadUnreadable();
+    if (resolvedThumbnailUrl != null &&
+        ThumbnailStore.isUnreadable(resolvedThumbnailUrl) &&
+        clip.platform == 'other') {
+      resolvedThumbnailUrl =
+          OEmbedService.alternativeImageFor(clip.url, resolvedThumbnailUrl) ??
+              OEmbedService.screenshotUrlFor(clip.url);
+    }
     // Le pre-cache doit viser EXACTEMENT l'URL que l'affichage
     // reclamera (cf. bestThumbnailUrl, qui proxifie Facebook / Reddit /
     // Pinterest). Pre-telecharger l'URL brute produirait une cle de
@@ -1414,6 +1462,120 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     Duration(seconds: 8),
   ];
 
+  static const bool _useThumbnailResolver = true;
+
+  /// Regle generale des vignettes : trouve une image pour [clipId] en
+  /// suivant toujours le meme ordre (voir ThumbnailResolver), la valide en
+  /// la decodant, puis la range dans le stockage permanent. Renvoie true
+  /// si une VRAIE image est gardee ; une carte dessinee est gardee aussi,
+  /// mais renvoie false pour que la reparation retente plus tard.
+  Future<bool> _resolveAndStoreThumbnail(String url, String clipId) async {
+    Clip? clip;
+    for (final c in widget.state.allClips) {
+      if (c.id == clipId) {
+        clip = c;
+        break;
+      }
+    }
+    final isWeb = clip != null && clip.platform == 'other';
+    final pageUrl = clip?.url ?? url;
+    final host = Uri.tryParse(pageUrl)?.host ?? '';
+    final title = clip?.title ?? '';
+    final resolver = ThumbnailResolver(
+      fetch: fetchImageBytes,
+      isUsable: ThumbnailStore.isUsableImage,
+      nativePreview: isWeb
+          ? () async {
+              final p = await LinkPreviewService.fetch(pageUrl);
+              if (p == null) return null;
+              if (p.image != null) return p.image;
+              final u = p.imageUrl;
+              if (u == null || u.isEmpty) return null;
+              return fetchImageBytes(u, FetchIdentity.browser);
+            }
+          : null,
+      screenshot: isWeb
+          ? () => fetchImageBytes(
+              OEmbedService.screenshotUrlFor(pageUrl), FetchIdentity.browser)
+          : null,
+      renderCard: isWeb
+          ? () async {
+              Uint8List? logo;
+              try {
+                final fav = SiteLogo.faviconUrlFor(pageUrl);
+                if (fav != null) {
+                  logo = await fetchImageBytes(fav, FetchIdentity.browser)
+                      .timeout(const Duration(seconds: 6));
+                }
+              } catch (_) {}
+              return renderThumbnailCard(title: title, host: host, logo: logo);
+            }
+          : null,
+    );
+    final alternatives =
+        isWeb ? OEmbedService.imageCandidatesFor(pageUrl) : const <String>[];
+    final r = await resolver.resolve(imageUrl: url, alternatives: alternatives);
+    if (r == null) {
+      debugPrint('[thumb] $clipId : aucune image obtenue');
+      return false;
+    }
+    debugPrint('[thumb] $clipId -> ${r.source}'
+        '${r.generated ? " (carte dessinee)" : ""} | ${r.attempts.join(" ; ")}');
+    final saved = await ThumbnailStore.instance
+        .saveBytes(clipId, r.bytes, generated: r.generated);
+    return saved && !r.generated;
+  }
+
+  /// Plan B quand l'image d'un clip est inutilisable : une autre image de
+  /// la page, sinon une capture d'ecran de la page (liens web). Sans plan
+  /// B, l'affichage retombe sur le logo du site.
+  Future<void> _replaceUnreadableThumbnail(String clipId, String rejected) async {
+    Clip? clip;
+    for (final c in widget.state.allClips) {
+      if (c.id == clipId) {
+        clip = c;
+        break;
+      }
+    }
+    if (clip == null || clip.platform != 'other') return;
+    final stored = clip.thumbnailUrl;
+    // Le clip porte deja une autre image valable : rien a remplacer.
+    if (stored != null &&
+        stored.isNotEmpty &&
+        stored != rejected &&
+        !ThumbnailStore.isUnreadable(stored)) {
+      return;
+    }
+    if (!OEmbedService.hasImageCandidates(clip.url)) {
+      // Page pas lue dans cette session : on la relit pour connaitre ses
+      // autres images.
+      try {
+        await OEmbedService.fetchMetadata(clip.url);
+      } catch (_) {}
+    }
+    final alt = OEmbedService.alternativeImageFor(clip.url, rejected);
+    final next = alt ?? OEmbedService.screenshotUrlFor(clip.url);
+    debugPrint('[thumbnail] image illisible -> '
+        '${alt != null ? "autre image de la page" : "capture d'ecran"} '
+        'pour ${clip.id}');
+    await widget.state.updateClip(
+      Clip(
+        id: clip.id,
+        url: clip.url,
+        title: clip.title,
+        platform: clip.platform,
+        categoryId: _currentCategoryIdOf(clip),
+        tags: clip.tags,
+        addedAt: clip.addedAt,
+        thumbnailUrl: next,
+        position: clip.position,
+        channel: clip.channel,
+        description: clip.description,
+      ),
+    );
+    unawaited(_precacheThumbnail(next, clipId: clip.id, retry: false));
+  }
+
   /// Télécharge la vignette en arrière-plan pour la mettre en cache disque
   /// immédiatement après le partage, pendant que l'URL est encore fraîche
   /// (jetons CDN à courte durée de vie sur Facebook/Instagram/TikTok/etc.).
@@ -1444,6 +1606,19 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (ThumbnailStore.isLocalUrl(url)) {
       return clipId != null && await ThumbnailStore.instance.has(clipId);
     }
+    // Regle generale des vignettes (voir ThumbnailResolver) : pour un clip,
+    // une seule voie, identique pour tous les sites. Mettre
+    // `_useThumbnailResolver` a false pour revenir a l'ancien chemin.
+    if (clipId != null && _useThumbnailResolver) {
+      return _resolveAndStoreThumbnail(url, clipId);
+    }
+    await ThumbnailStore.loadUnreadable();
+    // Image deja refusee (video, format illisible) : on ne la retelecharge
+    // pas, on passe directement au plan B.
+    if (ThumbnailStore.isUnreadable(url)) {
+      if (clipId != null) unawaited(_replaceUnreadableThumbnail(clipId, url));
+      return false;
+    }
     final host = Uri.tryParse(url)?.host ?? url;
     final delays = retry ? _precacheRetryDelays : const <Duration>[];
     for (var attempt = 0; ; attempt++) {
@@ -1459,6 +1634,13 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           debugPrint(
             '[precache] copie permanente ${saved ? "ok" : "refusee"}: $host',
           );
+          if (!saved) {
+            // Fichier telecharge mais inutilisable (video, format que
+            // Flutter ne lit pas) : on l'oublie et on passe au plan B.
+            await ThumbnailCache.instance.removeFile(url);
+            await ThumbnailStore.markUnreadable(url);
+            unawaited(_replaceUnreadableThumbnail(clipId, url));
+          }
           return saved;
         }
         return true;
@@ -1781,15 +1963,34 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       // Recherche Google : la carte « requete » n'a pas de photo, jamais
       // a reparer.
       if (SearchQueryCard.queryFor(clip.url) != null) continue;
-      // Copie permanente presente : la carte s'affiche, rien a faire.
-      if (await ThumbnailStore.instance.has(clip.id)) continue;
+      // Copie permanente presente : la carte s'affiche, rien a faire,
+      // sauf si c'est une carte dessinee (pas une vraie photo) : on
+      // retente alors les vraies sources, avec le rythme habituel.
+      await ThumbnailStore.loadGenerated();
+      if (await ThumbnailStore.instance.has(clip.id)) {
+        if (ThumbnailStore.isGenerated(clip.id) &&
+            now.difference(clip.addedAt) >= _deadThumbnailGracePeriod) {
+          dead.add(clip);
+        }
+        continue;
+      }
       final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
       if (displayed == null || displayed.isEmpty) continue;
       try {
         final file = await ThumbnailCache.instance.getFileFromCache(displayed);
         if (file != null) {
-          if (await ThumbnailStore.instance.saveFromFile(clip.id, file.file)) {
-            adopted++;
+          final bytes = await file.file.readAsBytes();
+          if (await ThumbnailStore.isUsableImage(bytes)) {
+            if (await ThumbnailStore.instance.saveFromFile(clip.id, file.file)) {
+              adopted++;
+            }
+          } else {
+            // En cache mais inutilisable (video, format illisible) : on
+            // l'oublie et on passe au plan B (autre image, capture).
+            await ThumbnailCache.instance.removeFile(displayed);
+            await ThumbnailStore.markUnreadable(displayed);
+            debugPrint('[repair] image refusee pour ${clip.id} -> plan B');
+            unawaited(_replaceUnreadableThumbnail(clip.id, displayed));
           }
           continue;
         }
