@@ -1788,7 +1788,7 @@ class _AppLink extends StatelessWidget {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(15),
                 child: asset != null
-                    ? Image.asset(asset!, width: 54, height: 54, fit: BoxFit.cover)
+                    ? Image.asset(asset!, width: 54, height: 54, cacheWidth: 162, fit: BoxFit.cover)
                     : Container(
                         width: 54,
                         height: 54,
