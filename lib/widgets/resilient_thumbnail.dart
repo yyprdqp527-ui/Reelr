@@ -96,7 +96,27 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
   @override
   void initState() {
     super.initState();
+    ThumbnailStore.revision.addListener(_onStoreChanged);
     if (!_adoptKnownStoredFile()) _checkCache();
+  }
+
+  @override
+  void dispose() {
+    ThumbnailStore.revision.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  /// Une miniature vient d'etre enregistree : si c'est celle de ce clip,
+  /// on l'affiche (la carte montrait le logo de repli, ou l'ancienne image).
+  void _onStoreChanged() {
+    final id = widget.persistId;
+    if (id == null || !mounted) return;
+    final known = ThumbnailStore.instance.knownFileFor(id);
+    if (known == null) return;
+    setState(() {
+      _storedFile = known;
+      _checkingCache = false;
+    });
   }
 
   /// Vignette deja connue de l'index en memoire : affichee des la premiere
@@ -269,6 +289,11 @@ class _ResilientThumbnailState extends State<ResilientThumbnail> {
     }
 
     if (url == null || url.isEmpty) {
+      return widget.fallbackBuilder(context);
+    }
+
+    // Image deja refusee (video, format illisible) : jamais retelechargee.
+    if (ThumbnailStore.isUnreadable(url)) {
       return widget.fallbackBuilder(context);
     }
 
