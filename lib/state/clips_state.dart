@@ -1865,9 +1865,26 @@ class ClipsState extends ChangeNotifier {
       } else if (cur != null) {
         return; // deja range dans une sous-categorie valide
       }
-      final sub = _bestNamed<SubCategory>(
-          getSubCategoriesFor(clip.categoryId), (s) => s.name, clip);
+      final subs = getSubCategoriesFor(clip.categoryId);
+      var sub = _bestNamed<SubCategory>(subs, (s) => s.name, clip);
+      if (sub == null && subs.isNotEmpty) {
+        // Le nom n'est pas dans le titre (« Keshi Yena » -> « Pates ») : Claude
+        // lit le titre, la description et la vignette et choisit parmi les
+        // sous-tuiles du client. Jamais de creation de sous-tuile.
+        final picked = await ClaudeClassifier.pickSubcategory(
+          title: clip.title,
+          description: clip.description,
+          imageUrl: clip.thumbnailUrl,
+          categoryName: categoryById(clip.categoryId)?.name ?? '',
+          names: [for (final s in subs) s.name],
+        );
+        if (picked != null) {
+          sub = subs.where((s) => s.name == picked).firstOrNull;
+        }
+      }
       if (sub == null) return;
+      // Range a la main pendant l'appel : on n'y touche pas.
+      if (_clipSubcategoryMap[clipId] != null) return;
       await setClipSubcategory(clipId, sub.id);
       final subSub = _bestNamed<SubSubCategory>(
           getSubSubCategoriesFor(sub.id), (s) => s.name, clip);

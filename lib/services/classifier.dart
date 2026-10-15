@@ -2120,6 +2120,91 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
 
   /// Un appel au proxy, avec [content] en message utilisateur (texte seul
   /// ou liste multimodale). Corps et en-tetes identiques a l'ancien code.
+  /// Choisit, parmi les sous-tuiles creees par le client dans une tuile, celle
+  /// ou ranger un lien (titre, description et vignette lus ensemble). Sert
+  /// quand le nom de la sous-tuile n'apparait pas dans le titre (« Keshi
+  /// Yena » -> « Pates »). Renvoie null si rien ne correspond clairement ou
+  /// si l'appel echoue : le lien reste alors dans la tuile, sans sous-tuile.
+  static Future<String?> pickSubcategory({
+    required String title,
+    String? description,
+    String? imageUrl,
+    required String categoryName,
+    required List<String> names,
+  }) async {
+    if (names.isEmpty) return null;
+    final desc = (description ?? '').trim();
+    final text = 'Tuile : $categoryName\n'
+        'Sous-tuiles : ${names.join(' | ')}\n'
+        'Titre : $title\n'
+        '${desc.isEmpty ? '' : 'Description : ${desc.length > 400 ? desc.substring(0, 400) : desc}\n'}'
+        'Choisis la sous-tuile ou ranger ce lien, d\'apres le titre, la '
+        'description et l\'image si elle est jointe (le plat, l\'objet ou le '
+        'sujet visible compte, meme si le titre est un nom propre). Si aucune '
+        'ne correspond clairement, reponds null. Reponds UNIQUEMENT en JSON : '
+        '{"sous_tuile": "nom exact" ou null}';
+    final useImage = imageUrl != null &&
+        imageUrl.startsWith('https://') &&
+        !imageUrl.contains('reelr-proxy');
+    Future<http.Response> post(dynamic content) {
+      final body = jsonEncode({
+        'model': _model,
+        'max_tokens': 400,
+        if (_isGen5)
+          'output_config': {'effort': 'low'}
+        else
+          'temperature': 0,
+        'system': 'Tu ranges des liens enregistres dans les sous-tuiles '
+            'creees par la personne. Tu n\'inventes jamais de sous-tuile.',
+        'messages': [
+          {'role': 'user', 'content': content},
+        ],
+      });
+      return Net.client.post(
+        Uri.parse(_apiUrl),
+        headers: {
+          'x-reelr-secret': Secrets.appSharedSecret,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: body,
+      ).timeout(_requestTimeout);
+    }
+
+    try {
+      http.Response resp;
+      if (useImage) {
+        resp = await post([
+          {
+            'type': 'image',
+            'source': {'type': 'url', 'url': imageUrl},
+          },
+          {'type': 'text', 'text': text},
+        ]);
+        if (resp.statusCode != 200) resp = await post(text);
+      } else {
+        resp = await post(text);
+      }
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final blocks =
+          (data['content'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final out =
+          blocks.firstWhere((b) => b['type'] == 'text')['text'] as String;
+      final json = jsonDecode(_extractJson(out)) as Map<String, dynamic>;
+      final raw = json['sous_tuile'];
+      if (raw is! String) return null;
+      final want = raw.trim().toLowerCase();
+      for (final n in names) {
+        if (n.trim().toLowerCase() == want) return n;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('[sous-cat] choix par Claude echoue : $e');
+      return null;
+    }
+  }
+
   static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
