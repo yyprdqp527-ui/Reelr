@@ -1,0 +1,35 @@
+lot,ordre,titre,chaine,plateforme,hote,categorie_attendue,decide_par,note
+L01 tapis,1,"Tissu 100 % coton. Dimensions : 50 x 70 cm. Fils teints à motif rayé. Multicolore | Salle de bain",Pinterest,pinterest,pinterest.com,cat_deco,claude,Cas réel du 8 oct. 2026
+L01 tapis,2,"O Tapete Follow THE Trace é um Design Vibrante e Significativo num Padrão Dinâmico de Pegadas",Pinterest,pinterest,pinterest.com,cat_deco,claude,Titre en portugais
+L01 tapis,3,"Dans un dialogue raffiné entre formes géométriques et inspirations solaires, la collection Clarisse explore une esthétique graphique",Pinterest,pinterest,pinterest.com,cat_deco,claude,Piège : mots design/graphique -> cat_design à tort (cas réel)
+L01 tapis,4,"Découvrez Tapis à tissage plat Frencie Rouge en différentes tailles",,other,benuta.fr,tuile:Benuta,regle,Enseigne -> tuile dédiée ; jamais déplacée par le lot
+L01 tapis,5,Twitch,Twitch,twitch,twitch.tv,cat_gaming,regle,Twitch = Gaming
+L01 tapis,6,Nico_la - Live on Twitch,Twitch,twitch,twitch.tv,cat_gaming,regle,Claude répondait cat_travel à 75 (cas réel)
+L02 cheveux,1,"Coupe carré plongeant : comment la coiffer au quotidien",,instagram,instagram.com,cat_coiffure,claude,Ou la tuile Cheveux si elle existe chez l'utilisatrice
+L02 cheveux,2,"Balayage caramel sur cheveux bruns, avant / après",,tiktok,tiktok.com,cat_coiffure,claude,Ou la tuile Cheveux
+L02 cheveux,3,"Routine boucles : définir ses boucles sans frisottis",,youtube,youtube.com,cat_coiffure,claude,Ou la tuile Cheveux
+L02 cheveux,4,"Dégradé mi-long : les coupes tendance de l'automne",Pinterest,pinterest,pinterest.com,cat_coiffure,claude,Ou la tuile Cheveux
+L03 recettes,1,"Poulet rôti au citron et thym, une recette facile",,youtube,youtube.com,cat_food,claude,
+L03 recettes,2,"Pâte à crêpes sans grumeaux",,tiktok,tiktok.com,cat_food,claude,
+L03 recettes,3,"Tarte tatin en 5 ingrédients",,instagram,instagram.com,cat_food,claude,
+L03 recettes,4,"Dîner pour 6 : idées de menu d'automne",Pinterest,pinterest,pinterest.com,cat_food,claude,
+L04 voyage,1,"Eastwood Escape, Nassau (tarifs actualisés)",,other,booking.com,cat_travel,regle,Lien Share- réel
+L04 voyage,2,"Cocoplum Rest N Hideaway #1, Nassau (tarifs actualisés)",,other,booking.com,cat_travel,regle,Lien Share- réel
+L04 voyage,3,"Que faire à Lisbonne en 3 jours",,youtube,youtube.com,cat_travel,claude,
+L04 voyage,4,"Road trip en Islande : itinéraire de 8 jours",,tiktok,tiktok.com,cat_travel,claude,
+L05 mixte,1,"Tutoriel crochet : le point bobine pour débutants",,instagram,instagram.com,cat_crochet,claude,
+L05 mixte,2,"Granny square au crochet, pas à pas",,tiktok,tiktok.com,cat_crochet,claude,
+L05 mixte,3,"Zelda Echoes of Wisdom : le boss final sans mourir",,youtube,youtube.com,cat_gaming,claude,
+L05 mixte,4,"Routine soin du visage du soir pour peau sèche",,tiktok,tiktok.com,cat_beauty,claude,
+L05 mixte,5,"Comment placer 5 000 € : livret ou assurance-vie ?",,youtube,youtube.com,cat_finance,claude,
+L06 deco chambre,1,"Tête de lit en bois brut : idées pour la chambre",Pinterest,pinterest,pinterest.com,cat_deco,claude,
+L06 deco chambre,2,"Rideaux en lin : lesquels choisir pour un salon lumineux",Pinterest,pinterest,pinterest.com,cat_deco,claude,
+L06 deco chambre,3,"Plaid beige et coussins : un cocooning minimaliste",Pinterest,pinterest,pinterest.com,cat_deco,claude,
+L06 deco chambre,4,"Design épuré : un salon scandinave en 10 photos",Pinterest,pinterest,pinterest.com,cat_deco,claude,Piège : le mot design -> cat_design à tort
+L07 sport,1,"Séance abdos 10 minutes sans matériel",,instagram,instagram.com,cat_fitness,claude,
+L07 sport,2,"Programme jambes et fessiers à la maison",,tiktok,tiktok.com,cat_fitness,claude,
+L07 sport,3,"Squat : les erreurs qui abîment vos genoux",,youtube,youtube.com,cat_fitness,claude,
+L07 sport,4,"Résumé du match de rugby France - Irlande",,youtube,youtube.com,cat_sport,claude,Sport (match) différent de Fitness (entraînement)
+L08 liste de Noël,1,"Idées cadeaux pour un enfant de 6 ans : Lego et jeux de société",Pinterest,pinterest,pinterest.com,tuile:Liste de Noël,claude,Difficile : l'intention (liste de Noël) n'est dans aucun titre. Teste ce que la vue d'ensemble peut deviner
+L08 liste de Noël,2,"Parfum femme boisé : notre sélection pour Noël",,other,sephora.fr,tuile:Liste de Noël,claude,Difficile
+L08 liste de Noël,3,"Écharpe en laine mérinos, cadeau de Noël",,other,laredoute.fr,tuile:Liste de Noël,claude,Difficile

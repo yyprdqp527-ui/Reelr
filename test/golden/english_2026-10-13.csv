@@ -1,0 +1,119 @@
+id,titre,chaine,plateforme,categorie_attendue,note
+e001,Perfect crispy roast potatoes,,youtube,cat_food,EN base
+e002,5 minute vegan breakfast ideas,,tiktok,cat_food,EN base
+e003,Homemade sourdough bread for beginners,,youtube,cat_food,EN base
+e004,Chicken parmesan the easy way,,instagram,cat_food,EN base
+e005,Push pull legs split explained,,youtube,cat_fitness,EN base
+e006,10 minute abs workout no equipment,,tiktok,cat_fitness,EN base
+e007,How to run your first marathon,,youtube,cat_sport,EN base
+e008,Elden Ring boss guide for beginners,,youtube,cat_gaming,EN base
+e009,Minecraft hardcore day 100,,youtube,cat_gaming,EN base
+e010,Best budget gaming PC build 2026,,youtube,cat_tech,EN base
+e011,iPhone 18 review after one month,,youtube,cat_tech,EN base
+e012,How to learn Python in 30 days,,youtube,cat_tech,EN base
+e013,Everyday soft glam makeup tutorial,,tiktok,cat_beauty,EN base
+e014,My nighttime skincare routine,,tiktok,cat_beauty,EN base
+e015,Fall outfit ideas 2026,,instagram,cat_mode,EN base
+e016,How to style a trench coat,,tiktok,cat_mode,EN base
+e017,Hidden gems in Lisbon you must visit,,tiktok,cat_travel,EN base
+e018,Japan travel itinerary for 10 days,,youtube,cat_travel,EN base
+e019,Cheap flights hack nobody tells you,,tiktok,cat_travel,EN base
+e020,Standup comedy special about airports,,youtube,cat_comedy,EN base
+e021,Skit: when your mom calls you by your full name,,tiktok,cat_humour,EN base
+e022,Funniest cat fails compilation,,youtube,cat_fail,EN base
+e023,Guitar lesson: Wonderwall chords,,youtube,cat_musique,EN base
+e024,Taylor Swift new album reaction,,youtube,cat_musique,EN base
+e025,Daily 10 minute guided meditation,,youtube,cat_wellness,EN base
+e026,Morning yoga flow for stiff backs,,youtube,cat_wellness,EN base
+e027,Joe Rogan interview with a neuroscientist,,youtube,cat_podcast,EN base
+e028,Ep 214: how we built a startup from scratch,,youtube,cat_podcast,EN base
+e029,Montessori activities for toddlers,,instagram,cat_famille,EN base
+e030,Newborn sleep schedule week by week,,youtube,cat_bebe,EN base
+e031,How to invest in index funds,,youtube,cat_finance,EN base
+e032,Monthly budget tutorial for beginners,,youtube,cat_finance,EN base
+e033,Bitcoin halving explained,,youtube,cat_crypto,EN base
+e034,How I grew my business to 10k a month,,youtube,cat_business,EN base
+e035,Cold email template that gets replies,,linkedin,cat_business,EN base
+e036,Breaking: election results live,,youtube,cat_politique,EN base
+e037,Senate passes new climate bill,,youtube,cat_politique,EN base
+e038,The rise of remote work and what it means,,youtube,cat_societe,EN base
+e039,Build a floating shelf in 20 minutes,,youtube,cat_diy,EN base
+e040,Small apartment decor ideas,,pinterest,cat_deco,EN base
+e041,Cozy living room makeover on a budget,,instagram,cat_deco,EN base
+e042,Used car buying checklist,,youtube,cat_auto,EN base
+e043,2026 Tesla Model 3 long term review,,youtube,cat_auto,EN base
+e044,Ducati Panigale V4 track day,,youtube,cat_moto,EN base
+e045,Netflix series you cannot miss this fall,,tiktok,cat_cinema,EN base
+e046,Movie review: Dune Part Three,,youtube,cat_cinema,EN base
+e047,Studio Ghibli films ranked,,youtube,cat_manga,EN base
+e048,One Piece chapter 1150 breakdown,,youtube,cat_manga,EN base
+e049,Cosplay armor build from foam,,youtube,cat_cosplay,EN base
+e050,Salsa basics for beginners,,youtube,cat_dance,EN base
+e051,How to grow tomatoes on a balcony,,youtube,cat_jardin,EN base
+e052,Golden retriever puppy training tips,,tiktok,cat_pets,EN base
+e053,Why do cats purr,,youtube,cat_pets,EN base
+e054,Whales of the Pacific coast,,youtube,cat_nature,EN base
+e055,Hiking the Tour du Mont Blanc,,youtube,cat_outdoor,EN base
+e056,Beginner portrait photography tips,,youtube,cat_photo,EN base
+e057,Oil painting techniques for landscapes,,youtube,cat_art,EN base
+e058,Medieval history of the Black Death,,youtube,cat_histoire,EN base
+e059,Serial killer case files: the Zodiac,,youtube,cat_truecrime,EN base
+e060,Cold case solved after 30 years,,youtube,cat_truecrime,EN base
+e061,Learn Spanish with 10 phrases,,tiktok,cat_lang,EN base
+e062,Atomic Habits book summary,,youtube,cat_growth,EN base
+e063,How to stop overthinking,,youtube,cat_psycho,EN base
+e064,Attachment styles explained,,youtube,cat_psycho,EN base
+e065,Your weekly horoscope for Scorpio,,tiktok,cat_astro,EN base
+e066,Knitting a basic beanie for beginners,,youtube,cat_tricotage,EN base
+e067,Crochet granny square tutorial,,youtube,cat_crochet,EN base
+e068,Sewing a tote bag step by step,,youtube,cat_tricot,EN base
+e069,Hand embroidery stitches for beginners,,youtube,cat_broderie,EN base
+e070,Bible study: the Sermon on the Mount,,youtube,cat_religion,EN base
+e071,Buying your first house: what to know,,youtube,cat_immo,EN base
+e072,Luxury watch investment guide,,youtube,cat_luxe,EN base
+e073,Vintage 90s thrift haul,,tiktok,cat_vintage,EN base
+e074,High protein meal prep for the week,,youtube,cat_nutrition,EN base
+e075,How to lower blood pressure naturally,,youtube,cat_sante,EN base
+e076,Amazon finds worth buying,,tiktok,cat_shopping,EN base
+e077,Figma auto layout tutorial,,youtube,cat_design,EN base
+e078,Base jumping from the Eiger,,youtube,cat_sport_extreme,EN base
+e079,How black holes actually work,,youtube,cat_science,EN base
+e080,Study tips for final exams,,tiktok,cat_education,EN base
+e081,NASA Mars rover finds ancient riverbed,,youtube,cat_science,PIEGE mot ambigu : mars
+e082,Bruno Mars Grammy performance,,youtube,cat_musique,PIEGE mot ambigu : mars
+e083,Legend of Zelda Tears of the Kingdom tips,,youtube,cat_gaming,PIEGE mot ambigu : legend
+e084,John Legend live acoustic set,,youtube,cat_musique,PIEGE mot ambigu : legend
+e085,Samsung Galaxy S26 full review,,youtube,cat_tech,PIEGE mot ambigu : galaxy
+e086,Galaxy formation explained,,youtube,cat_science,PIEGE mot ambigu : galaxy
+e087,The Big Bang Theory funniest moments,,youtube,cat_cinema,PIEGE mot ambigu : big bang
+e088,What happened before the Big Bang,,youtube,cat_science,PIEGE mot ambigu : big bang
+e089,Official trailer: Avatar 4,,youtube,cat_cinema,PIEGE mot ambigu : trailer
+e090,GTA 6 gameplay trailer breakdown,,youtube,cat_gaming,PIEGE mot ambigu : trailer
+e091,Full Moon Party Koh Phangan guide,,tiktok,cat_travel,PIEGE mot ambigu : full moon
+e092,Full moon in Aries ritual and meaning,,tiktok,cat_astro,PIEGE mot ambigu : full moon
+e093,Hotel room tour Dubai Burj Al Arab,,tiktok,cat_travel,PIEGE mot ambigu : room tour
+e094,Room tour: my minimalist apartment,,tiktok,cat_deco,PIEGE mot ambigu : room tour
+e095,Mbappe transfer news today,,youtube,cat_sport,PIEGE mot ambigu : transfer
+e096,Learn about money transfer fees abroad,,youtube,cat_finance,PIEGE mot ambigu : transfer
+e097,Car crash compilation caught on dashcam,,youtube,cat_fail,PIEGE mot ambigu : car
+e098,Why car seats expire,,youtube,cat_bebe,PIEGE mot ambigu : car
+e099,My dog learned to open doors,,tiktok,cat_pets,PIEGE mot ambigu : dog
+e100,Game night with friends hilarious moments,,tiktok,cat_humour,PIEGE mot ambigu : game
+e101,Reaction to the new F1 season opener,,youtube,cat_sport,PIEGE mot ambigu : reaction
+e102,Documentary: the fast fashion industry exposed,,youtube,cat_doc,PIEGE format documentary
+e103,Documentary about the Apollo 11 mission,,youtube,cat_doc,PIEGE format documentary
+e104,Documentary style cooking in a Tuscan village,,youtube,cat_food,PIEGE format documentary : le sujet prime
+e105,Explained: how interest rates work,,youtube,cat_finance,PIEGE format explained
+e106,Explained: why the Roman Empire fell,,youtube,cat_histoire,PIEGE format explained
+e107,Wait for it,,tiktok,cat_unclear,Non gagnable : titre vide de sens
+e108,Part 2,,tiktok,cat_unclear,Non gagnable : titre vide de sens
+e109,POV: you finally get it,,tiktok,cat_unclear,Non gagnable : titre vide de sens
+e110,This is insane,,instagram,cat_unclear,Non gagnable : titre vide de sens
+e111,Day in my life,,tiktok,cat_unclear,Non gagnable : titre vide de sens
+e112,You won't believe this,,youtube,cat_unclear,Non gagnable : titre vide de sens
+e113,Link in bio,,instagram,cat_unclear,Non gagnable : titre vide de sens
+e114,Normandy road trip with kids,,youtube,cat_travel,PIEGE sous-chaine : norman dans Normandy
+e115,Axolotl care guide for beginners,,youtube,cat_pets,PIEGE sous-chaine : axolot
+e116,Poncer et vernir un parquet,,youtube,cat_diy,PIEGE sous-chaine FR : ponce dans poncer
+e117,Saut à la corde : débutant,,tiktok,cat_fitness,PIEGE accent FR : saut
+e118,Légumes sautés en 10 minutes,,tiktok,cat_food,PIEGE accent FR : saut dans saute
