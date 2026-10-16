@@ -170,8 +170,9 @@ class PurchaseService {
     }
   }
 
-  Future<void> restorePurchases() async {
+  Future<void> restorePurchases({bool silent = false}) async {
     if (!isAvailable) {
+      if (silent) return;
       onError?.call(isFr()
           ? 'Les achats ne sont pas disponibles sur cet appareil.'
           : 'Purchases are not available on this device.');
@@ -183,6 +184,7 @@ class PurchaseService {
     } catch (e) {
       if (identical(_settled, settled)) _settle();
       debugPrint('[purchase] Exception lors de restorePurchases: $e');
+      if (silent) return;
       onError?.call(isFr()
           ? 'Restauration impossible. Réessaie plus tard.'
           : 'Restore failed. Please try again later.');

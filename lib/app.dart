@@ -64,6 +64,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   ThemeMode _themeMode = ThemeMode.dark;
   Locale _locale = const Locale('en');
   bool _onboardingDone = false;
+  // Reinstallation detectee (compteur dans le Keychain, prefs vides) : on
+  // restaure les achats une seule fois, sans rien demander au client.
+  bool _autoRestorePending = false;
   bool _prefsLoaded = false;
   bool _isPremium = false;
   /// Compteur cumulatif du nombre de clips jamais ajoutés (ne diminue
@@ -298,6 +301,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       _purchaseService.silentlyReverifyEntitlement(
         currentlyPremium: _isPremium,
       );
+      if (_autoRestorePending && !_isPremium) {
+        _autoRestorePending = false;
+        SharedPreferences.getInstance()
+            .then((p) => p.setBool('auto_restore_done', true));
+        _purchaseService.restorePurchases(silent: true);
+      }
     });
   }
 
@@ -335,6 +344,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       keychainLifetime = 0;
     }
     if (!mounted) return;
+    if (!premium &&
+        storedLifetime == null &&
+        (keychainLifetime ?? 0) > 0 &&
+        !(p.getBool('auto_restore_done') ?? false)) {
+      _autoRestorePending = true;
+    }
     debugPrint('[lifetime] prefs=${resetLifetime && kDebugMode ? 0 : storedLifetime} keychain=$keychainLifetime reset=$resetLifetime');
     var lifetime = (resetLifetime && kDebugMode ? 0 : storedLifetime) ??
         widget.state.totalClipsCount;
@@ -1204,7 +1219,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         thumbnailUrl = ThumbnailStore.localUrlFor(clip.id);
         debugPrint('[linkpreview] vignette enregistree: ${clip.url}');
       }
-    } else if (usePreviewThumb && preview.imageUrl != null) {
+    } else if (usePreviewThumb &&
+        preview.imageUrl != null &&
+        !OEmbedService.isGenericImage(preview.imageUrl!)) {
       // Android : adresse de l'image ; le pre-cache de _hydrateClip la
       // telecharge et la copie dans le stockage permanent.
       thumbnailUrl = preview.imageUrl;
@@ -1426,6 +1443,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
             ? channel
             : clip.title;
     final thumbnailUrl = meta.thumbnailUrl;
+    // Un logo de plateforme stocke par une ancienne version ne doit pas
+    // survivre a la re-extraction : on repart de zero.
+    final oldThumb = clip.thumbnailUrl;
+    final keptThumb = (oldThumb != null && OEmbedService.isGenericImage(oldThumb))
+        ? null
+        : oldThumb;
     if (title.isEmpty && (thumbnailUrl == null || thumbnailUrl.isEmpty)) {
       if (clip.title.isNotEmpty) return false;
       final platform =
@@ -1439,7 +1462,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           categoryId: _currentCategoryIdOf(clip),
           tags: clip.tags,
           addedAt: clip.addedAt,
-          thumbnailUrl: clip.thumbnailUrl,
+          thumbnailUrl: keptThumb,
           position: clip.position,
           channel: meta.channel ?? clip.channel,
           description: meta.description ?? clip.description,
@@ -1448,7 +1471,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       return false;
     }
     var resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
-        ? clip.thumbnailUrl
+        ? keptThumb
         : thumbnailUrl;
     // Image deja refusee (video, format illisible) : on ne la remet pas
     // sur le clip. Autre image de la page, sinon capture d'ecran.
@@ -2000,6 +2023,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       // Recherche Google : la carte « requete » n'a pas de photo, jamais
       // a reparer.
       if (SearchQueryCard.queryFor(clip.url) != null) continue;
+      // Logo de plateforme stocke par erreur : jamais une vraie vignette,
+      // on le re-extrait sans passer par le cache.
+      if (OEmbedService.isGenericImage(stored)) {
+        if (now.difference(clip.addedAt) >= _deadThumbnailGracePeriod) {
+          dead.add(clip);
+        }
+        continue;
+      }
       // Copie permanente presente : la carte s'affiche, rien a faire,
       // sauf si c'est une carte dessinee (pas une vraie photo) : on
       // retente alors les vraies sources, avec le rythme habituel.
@@ -2060,7 +2091,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     //    dont le pre-cache a ete interrompu (app mise en arriere-plan
     //    juste apres l'ouverture). Un telechargement suffit alors.
     final stored = clip.thumbnailUrl;
-    if (stored != null && stored.isNotEmpty) {
+    if (stored != null &&
+        stored.isNotEmpty &&
+        !OEmbedService.isGenericImage(stored)) {
       final displayed = OEmbedService.bestThumbnailUrl(clip.url, stored);
       if (displayed != null &&
           displayed.isNotEmpty &&

@@ -1717,7 +1717,9 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     'youtube',
     'tiktok',
     'instagram',
-    'twitch'
+    'twitch',
+    // Un pin se juge sur son image : le titre seul trompe (« Abseits »).
+    'pinterest'
   };
 
   /// Page web avec une image directe (https, hors capture du proxy).
@@ -1818,7 +1820,7 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     // est stable. Facebook est exclu : ses URLs fbcdn.net contiennent des
     // tokens à courte durée de vie qui expirent souvent avant que l'API
     // Anthropic ne récupère l'image côté serveur.
-    const platformsWithReliableThumbnails = {'youtube', 'tiktok', 'instagram', 'twitch'};
+    const platformsWithReliableThumbnails = _platformsWithReliableThumbnails;
     final forceImageOk = forceImage && _imageAvailableForSecondPass(video);
     // Liens web (2026-10-07) : l'image n'etait jamais envoyee, alors qu'une
     // page de recherche d'inspiration (UX, couleurs...) se reconnait au

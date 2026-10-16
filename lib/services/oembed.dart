@@ -1171,6 +1171,10 @@ class OEmbedService {
 
   static bool isShopHost(String host) => _shopHosts.contains(_shopKey(host));
 
+  /// Vrai si [url] est une image generique de plateforme (logo...), a ne
+  /// jamais garder comme vignette.
+  static bool isGenericImage(String url) => _isGenericPlatformImage(url);
+
   static bool _isGenericPlatformImage(String url) {
     final lower = url.toLowerCase();
     // Un logo (logo_casino.png, auchan-logo-desktop.svg) n'est pas la photo
