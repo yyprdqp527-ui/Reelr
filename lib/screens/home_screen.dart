@@ -1509,14 +1509,29 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   onPressed: () => _showAddSubcategoryDialog(context),
                 ),
               ],
-              if (widget.categoryId != null && raw.isNotEmpty)
+              if (widget.categoryId != null && filtered.isNotEmpty)
                 IconButton(
                   key: _sharePlaylistKey,
                   icon: const Icon(Icons.share_rounded),
                   tooltip: l.t('sharePlaylist'),
-                  // Même ordre que l'affichage de la catégorie.
-                  onPressed: () => unawaited(
-                      _sharePlaylist(context, widget.title, _sorted(raw))),
+                  // Même ordre que l'affichage ; si une sous-catégorie (ou
+                  // sous-sous-catégorie) est ouverte, on ne propose que ses
+                  // liens, sous son nom, et non toute la catégorie.
+                  onPressed: () {
+                    var shareName = widget.title;
+                    if (subId != null) {
+                      for (final sc in subcats) {
+                        if (sc.id == subId) shareName = sc.name;
+                      }
+                      if (subSubId != null) {
+                        for (final ss in subsubcats) {
+                          if (ss.id == subSubId) shareName = ss.name;
+                        }
+                      }
+                    }
+                    unawaited(_sharePlaylist(
+                        context, shareName, _sorted(filtered)));
+                  },
                 ),
               const SizedBox(width: 8),
             ],
