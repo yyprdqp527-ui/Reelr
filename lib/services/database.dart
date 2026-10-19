@@ -577,7 +577,7 @@ class DatabaseHelper {
 
   Future<List<ClipCategory>> getAllCategories() async {
     final db = await database;
-    final maps = await db.query('categories', orderBy: 'position ASC');
+    final maps = await db.query('categories', orderBy: 'position ASC, rowid ASC');
     return maps.map(ClipCategory.fromMap).toList();
   }
 

@@ -332,6 +332,7 @@ class ClipsState extends ChangeNotifier {
     // tout renommage/changement d'icône fait par l'utilisateur dans l'onglet
     // Catégories dès le redémarrage suivant de l'app.
     _categories = await DatabaseHelper.instance.getAllCategories();
+    await _normalizeCategoryPositions();
     final subMaps = await DatabaseHelper.instance.getAllSubCategories();
     _subcategories = subMaps.map(SubCategory.fromMap).toList();
     _clipSubcategoryMap = await DatabaseHelper.instance.getClipSubcategoryMapAll();
@@ -2004,6 +2005,12 @@ class ClipsState extends ChangeNotifier {
         return c;
       }
     }
+    // Nouvelle tuile : toujours en dernier rang, avant comme apres un
+    // redemarrage (sinon position 0 par defaut = en tete au rechargement).
+    final nextPosition = _categories.isEmpty
+        ? 0
+        : _categories.map((c) => c.position).reduce((a, b) => a > b ? a : b) + 1;
+    category = category.copyWith(position: nextPosition);
     await DatabaseHelper.instance.insertCategory(category);
     _categories.add(category);
     notifyListeners();
@@ -2049,12 +2056,36 @@ class ClipsState extends ChangeNotifier {
       final updated = visible[i].copyWith(position: i);
       updatedList.add(updated);
     }
-    _categories = [...updatedList, ..._categories.where((c) => countForCategory(c.id) <= 0)];
+    final hidden = <ClipCategory>[];
+    var next = updatedList.length;
+    for (final c in _categories.where((c) => countForCategory(c.id) <= 0)) {
+      hidden.add(c.copyWith(position: next++));
+    }
+    _categories = [...updatedList, ...hidden];
     notifyListeners();
 
-    // 2) Persistance en base, en arrière-plan.
-    for (final updated in updatedList) {
+    // 2) Persistance en base, en arrière-plan (toutes les tuiles, pour
+    //    qu'aucune position ne soit en double).
+    for (final updated in _categories) {
       await DatabaseHelper.instance.insertCategory(updated);
+    }
+  }
+
+  /// Positions de tuiles en double (ancien défaut 0, renumérotation qui ne
+  /// touchait que les tuiles visibles...) : l'ordre dépendait alors du
+  /// hasard de SQLite et changeait d'un lancement à l'autre. On renumérote
+  /// 0..n-1 en gardant l'ordre actuel (position, puis ordre de création).
+  Future<void> _normalizeCategoryPositions() async {
+    final positions = _categories.map((c) => c.position).toSet();
+    if (positions.length == _categories.length) return;
+    final fixed = <ClipCategory>[];
+    for (var i = 0; i < _categories.length; i++) {
+      final c = _categories[i];
+      fixed.add(c.position == i ? c : c.copyWith(position: i));
+    }
+    _categories = fixed;
+    for (final c in fixed) {
+      await DatabaseHelper.instance.insertCategory(c);
     }
   }
 
