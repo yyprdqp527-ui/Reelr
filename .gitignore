@@ -52,3 +52,13 @@ lib/config/secrets.dart
 
 web/*.py
 android/build/
+
+# Sauvegardes et fichiers parasites
+*.bak*
+*.bakR
+*.bakvig
+.fuse_hidden*
+_bak_*
+diag_*.sh
+test/golden/out/
+Claude outputs/
