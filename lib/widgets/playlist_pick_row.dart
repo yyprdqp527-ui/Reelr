@@ -22,6 +22,10 @@ class PlaylistPickRow extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
+  /// Estompe la carte quand elle n'est pas cochée. Désactivé à l'écran
+  /// d'envoi, où rien n'est coché au départ : tout paraissait grisé.
+  final bool dimUnselected;
+
   const PlaylistPickRow({
     super.key,
     required this.url,
@@ -32,6 +36,7 @@ class PlaylistPickRow extends StatelessWidget {
     required this.onTap,
     this.persistId,
     this.subtitle,
+    this.dimUnselected = true,
   });
 
   /// Nom du site sans « www. », ou nom de la plateforme pour un réseau.
@@ -50,7 +55,7 @@ class PlaylistPickRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: AnimatedOpacity(
-        opacity: selected ? 1 : 0.45,
+        opacity: (selected || !dimUnselected) ? 1 : 0.45,
         duration: const Duration(milliseconds: 150),
         child: GlassCard(
           borderRadius: 18,

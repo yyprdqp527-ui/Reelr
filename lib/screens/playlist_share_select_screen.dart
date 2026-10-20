@@ -88,6 +88,7 @@ class _PlaylistShareSelectScreenState extends State<PlaylistShareSelectScreen> {
                   persistId: clip.id,
                   subtitle: PlaylistPickRow.sourceLabel(clip.url),
                   selected: _selected.contains(index),
+                  dimUnselected: false,
                   onTap: () => setState(() {
                     if (!_selected.remove(index)) _selected.add(index);
                   }),
