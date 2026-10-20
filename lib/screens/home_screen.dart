@@ -535,7 +535,153 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
   /// des videos de la categorie.
   void _offerDeleteAfterStaticPress(String categoryId) {
     if (!mounted) return;
-    _confirmDeleteCategory(categoryId);
+    _showCategoryActions(categoryId);
+  }
+
+  /// Appui long sur une tuile : ranger dans une autre tuile, ou supprimer.
+  Future<void> _showCategoryActions(String categoryId) async {
+    final cat = widget.state.categoryById(categoryId);
+    if (cat == null || !mounted) return;
+    final l = widget.l;
+    final name = l.localizeCategoryDisplay(cat.id, cat.name);
+    final canMerge = widget.state.categories
+        .any((c) => c.id != categoryId && widget.state.countForCategory(c.id) > 0);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(name, style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            if (canMerge)
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_rounded),
+                title: Text(l.t('category_merge_action')),
+                onTap: () => Navigator.pop(ctx, 'merge'),
+              ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline_rounded, color: Colors.red),
+              title: Text(l.t('delete'),
+                  style: const TextStyle(color: Colors.red)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (action == 'delete') {
+      await _confirmDeleteCategory(categoryId);
+    } else if (action == 'merge') {
+      await _pickMergeTarget(categoryId);
+    }
+  }
+
+  Future<void> _pickMergeTarget(String fromId) async {
+    final from = widget.state.categoryById(fromId);
+    if (from == null || !mounted) return;
+    final l = widget.l;
+    final fromName = l.localizeCategoryDisplay(from.id, from.name);
+    final targets = widget.state.categories
+        .where((c) => c.id != fromId && widget.state.countForCategory(c.id) > 0)
+        .toList();
+    final target = await showModalBottomSheet<ClipCategory>(
+      context: context,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l.t('category_merge_pick_title').replaceAll('{name}', fromName),
+                style: Theme.of(ctx).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 12),
+              LayoutBuilder(builder: (_, box) {
+                const gap = 8.0;
+                final w = (box.maxWidth - gap * 3) / 4;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    for (final c in targets)
+                      GestureDetector(
+                        onTap: () => Navigator.pop(ctx, c),
+                        child: Container(
+                          width: w,
+                          height: 80,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: c.color.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                                color: c.color.withValues(alpha: 0.25)),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(c.icon, color: c.color, size: 24),
+                              const SizedBox(height: 6),
+                              Text(
+                                l.localizeCategoryDisplay(c.id, c.name),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                    height: 1.15,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (target == null || !mounted) return;
+    final toName = l.localizeCategoryDisplay(target.id, target.name);
+    final count = widget.state.countForCategory(fromId);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l
+            .t('category_merge_confirm_title')
+            .replaceAll('{from}', fromName)
+            .replaceAll('{to}', toName)),
+        content: Text(l
+            .t('category_merge_confirm_body')
+            .replaceAll('{from}', fromName)
+            .replaceAll('{to}', toName)
+            .replaceAll('{n}', '$count')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(l.t('category_merge_confirm')),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await widget.state.mergeCategoryIntoCategory(fromId, target.id, fromName);
+    }
   }
 
   Future<void> _confirmDeleteCategory(String categoryId) async {
@@ -1556,6 +1702,14 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       }),
                       onDelete: (id) =>
                           widget.state.deleteSubCategory(id),
+                      onPromote: (id) async {
+                        // La sous-categorie disparait : on revient a « Tout ».
+                        setState(() {
+                          _selectedSubcategoryId = null;
+                          _selectedSubSubcategoryId = null;
+                        });
+                        await widget.state.promoteSubcategoryToCategory(id);
+                      },
                       subsubcategories: subsubcats,
                       selectedSubSubId: _selectedSubSubcategoryId,
                       onSelectSubSub: (id) =>
@@ -1989,6 +2143,7 @@ class _SubcategoryBar extends StatelessWidget {
   final Color categoryColor;
   final ValueChanged<String?> onSelect;
   final ValueChanged<String> onDelete;
+  final ValueChanged<String> onPromote;
   final List<SubSubCategory> subsubcategories;
   final String? selectedSubSubId;
   final ValueChanged<String?> onSelectSubSub;
@@ -2001,6 +2156,7 @@ class _SubcategoryBar extends StatelessWidget {
     required this.categoryColor,
     required this.onSelect,
     required this.onDelete,
+    required this.onPromote,
     required this.subsubcategories,
     required this.selectedSubSubId,
     required this.onSelectSubSub,
@@ -2066,7 +2222,7 @@ class _SubcategoryBar extends StatelessWidget {
           ...subcategories.map((sub) => Padding(
                 padding: const EdgeInsets.only(left: 8),
                 child: GestureDetector(
-                  onLongPress: () => _confirmDelete(context, sub),
+                  onLongPress: () => _showSubActions(context, sub),
                   child: _SubChip(
                     label: sub.name,
                     color: sub.color,
@@ -2078,6 +2234,44 @@ class _SubcategoryBar extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// Appui long sur une sous-categorie : la remettre en tuile (inverse de
+  /// la fusion), ou la supprimer.
+  Future<void> _showSubActions(BuildContext context, SubCategory sub) async {
+    final l = AppL10n.of(context);
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+              child: Text(sub.name, style: Theme.of(ctx).textTheme.titleMedium),
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new_rounded),
+              title: Text(l.t('subcategory_promote_action')),
+              onTap: () => Navigator.pop(ctx, 'promote'),
+            ),
+            ListTile(
+              leading:
+                  const Icon(Icons.delete_outline_rounded, color: Colors.red),
+              title: Text(l.t('delete'),
+                  style: const TextStyle(color: Colors.red)),
+              onTap: () => Navigator.pop(ctx, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted) return;
+    if (action == 'promote') {
+      onPromote(sub.id);
+    } else if (action == 'delete') {
+      _confirmDelete(context, sub);
+    }
   }
 
   void _confirmDelete(BuildContext context, SubCategory sub) {

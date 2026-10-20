@@ -660,6 +660,29 @@ class DatabaseHelper {
         where: 'id = ?', whereArgs: [clipId]);
   }
 
+  /// Fusion d'une tuile dans une autre : chaque entree de [updates] porte
+  /// l'id du lien, sa sous-categorie et sa sous-sous-categorie dans la tuile
+  /// d'arrivee [toCategoryId].
+  Future<void> moveClipsPlacementBatch(
+      String toCategoryId, List<Map<String, dynamic>> updates) async {
+    if (updates.isEmpty) return;
+    final db = await database;
+    final batch = db.batch();
+    for (final u in updates) {
+      batch.update(
+        'clips',
+        {
+          'categoryId': toCategoryId,
+          'subcategoryId': u['subcategoryId'],
+          'subsubcategoryId': u['subsubcategoryId'],
+        },
+        where: 'id = ?',
+        whereArgs: [u['id']],
+      );
+    }
+    await batch.commit(noResult: true);
+  }
+
   Future<void> moveClipsToCategoryBatch({
     required List<String> clipIds,
     required String toCategoryId,

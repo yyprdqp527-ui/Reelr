@@ -2089,6 +2089,191 @@ class ClipsState extends ChangeNotifier {
     }
   }
 
+  /// Range la tuile [fromId] dans la tuile [toId] : elle devient une
+  /// sous-categorie [subName] de [toId] (reutilisee si elle existe deja),
+  /// ses liens y sont ranges, ses anciennes sous-categories deviennent des
+  /// sous-sous-categories (les anciennes sous-sous-categories sont
+  /// dissoutes : leurs liens restent dans la sous-sous-categorie issue de
+  /// leur ancienne sous-categorie). La tuile [fromId] disparait ensuite.
+  Future<void> mergeCategoryIntoCategory(
+      String fromId, String toId, String subName) async {
+    if (fromId == toId) return;
+    final from = categoryById(fromId);
+    final to = categoryById(toId);
+    if (from == null || to == null) return;
+
+    // 1) Sous-categorie d'arrivee.
+    final targetLabel = AppL10n.normalizeCategoryLabel(subName);
+    SubCategory? sub;
+    for (final s in _subcategories) {
+      if (s.categoryId == toId &&
+          AppL10n.normalizeCategoryLabel(s.name) == targetLabel) {
+        sub = s;
+        break;
+      }
+    }
+    if (sub == null) {
+      sub = SubCategory(
+        id: const Uuid().v4(),
+        name: subName,
+        categoryId: toId,
+        color: from.color,
+        icon: from.icon,
+      );
+      await addSubCategory(sub);
+    }
+
+    // 2) Anciennes sous-categories -> sous-sous-categories de [sub].
+    final oldSubs = _subcategories.where((s) => s.categoryId == fromId).toList();
+    final subSubFor = <String, String>{};
+    for (final os in oldSubs) {
+      final label = AppL10n.normalizeCategoryLabel(os.name);
+      SubSubCategory? ss;
+      for (final x in _subsubcategories) {
+        if (x.subCategoryId == sub.id &&
+            AppL10n.normalizeCategoryLabel(x.name) == label) {
+          ss = x;
+          break;
+        }
+      }
+      if (ss == null) {
+        ss = SubSubCategory(
+          id: const Uuid().v4(),
+          name: os.name,
+          subCategoryId: sub.id,
+          color: os.color,
+          icon: os.icon,
+        );
+        await addSubSubCategory(ss);
+      }
+      subSubFor[os.id] = ss.id;
+    }
+
+    // 3) Liens : base d'abord, memoire ensuite.
+    final moving = _clips.where((c) => c.categoryId == fromId).toList();
+    final updates = <Map<String, dynamic>>[];
+    for (final c in moving) {
+      final oldSub = _clipSubcategoryMap[c.id];
+      updates.add({
+        'id': c.id,
+        'subcategoryId': sub.id,
+        'subsubcategoryId': oldSub == null ? null : subSubFor[oldSub],
+      });
+    }
+    await DatabaseHelper.instance.moveClipsPlacementBatch(toId, updates);
+    final movingIds = {for (final c in moving) c.id};
+    _clips = _clips
+        .map((c) => movingIds.contains(c.id) ? c.copyWith(categoryId: toId) : c)
+        .toList();
+    for (final u in updates) {
+      final id = u['id'] as String;
+      _clipSubcategoryMap[id] = sub.id;
+      final ssId = u['subsubcategoryId'] as String?;
+      if (ssId == null) {
+        _clipSubSubcategoryMap.remove(id);
+      } else {
+        _clipSubSubcategoryMap[id] = ssId;
+      }
+    }
+
+    // 4) Nettoyage de l'ancienne tuile (base puis memoire).
+    final oldSubIds = oldSubs.map((s) => s.id).toSet();
+    for (final ss in _subsubcategories
+        .where((x) => oldSubIds.contains(x.subCategoryId))
+        .toList()) {
+      await DatabaseHelper.instance.deleteSubSubCategory(ss.id);
+    }
+    for (final os in oldSubs) {
+      await DatabaseHelper.instance.deleteSubCategory(os.id);
+    }
+    await removeCategory(fromId);
+  }
+
+  /// Inverse de [mergeCategoryIntoCategory] : la sous-categorie [subId]
+  /// redevient une tuile d'accueil. Ses liens passent dans la nouvelle
+  /// tuile, ses sous-sous-categories deviennent ses sous-categories.
+  /// Renvoie la tuile creee (ou la tuile equivalente deja existante).
+  Future<ClipCategory?> promoteSubcategoryToCategory(String subId) async {
+    SubCategory? sub;
+    for (final s in _subcategories) {
+      if (s.id == subId) sub = s;
+    }
+    if (sub == null) return null;
+
+    // 1) Nouvelle tuile (addCategory renvoie la tuile equivalente si le
+    //    nom existe deja : les liens la rejoignent alors).
+    final cat = await addCategory(ClipCategory(
+      id: const Uuid().v4(),
+      name: sub.name,
+      color: sub.color,
+      icon: sub.icon,
+    ));
+
+    // 2) Sous-sous-categories -> sous-categories de la tuile.
+    final oldSubSubs =
+        _subsubcategories.where((ss) => ss.subCategoryId == subId).toList();
+    final subFor = <String, String>{};
+    for (final ss in oldSubSubs) {
+      final label = AppL10n.normalizeCategoryLabel(ss.name);
+      SubCategory? ns;
+      for (final x in _subcategories) {
+        if (x.categoryId == cat.id &&
+            AppL10n.normalizeCategoryLabel(x.name) == label) {
+          ns = x;
+          break;
+        }
+      }
+      if (ns == null) {
+        ns = SubCategory(
+          id: const Uuid().v4(),
+          name: ss.name,
+          categoryId: cat.id,
+          color: ss.color,
+          icon: ss.icon,
+        );
+        await addSubCategory(ns);
+      }
+      subFor[ss.id] = ns.id;
+    }
+
+    // 3) Liens : base d'abord, memoire ensuite.
+    final moving =
+        _clips.where((c) => _clipSubcategoryMap[c.id] == subId).toList();
+    final updates = <Map<String, dynamic>>[];
+    for (final c in moving) {
+      final oldSs = _clipSubSubcategoryMap[c.id];
+      updates.add({
+        'id': c.id,
+        'subcategoryId': oldSs == null ? null : subFor[oldSs],
+        'subsubcategoryId': null,
+      });
+    }
+    await DatabaseHelper.instance.moveClipsPlacementBatch(cat.id, updates);
+    final movingIds = {for (final c in moving) c.id};
+    _clips = _clips
+        .map((c) =>
+            movingIds.contains(c.id) ? c.copyWith(categoryId: cat.id) : c)
+        .toList();
+    for (final u in updates) {
+      final id = u['id'] as String;
+      final newSub = u['subcategoryId'] as String?;
+      if (newSub == null) {
+        _clipSubcategoryMap.remove(id);
+      } else {
+        _clipSubcategoryMap[id] = newSub;
+      }
+      _clipSubSubcategoryMap.remove(id);
+    }
+
+    // 4) Retrait de l'ancienne sous-categorie (base puis memoire).
+    for (final ss in oldSubSubs) {
+      await DatabaseHelper.instance.deleteSubSubCategory(ss.id);
+    }
+    await deleteSubCategory(subId);
+    notifyListeners();
+    return cat;
+  }
+
   Future<void> removeCategory(String id) async {
     await DatabaseHelper.instance.deleteCategory(id);
     _categories.removeWhere((c) => c.id == id);

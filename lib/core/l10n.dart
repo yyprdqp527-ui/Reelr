@@ -26,6 +26,13 @@ class AppL10n {
       'to_sort_hint': "Titre trop vague pour classer — appuie pour choisir",
       'delete_category_confirm': 'Supprimer « {name} » ?',
       'delete_category_empty': 'Cette catégorie est vide.',
+      'category_merge_action': 'Fusionner avec une autre tuile…',
+      'category_merge_pick_title': 'Fusionner « {name} » avec…',
+      'category_merge_confirm_title': 'Fusionner « {from} » avec « {to} » ?',
+      'category_merge_confirm_body':
+          '« {from} » devient une sous-catégorie de « {to} », avec ses {n} liens. La tuile « {from} » disparaît de l\'accueil.',
+      'category_merge_confirm': 'Fusionner',
+      'subcategory_promote_action': 'Remettre en tuile',
       'delete_category_keeps_clips':
           'Les {n} vidéos de cette catégorie ne seront pas supprimées : '
               'elles repasseront simplement en « À trier ».',
@@ -127,6 +134,13 @@ class AppL10n {
       'to_sort_hint': 'Title too vague to classify — tap to choose',
       'delete_category_confirm': 'Delete "{name}"?',
       'delete_category_empty': 'This category is empty.',
+      'category_merge_action': 'Merge with another tile…',
+      'category_merge_pick_title': 'Merge "{name}" with…',
+      'category_merge_confirm_title': 'Merge "{from}" with "{to}"?',
+      'category_merge_confirm_body':
+          '"{from}" becomes a subcategory of "{to}", with its {n} links. The "{from}" tile disappears from the home screen.',
+      'category_merge_confirm': 'Merge',
+      'subcategory_promote_action': 'Make it a tile again',
       'delete_category_keeps_clips':
           "The {n} videos in this category won't be deleted: "
               'they will simply move back to "To sort".',
