@@ -3829,13 +3829,9 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                         await widget.state.recordUserSubcategoryChoice(_clip.id, sc.id);
                         await widget.state.setClipSubSubcategory(_clip.id, null);
                         if (!ctx.mounted) return;
-                        // S'il y a des sous-dossiers, on les propose ;
-                        // sinon le rangement est terminé.
-                        if (widget.state.getSubSubCategoriesFor(sc.id).isEmpty) {
-                          Navigator.pop(ctx);
-                        } else {
-                          setState(() {});
-                        }
+                        // Meme regle partout : un choix, la feuille se ferme.
+                        // Les sous-dossiers se choisissent en la rouvrant.
+                        Navigator.pop(ctx);
                       },
                     );
                   }).toList(),
@@ -3924,7 +3920,18 @@ class _SubcategoryAssignSheet extends StatelessWidget {
                 ),
               ),
             ),
-            Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Classer dans...' : 'Add to...', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(Localizations.localeOf(context).languageCode == 'fr' ? 'Classer dans...' : 'Add to...', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
             const SizedBox(height: 16),
             if (subcategories.isEmpty)
               Center(
