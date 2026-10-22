@@ -587,7 +587,11 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     final fromName = l.localizeCategoryDisplay(from.id, from.name);
     final targets = widget.state.categories
         .where((c) => c.id != fromId && widget.state.countForCategory(c.id) > 0)
-        .toList();
+        .toList()
+      ..sort((a, b) => l
+          .localizeCategoryDisplay(a.id, a.name)
+          .toLowerCase()
+          .compareTo(l.localizeCategoryDisplay(b.id, b.name).toLowerCase()));
     final target = await showModalBottomSheet<ClipCategory>(
       context: context,
       isScrollControlled: true,
@@ -598,9 +602,20 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                l.t('category_merge_pick_title').replaceAll('{name}', fromName),
-                style: Theme.of(ctx).textTheme.titleMedium,
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l.t('category_merge_pick_title')
+                          .replaceAll('{name}', fromName),
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               LayoutBuilder(builder: (_, box) {
@@ -681,6 +696,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
     );
     if (confirmed == true) {
       await widget.state.mergeCategoryIntoCategory(fromId, target.id, fromName);
+      if (mounted) {
+        Navigator.of(context).popUntil((r) => r.isFirst);
+      }
     }
   }
 
@@ -3334,12 +3352,39 @@ class ClipCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
+                  // Lien range dans une sous-tuile (ex. « Mode » fusionnee dans
+                  // « Restaurant ») : l'etiquette porte le nom de la
+                  // sous-tuile, pas celui de la tuile principale.
                   if (category != null)
-                    _Badge(
-                      label: AppL10n.of(context).localizeCategoryDisplay(category.id, category.name),
-                      color: category.color,
-                      icon: category.icon,
-                    ),
+                    Builder(builder: (_) {
+                      final sub = state.subCategoryForClip(clip.id);
+                      final subSub = state.subSubCategoryForClip(clip.id);
+                      // Le niveau le plus precis gagne : sous-sous-tuile,
+                      // puis sous-tuile, puis tuile principale.
+                      if (sub != null &&
+                          sub.categoryId == category.id &&
+                          subSub != null &&
+                          subSub.subCategoryId == sub.id) {
+                        return _Badge(
+                          label: subSub.name,
+                          color: subSub.color,
+                          icon: subSub.icon,
+                        );
+                      }
+                      if (sub != null && sub.categoryId == category.id) {
+                        return _Badge(
+                          label: sub.name,
+                          color: sub.color,
+                          icon: sub.icon,
+                        );
+                      }
+                      return _Badge(
+                        label: AppL10n.of(context).localizeCategoryDisplay(
+                            category.id, category.name),
+                        color: category.color,
+                        icon: category.icon,
+                      );
+                    }),
                   if (isPendingClassification)
                     _Badge(
                       label: lang == 'fr' ? 'Classification en cours…' : 'Classifying…',
