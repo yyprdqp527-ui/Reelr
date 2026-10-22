@@ -492,6 +492,30 @@ class ClipsState extends ChangeNotifier {
         return cat;
       }
     }
+    // 4. Tuile fusionnee : son nom vit desormais comme sous-categorie d'une
+    // autre tuile. On renvoie cette tuile mere au lieu de laisser le
+    // classement recreer la tuile fusionnee (« Tech » dans « Vibe coding »).
+    for (final s in _subcategories) {
+      final parent = categoryById(s.categoryId);
+      if (parent == null) continue;
+      if (AppL10n.normalizeCategoryLabel(s.name) == comparable) return parent;
+      if (canonicalId != null &&
+          AppL10n.canonicalCategoryId(s.name) == canonicalId) {
+        return parent;
+      }
+    }
+    // 4bis. Meme chose un niveau plus bas : le nom d'une ancienne tuile
+    // fusionnee peut etre devenu une sous-sous-categorie.
+    for (final ss in _subsubcategories) {
+      final sub = _subCategoryById(ss.subCategoryId);
+      final parent = categoryById(sub?.categoryId);
+      if (parent == null) continue;
+      if (AppL10n.normalizeCategoryLabel(ss.name) == comparable) return parent;
+      if (canonicalId != null &&
+          AppL10n.canonicalCategoryId(ss.name) == canonicalId) {
+        return parent;
+      }
+    }
     return null;
   }
 
@@ -2319,6 +2343,14 @@ class ClipsState extends ChangeNotifier {
   }
 
   String? subcategoryIdForClip(String clipId) => _clipSubcategoryMap[clipId];
+
+  /// Sous-categorie dans laquelle le lien est range, ou `null`.
+  SubCategory? subCategoryForClip(String clipId) =>
+      _subCategoryById(_clipSubcategoryMap[clipId]);
+
+  /// Sous-sous-categorie dans laquelle le lien est range, ou `null`.
+  SubSubCategory? subSubCategoryForClip(String clipId) =>
+      _subSubCategoryById(_clipSubSubcategoryMap[clipId]);
 
   List<SubSubCategory> getSubSubCategoriesFor(String? subCategoryId) {
     if (subCategoryId == null) return [];
