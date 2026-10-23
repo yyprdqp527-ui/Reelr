@@ -1874,7 +1874,9 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
       debugPrint('[classify] delai depasse avec miniature, relance texte seul');
       response = await _post(userText);
     }
-    if (response.statusCode != 200 && hasImage) {
+    if (response.statusCode != 200 &&
+        hasImage &&
+        !_isOverload(response.statusCode)) {
       debugPrint('[classify] erreur ${response.statusCode} avec miniature, '
           'relance texte seul');
       response = await _post(userText);
@@ -2300,6 +2302,26 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
     }
   }
 
+  /// Erreurs de surcharge passagere cote Claude ou proxy.
+  static bool _isOverload(int code) =>
+      code == 429 || code == 502 || code == 503 || code == 529;
+
+  /// Un seul nouvel essai, apres une courte pause, sur une surcharge.
+  static Future<http.Response> _withRetry(
+      Future<http.Response> Function() send) async {
+    final first = await send();
+    if (!_isOverload(first.statusCode)) return first;
+    final retryAfter = int.tryParse(first.headers['retry-after'] ?? '');
+    final waitMs =
+        (retryAfter != null && retryAfter >= 1 && retryAfter <= 5)
+            ? retryAfter * 1000
+            : 1500;
+    debugPrint('[classify] surcharge ${first.statusCode}, '
+        'nouvel essai dans ${waitMs}ms');
+    await Future<void>.delayed(Duration(milliseconds: waitMs));
+    return send();
+  }
+
   static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
@@ -2322,16 +2344,16 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
         {'role': 'user', 'content': content},
       ],
     });
-    return Net.client.post(
-      Uri.parse(_apiUrl),
-      headers: {
-        'x-reelr-secret': Secrets.appSharedSecret,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'prompt-caching-2024-07-31',
-        'content-type': 'application/json',
-      },
-      body: body,
-    ).timeout(_requestTimeout);
+    return _withRetry(() => Net.client.post(
+          Uri.parse(_apiUrl),
+          headers: {
+            'x-reelr-secret': Secrets.appSharedSecret,
+            'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'prompt-caching-2024-07-31',
+            'content-type': 'application/json',
+          },
+          body: body,
+        ).timeout(_requestTimeout));
   }
 
   static String _buildUserText(VideoData video, ClientProfile? profile,
