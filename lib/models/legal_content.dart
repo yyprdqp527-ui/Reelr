@@ -54,9 +54,9 @@ Pour afficher correctement le titre, la miniature et la description d'une vidéo
 
 ## Abonnement et paiement
 
-Reelr propose un abonnement payant donnant accès à un usage illimité de l'application (au-delà d'un nombre de vidéos disponible gratuitement). Les achats et le renouvellement de cet abonnement sont intégralement gérés par Apple via l'App Store et le système de paiement intégré (In-App Purchase / StoreKit). Nous ne recevons, ne traitons et ne stockons aucune information de paiement (numéro de carte bancaire, identité de facturation) : ces données sont gérées exclusivement par Apple, conformément à sa propre politique de confidentialité.
+Reelr propose un abonnement payant donnant accès à un usage illimité de l'application (au-delà d'un nombre de vidéos disponible gratuitement). Les achats et le renouvellement de cet abonnement sont intégralement gérés par Apple via l'App Store (iOS) ou par Google via Google Play (Android), au moyen de leur système de paiement intégré (In-App Purchase / StoreKit sur iOS, Google Play Billing sur Android). Nous ne recevons, ne traitons et ne stockons aucune information de paiement (numéro de carte bancaire, identité de facturation) : ces données sont gérées exclusivement par Apple ou Google, conformément à leur propre politique de confidentialité.
 
-Nous pouvons recevoir d'Apple une confirmation technique du statut de votre abonnement (actif/inactif) afin de déverrouiller les fonctionnalités correspondantes dans l'application, mais cette information n'est pas associée à une identité nominative de notre côté.
+Nous pouvons recevoir d'Apple ou de Google une confirmation technique du statut de votre abonnement (actif/inactif) afin de déverrouiller les fonctionnalités correspondantes dans l'application, mais cette information n'est pas associée à une identité nominative de notre côté.
 
 ## Données techniques minimales
 
@@ -103,7 +103,7 @@ Ci-après désignée « l'Éditeur ».
 
 ## Article 2 — Objet
 
-Les présentes Conditions Générales d'Utilisation et de Vente (« CGU/CGV ») régissent l'accès et l'utilisation de l'Application Reelr, ainsi que les conditions de souscription à l'abonnement payant qu'elle propose. Elles s'appliquent à tout utilisateur (« Vous », « l'Utilisateur ») téléchargeant ou utilisant l'Application, disponible sur l'App Store d'Apple.
+Les présentes Conditions Générales d'Utilisation et de Vente (« CGU/CGV ») régissent l'accès et l'utilisation de l'Application Reelr, ainsi que les conditions de souscription à l'abonnement payant qu'elle propose. Elles s'appliquent à tout utilisateur (« Vous », « l'Utilisateur ») téléchargeant ou utilisant l'Application, disponible sur l'App Store d'Apple et sur Google Play.
 
 L'utilisation de l'Application implique l'acceptation pleine et entière des présentes CGU/CGV.
 
@@ -119,19 +119,19 @@ L'Application est accessible gratuitement jusqu'à un volume de 50 vidéos enreg
 
 ### 4.2 Abonnement payant
 
-L'Éditeur propose un abonnement annuel au tarif de 29,99 € TTC par an (« l'Abonnement »), donnant accès à un usage illimité de l'Application. Le tarif applicable est celui affiché sur la fiche de l'Application sur l'App Store au moment de la souscription, et peut varier selon le pays ou la devise locale en fonction de la politique de tarification d'Apple.
+L'Éditeur propose un abonnement annuel au tarif de 29,99 € TTC par an (« l'Abonnement »), donnant accès à un usage illimité de l'Application. Le tarif applicable est celui affiché sur la fiche de l'Application sur l'App Store ou sur Google Play au moment de la souscription, et peut varier selon le pays ou la devise locale en fonction de la politique de tarification d'Apple ou de Google.
 
 ### 4.3 Modalités de paiement
 
-L'achat, le renouvellement et la gestion de l'Abonnement sont intégralement pris en charge par Apple via son système de paiement intégré (In-App Purchase). L'Éditeur ne reçoit, ne traite et ne conserve aucune donnée bancaire de l'Utilisateur.
+L'achat, le renouvellement et la gestion de l'Abonnement sont intégralement pris en charge par Apple (App Store) ou par Google (Google Play) via leur système de paiement intégré (In-App Purchase / Google Play Billing). L'Éditeur ne reçoit, ne traite et ne conserve aucune donnée bancaire de l'Utilisateur.
 
 ### 4.4 Renouvellement automatique
 
-L'Abonnement est à renouvellement automatique : sauf résiliation par l'Utilisateur au moins 24 heures avant la fin de la période en cours, l'Abonnement est automatiquement renouvelé pour une durée identique, et le montant correspondant est prélevé sur le moyen de paiement associé au compte Apple de l'Utilisateur.
+L'Abonnement est à renouvellement automatique : sauf résiliation par l'Utilisateur au moins 24 heures avant la fin de la période en cours, l'Abonnement est automatiquement renouvelé pour une durée identique, et le montant correspondant est prélevé sur le moyen de paiement associé au compte Apple ou Google de l'Utilisateur.
 
 ### 4.5 Résiliation
 
-L'Utilisateur peut résilier son Abonnement à tout moment depuis les réglages de son compte Apple (Réglages > [Nom] > Abonnements, ou via le lien correspondant disponible dans l'Application). La résiliation prend effet à la fin de la période d'abonnement en cours ; aucun remboursement au prorata n'est effectué pour la période déjà engagée, sauf disposition légale contraire.
+L'Utilisateur peut résilier son Abonnement à tout moment depuis les réglages de son compte Apple (Réglages > [Nom] > Abonnements) ou, sur Android, depuis Google Play (Play Store > Profil > Paiements et abonnements > Abonnements), ou via le lien correspondant disponible dans l'Application. La résiliation prend effet à la fin de la période d'abonnement en cours ; aucun remboursement au prorata n'est effectué pour la période déjà engagée, sauf disposition légale contraire.
 
 ### 4.6 Droit de rétractation
 
@@ -225,9 +225,9 @@ To correctly display the title, thumbnail, and description of a video you share,
 
 ## Subscription and payment
 
-Reelr offers a paid subscription giving access to unlimited use of the app (beyond a number of videos available for free). Purchases and renewal of this subscription are entirely handled by Apple through the App Store and its built-in payment system (In-App Purchase / StoreKit). We do not receive, process, or store any payment information (card number, billing identity): this data is managed exclusively by Apple, in accordance with its own privacy policy.
+Reelr offers a paid subscription giving access to unlimited use of the app (beyond a number of videos available for free). Purchases and renewal of this subscription are entirely handled by Apple through the App Store (iOS) or by Google through Google Play (Android), using their built-in payment systems (In-App Purchase / StoreKit on iOS, Google Play Billing on Android). We do not receive, process, or store any payment information (card number, billing identity): this data is managed exclusively by Apple or Google, in accordance with their own privacy policies.
 
-We may receive a technical confirmation from Apple of your subscription status (active/inactive) in order to unlock the corresponding features in the app, but this information is not associated with a named identity on our end.
+We may receive a technical confirmation from Apple or Google of your subscription status (active/inactive) in order to unlock the corresponding features in the app, but this information is not associated with a named identity on our end.
 
 ## Minimal technical data
 
@@ -274,7 +274,7 @@ Hereinafter referred to as "the Publisher".
 
 ## Article 2 — Purpose
 
-These Terms of Use and Sale ("Terms") govern access to and use of the Reelr App, as well as the conditions for subscribing to the paid subscription it offers. They apply to any user ("You", "the User") downloading or using the App, available on Apple's App Store.
+These Terms of Use and Sale ("Terms") govern access to and use of the Reelr App, as well as the conditions for subscribing to the paid subscription it offers. They apply to any user ("You", "the User") downloading or using the App, available on Apple's App Store and on Google Play.
 
 Using the App constitutes full and complete acceptance of these Terms.
 
@@ -290,19 +290,19 @@ The App is accessible free of charge for up to 50 saved videos. Beyond this thre
 
 ### 4.2 Paid subscription
 
-The Publisher offers an annual subscription priced at €29.99 (or the equivalent amount in the User's local currency, as set by Apple's pricing tiers) per year ("the Subscription"), giving access to unlimited use of the App. The applicable price is the one shown on the App's listing on the App Store at the time of subscription, and may vary by country or local currency according to Apple's pricing policy.
+The Publisher offers an annual subscription priced at €29.99 (or the equivalent amount in the User's local currency, as set by Apple's or Google's pricing tiers) per year ("the Subscription"), giving access to unlimited use of the App. The applicable price is the one shown on the App's listing on the App Store or Google Play at the time of subscription, and may vary by country or local currency according to Apple's or Google's pricing policy.
 
 ### 4.3 Payment terms
 
-The purchase, renewal, and management of the Subscription are entirely handled by Apple through its built-in payment system (In-App Purchase). The Publisher does not receive, process, or retain any banking data from the User.
+The purchase, renewal, and management of the Subscription are entirely handled by Apple (App Store) or Google (Google Play) through their built-in payment systems (In-App Purchase / Google Play Billing). The Publisher does not receive, process, or retain any banking data from the User.
 
 ### 4.4 Automatic renewal
 
-The Subscription automatically renews: unless cancelled by the User at least 24 hours before the end of the current period, the Subscription is automatically renewed for an identical duration, and the corresponding amount is charged to the payment method associated with the User's Apple account.
+The Subscription automatically renews: unless cancelled by the User at least 24 hours before the end of the current period, the Subscription is automatically renewed for an identical duration, and the corresponding amount is charged to the payment method associated with the User's Apple or Google account.
 
 ### 4.5 Cancellation
 
-The User may cancel their Subscription at any time from their Apple account settings (Settings > [Name] > Subscriptions, or via the corresponding link available in the App). Cancellation takes effect at the end of the current subscription period; no pro-rata refund is provided for the period already committed to, unless otherwise required by applicable law.
+The User may cancel their Subscription at any time from their Apple account settings (Settings > [Name] > Subscriptions) or, on Android, from Google Play (Play Store > Profile > Payments & subscriptions > Subscriptions), or via the corresponding link available in the App. Cancellation takes effect at the end of the current subscription period; no pro-rata refund is provided for the period already committed to, unless otherwise required by applicable law.
 
 ### 4.6 Right of withdrawal
 
