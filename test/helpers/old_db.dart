@@ -80,6 +80,7 @@ Future<void> checkUpgrade({
   required int from,
   required List<Map<String, Object?>> categories,
   required List<Map<String, Object?>> clips,
+  Future<void> Function(Database old)? beforeUpgrade,
   Future<void> Function(Database db)? extra,
 }) async {
   sqfliteFfiInit();
@@ -104,6 +105,7 @@ Future<void> checkUpgrade({
   for (final c in clips) {
     await old.insert('clips', c);
   }
+  if (beforeUpgrade != null) await beforeUpgrade(old);
   await old.close();
 
   // 2) Ouverture par le code actuel = migrations.
