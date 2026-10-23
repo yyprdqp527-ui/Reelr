@@ -165,7 +165,7 @@ class DatabaseHelper {
       // fixee par son prompt, pas dans celle de l'app -> voir
       // `AppL10n.canonicalCategoryId`). Generalise a tout le catalogue
       // standard, pas seulement a Food/Recette.
-      await _mergeLanguageDuplicateCategories(db);
+      await _safely('v14', () => _mergeLanguageDuplicateCategories(db));
     }
     if (oldVersion < 15) {
       // Meme bug racine que la fusion ci-dessus, cote visuel cette fois :
@@ -177,18 +177,19 @@ class DatabaseHelper {
       // empeche que ça se reproduise pour les nouvelles categories, mais ne
       // repare pas retroactivement celles deja enregistrees ainsi — d'ou
       // cette passe unique.
-      await _repairGenericCategoryVisuals(db);
+      await _safely('v15', () => _repairGenericCategoryVisuals(db));
     }
     if (oldVersion < 16) {
       // Nouvelle passe de fusion avec la comparaison elargie (accents,
       // pluriels, synonymes stricts) : « Beaute » + « Beauté »,
       // « Workout » + « Fitness », « Actu » + « Actualités »... ainsi que
       // deux categories personnelles au nom identique a l'accent pres.
-      await _mergeLanguageDuplicateCategories(db);
+      await _safely('v16', () => _mergeLanguageDuplicateCategories(db));
     }
     if (oldVersion < 17) {
       // Entrepreneuriat est fusionne dans Business (decision du 2026-10-15).
-      await _retireCategory(db, 'cat_entrepreneuriat', 'cat_business');
+      await _safely('v17',
+          () => _retireCategory(db, 'cat_entrepreneuriat', 'cat_business'));
     }
     if (oldVersion < 18) {
       // Etiquette « a acheter » : transversale aux tuiles (un produit garde
@@ -204,6 +205,16 @@ class DatabaseHelper {
           'ALTER TABLE clips ADD COLUMN classification_alt TEXT');
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
+  }
+
+  /// Une passe de nettoyage de donnees ne doit jamais empecher l'appli de
+  /// s'ouvrir : on note l'erreur et on continue.
+  Future<void> _safely(String label, Future<void> Function() body) async {
+    try {
+      await body();
+    } catch (e, st) {
+      debugPrint('[db] migration $label ignoree : $e\n$st');
+    }
   }
 
   /// Redonne sa couleur/icone officielle a toute categorie existante encore
