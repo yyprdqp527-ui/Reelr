@@ -64,6 +64,10 @@ class CategoryClassifier {
       'maigrir', 'minceur', 'regime sportif',
     ],
     'sport': [
+      'sport extreme', 'sport extrême', 'base jump', 'parachute', 'saut',
+      'motocross', 'moto cross', 'freestyle moto', 'bmx', 'skateboard',
+      'parkour', 'freerun', 'wingsuit', 'speed riding', 'kitesurf',
+      'wakeboard', 'snowkite', 'dirt bike', 'quad', 'adrenaline',
       'foot', 'football', 'soccer', 'tennis', 'basket', 'basketball', 'rugby',
       'natation', 'swim', 'marathon', 'running', 'cyclisme', 'cycling', 'velo', 'vélo',
       'f1', 'formule 1', 'moto gp', 'nba', 'ligue 1', 'champions league',
@@ -349,6 +353,11 @@ class CategoryClassifier {
       'intermittent fasting', 'jeune intermittent', 'detox',
     ],
     'nature': [
+      'randonnee', 'randonnée', 'hiking', 'trekking', 'escalade', 'climbing',
+      'surf', 'surfing', 'camping', 'bivouac', 'alpinisme', 'ski',
+      'snowboard', 'vtt', 'mountain bike', 'kayak', 'canoe', 'canoë',
+      'plongee', 'plongée', 'diving', 'parapente', 'trail running',
+      'outdoor', 'plein air', 'nature aventure',
       'nature', 'foret', 'forêt', 'plante', 'plantes', 'fleur', 'fleurs',
       'flower', 'arbre', 'tree', 'riviere', 'rivière', 'lac', 'lake',
       'biodiversite', 'biodiversité', 'ecologie', 'écologie', 'environnement',
@@ -362,19 +371,6 @@ class CategoryClassifier {
       'hamster', 'veterinaire', 'vétérinaire', 'vet', 'pet', 'pets',
       'adoption animaux', 'refuge animaux', 'dressage chien', 'education chien',
       'chiot', 'chaton', 'kitten', 'puppy', 'aquarium',
-    ],
-    'outdoor': [
-      'randonnee', 'randonnée', 'hiking', 'trekking', 'escalade', 'climbing',
-      'surf', 'surfing', 'camping', 'bivouac', 'alpinisme', 'ski',
-      'snowboard', 'vtt', 'mountain bike', 'kayak', 'canoe', 'canoë',
-      'plongee', 'plongée', 'diving', 'parapente', 'trail running',
-      'outdoor', 'plein air', 'nature aventure',
-    ],
-    'sport_extreme': [
-      'sport extreme', 'sport extrême', 'base jump', 'parachute', 'saut',
-      'motocross', 'moto cross', 'freestyle moto', 'bmx', 'skateboard',
-      'parkour', 'freerun', 'wingsuit', 'speed riding', 'kitesurf',
-      'wakeboard', 'snowkite', 'dirt bike', 'quad', 'adrenaline',
     ],
     // ATTENTION : le seau 'tricot' s'affiche « Couture », le seau 'tricotage'
     // s'affiche « Tricot ». Nommage historique, ne pas s'y fier : ajoute un
@@ -763,11 +759,6 @@ class CategoryClassifier {
       color: Color(0xFF4DD0E1),
       icon: Icons.camera_alt_outlined,
     ),
-    'outdoor': CategorySuggestion(
-      key: 'outdoor', name: 'Outdoor',
-      color: Color(0xFF69F0AE),
-      icon: Icons.terrain_outlined,
-    ),
     'psycho': CategorySuggestion(
       key: 'psycho', name: 'Psychologie',
       color: Color(0xFFFFAB91),
@@ -802,11 +793,6 @@ class CategoryClassifier {
       key: 'jardin', name: 'Jardinage',
       color: Color(0xFF8BC34A),
       icon: Icons.yard_outlined,
-    ),
-    'sport_extreme': CategorySuggestion(
-      key: 'sport_extreme', name: 'Extrême',
-      color: Color(0xFFFF6D00),
-      icon: Icons.paragliding_outlined,
     ),
     'nutrition': CategorySuggestion(
       key: 'nutrition', name: 'Nutrition',
@@ -1466,13 +1452,12 @@ cat_menage          → ménage, nettoyage, entretien de la maison, linge (lessi
 cat_rangement       → rangement, organisation de la maison, désencombrement, minimalisme, optimisation de l'espace, organiseurs. Diff. cat_menage : rangement = placer et organiser ; ménage = nettoyer. Diff. cat_deco : déco = le style.
 cat_travaux         → gros chantier de la maison : maçonnerie, gros œuvre, électricité, plomberie lourde, carrelage, isolation, rénovation complète, artisans. Diff. cat_diy : tout tuto de petit bricolage ou de réparation à faire soi-même (poncer un meuble, changer un joint, monter une étagère, customiser) reste cat_diy ; travaux = chantier lourd ou pose de matériaux. Diff. cat_deco : une pièce rénovée montrée par son RÉSULTAT, son style ou son budget reste cat_deco. Diff. cat_immo : immo = achat, location, investissement.
 cat_coiffure        → coiffure, coupes, colorations, balayage, brushing, soins des cheveux, tutos coiffure. Diff. cat_beauty : beauty = visage et peau ; coiffure = cheveux.
-cat_patisserie      → technique et métier de la pâtisserie : pâtissier, entremets, macarons, viennoiseries, pain et boulangerie, cake design, décoration de gâteaux. Diff. cat_food : TOUTE recette avec liste d'ingrédients reste cat_food, même sucrée (tarte tatin, brownie, crêpes, gâteau au yaourt) ; pâtisserie = le savoir-faire du pâtissier ou du boulanger, pas une recette du quotidien. Un tuto de pâte de base (brisée, sablée, à pizza) est une recette : cat_food. Les grands classiques de pâtissier (éclairs, choux, religieuse, millefeuille, macarons, entremets) restent cat_patisserie.
+cat_patisserie      → TOUS les desserts et le sucré : gâteaux, tartes, brownies, cookies, crêpes, crèmes, glaces, chocolat, macarons, éclairs, entremets, viennoiseries, pain et boulangerie, cake design, métier de pâtissier. Recette comprise (gâteau au yaourt, tarte tatin, brownie → cat_patisserie). Diff. cat_food : le SALÉ (plats, repas, apéro, sauces) reste cat_food ; une pâte de base neutre (brisée, à pizza) sans précision sucrée reste cat_food.
 cat_boissons        → vin, cocktails, bières, spiritueux, café, thé, sodas, boissons énergisantes (Monster, Red Bull), tests et classements de boissons, mixologie, accords. Une enseigne de restauration (Starbucks, McDonald's) reste cat_restaurant, même quand la vidéo ne montre que ses boissons. Diff. cat_restaurant : un bar ou un restaurant = lieu ; la boisson elle-même = boissons. Diff. cat_food : food = plat ; boissons = ce qui se boit.
 cat_livres          → livres, romans, lectures, critiques, BookTok, bibliothèque, auteurs, nouveautés littéraires. Diff. cat_culture : culture = analyse, explication d'une œuvre ou d'un auteur, philosophie, culture générale ; livres = recommandations, chroniques de lecture, BookTok, bibliothèque, nouveautés.
 cat_nutrition       → diététique, rééquilibrage alimentaire, calories, macros, régimes. Diff. cat_food : food = plaisir de cuisiner/manger ; nutrition = logique diététique/santé.
-cat_fitness         → musculation, entraînement, yoga, running, cardio. Diff. cat_sport_extreme : ici entraînement classique, pas la prise de risque.
-cat_sport           → sport en général, compétition, matchs, résultats, équipes. Le karting (indoor ou en compétition) et les sports mécaniques pratiqués en loisir = cat_sport ; cat_auto = voitures, mécanique, essais
-cat_sport_extreme   → sports à sensations et prise de risque (parkour, base jump, surf de gros, freeride). Diff. cat_fitness : ici risque/adrénaline, pas entraînement classique.
+cat_fitness         → musculation, entraînement, yoga, running, cardio.
+cat_sport           → sport en général, compétition, matchs, résultats, équipes, ET sports à sensations (parkour, base jump, wingsuit, freeride, surf de gros). Le karting (indoor ou en compétition) et les sports mécaniques pratiqués en loisir = cat_sport ; cat_auto = voitures, mécanique, essais
 cat_sante           → santé physique, maladies, médecine, système de santé. Diff. cat_fitness : santé/médical vs entraînement volontaire.
 cat_gaming          → jeux vidéo, gaming, streaming, esport, Twitch
 cat_beauty          → maquillage, skincare, makeup, soins du visage. Règle : ce qu'on APPLIQUE sur le corps.
@@ -1481,7 +1466,6 @@ cat_luxe            → produits/lifestyle haut de gamme, marques de luxe, montr
 cat_vintage         → mode ou objets rétro/seconde main d'époque (friperie, brocante). Diff. cat_mode : provenance ancienne/rétro, pas tendance actuelle.
 cat_shopping        → magasins et enseignes (page d'accueil, catalogue, promotions de la semaine), bons plans, codes promo, hauls d'achats multi-produits, sites marchands généralistes (Temu, Shein, Aliexpress). Diff. : un produit PRÉCIS va dans la catégorie de son usage (écouteurs → cat_tech, meuble → cat_deco, chocolat → cat_food, vêtement → cat_mode).
 cat_travel          → voyage, découverte de destinations, tourisme, road trip
-cat_outdoor         → activités en pleine nature sans notion de destination touristique (randonnée, camping, survie). Diff. cat_travel : travel = destination/pays ; outdoor = activité elle-même.
 cat_humour          → humour, prank, sketch, situations comiques, mdr
 cat_comedy          → stand-up, one-man-show. Diff. cat_humour : humour = contenu drôle spontané/court ; comedy = spectacle structuré.
 cat_fail            → compilations d'échecs, "fail", "gone wrong". Diff. cat_humour : ratés/accidents, même sans intention comique.
@@ -1515,10 +1499,10 @@ cat_manga           → anime, manga, culture japonaise animée. Diff. cat_cospl
 cat_deco            → décoration intérieure, home tour, aménagement
 cat_immo            → achat/vente/investissement immobilier, visites de biens à vendre. Diff. cat_deco : immo = transaction, déco = esthétique du bien habité.
 cat_jardin          → jardinage, potager, plantes d'extérieur ET d'intérieur (plantes vertes, entretien, achat de plantes). Diff. cat_deco : une plante, même d'intérieur, va dans cat_jardin ; cat_deco = meubles, objets, aménagement.
-cat_nature          → écologie, environnement, biodiversité au sens large. Diff. cat_jardin : jardin = pratique personnelle, nature = sujet environnemental large.
+cat_nature          → écologie, environnement, biodiversité ET activités de plein air (randonnée, trek, camping, bivouac, escalade, ski, VTT, survie). Diff. cat_travel : travel = destination/pays ; nature = l'activité ou le sujet naturel lui-même. Diff. cat_jardin : jardin = pratique personnelle de plantes.
 cat_pets            → animaux de compagnie, chiens, chats, vétérinaire
 cat_auto            → voitures, mécanique auto, conduite, essais de voitures. Diff. cat_moto : tout ce qui a deux roues motorisées va dans cat_moto.
-cat_moto            → motos, scooters, balades et road trips à moto, mécanique et équipement moto, motocross. Diff. cat_auto : deux-roues motorisés uniquement. Diff. cat_sport_extreme : figures freestyle et prise de risque spectaculaire vont dans cat_sport_extreme.
+cat_moto            → motos, scooters, balades et road trips à moto, mécanique et équipement moto, motocross. Diff. cat_auto : deux-roues motorisés uniquement. Diff. cat_sport : figures freestyle et prise de risque spectaculaire en moto restent cat_moto si la moto est le sujet.
 cat_culture         → culture générale, littérature, philosophie
 cat_histoire        → faits et récits historiques passés. Diff. cat_culture : histoire = événements du passé, culture = réflexion actuelle.
 cat_education       → apprentissage scolaire/pédagogie, cours, méthodes. Diff. cat_culture : education = format pédagogique structuré. Révisions d'examen (bac, brevet, concours) et méthodes de travail = cat_education, même si la matière est la philosophie ou la littérature ; cat_culture seulement si la vidéo explique le fond (une œuvre, une idée) sans viser un examen.
@@ -1552,10 +1536,10 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
    espèce ou le climat.
    Ex : "pourquoi les coraux blanchissent" → cat_nature.
 
-4. cat_outdoor bat cat_travel quand l'ACTIVITÉ est le sujet (bivouac,
+4. cat_nature (activité de plein air) bat cat_travel quand l'ACTIVITÉ est le sujet (bivouac,
    randonnée, camping, survie), même si un lieu est nommé. cat_travel =
    découverte d'une destination.
-   Ex : "bivouac 3 jours dans le Mercantour" → cat_outdoor.
+   Ex : "bivouac 3 jours dans le Mercantour" → cat_nature.
 
 5. cat_art bat cat_culture pour les arts visuels : exposition, peintre,
    musée, œuvre plastique. cat_culture = littérature, philosophie,
@@ -1605,14 +1589,12 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 
 12. Une ACTIVITÉ pratiquée bat cat_travel, même dans une destination
     célèbre : trek, randonnée, escalade, alpinisme, camping, plongée →
-    cat_outdoor ; balade ou voyage à moto → cat_moto. cat_travel =
+    cat_nature ; balade ou voyage à moto → cat_moto. cat_travel =
     découvrir un lieu (visite, itinéraire, hébergement, culture locale).
-    Ex : "Trek to Everest Base Camp" → cat_outdoor.
+    Ex : "Trek to Everest Base Camp" → cat_nature.
     Ex : "Road trip à moto en Corse" → cat_moto.
 
-13. cat_sport_extreme seulement si la prise de risque spectaculaire est le
-    sujet (base jump, wingsuit, free solo, vagues géantes). Escalade, ski,
-    VTT pratiqués normalement → cat_outdoor.
+13. Les sports à sensations (base jump, wingsuit, free solo, parkour) restent cat_sport. Escalade, ski, VTT pratiqués normalement → cat_nature.
 
 14. Le sport reste cat_sport même quand c'est une nouvelle du jour :
     résultats, matchs, transferts, mercato, blessure, contrat d'un joueur.
@@ -1687,11 +1669,11 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
     Ex : "Lenor Fresh Air" → cat_menage. Ex : "Poser du carrelage au sol" → cat_travaux.
     Ex : "Avant / après : ma cuisine rénovée" → cat_deco.
 
-27. Pâtisserie, gâteaux, desserts, pain → cat_patisserie (le salé reste
-    cat_food). Cheveux, coupes, colorations → cat_coiffure (le visage et la
+27. Pâtisserie, gâteaux, desserts, sucré, pain → cat_patisserie, y compris
+    les recettes (le salé reste cat_food). Cheveux, coupes, colorations → cat_coiffure (le visage et la
     peau restent cat_beauty). Boire (vin, cocktails, café, thé) → cat_boissons.
     Un roman, une lecture, une critique de livre → cat_livres.
-    Ex : "Tarte au citron meringuée" → cat_patisserie. Ex : "Balayage maison" → cat_coiffure.
+    Ex : "Tarte au citron meringuée" → cat_patisserie. Ex : "Gâteau au yaourt en 5 minutes" → cat_patisserie. Ex : "Balayage maison" → cat_coiffure.
 
 RÈGLE ABSOLUE : "categorie_principale" doit être UN des IDs ci-dessus (ex: "cat_food"). JAMAIS un texte libre.
 
@@ -1935,6 +1917,9 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     'cat_organizing': 'cat_rangement',
     'cat_hair': 'cat_coiffure',
     'cat_baking': 'cat_patisserie',
+    'cat_outdoor': 'cat_nature',
+    'cat_sport_extreme': 'cat_sport',
+    'cat_extreme': 'cat_sport',
     'cat_drinks': 'cat_boissons',
     'cat_vin': 'cat_boissons',
     'cat_books': 'cat_livres',

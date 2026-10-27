@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 19, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 20, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 19, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 20, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -203,6 +203,13 @@ class DatabaseHelper {
       // laisse a trier, separees par une virgule.
       await db.execute(
           'ALTER TABLE clips ADD COLUMN classification_alt TEXT');
+    }
+    if (oldVersion < 20) {
+      // Outdoor fusionne dans Nature, Extreme dans Sport (decision du 2026-10-27).
+      await _safely('v20a',
+          () => _retireCategory(db, 'cat_outdoor', 'cat_nature'));
+      await _safely('v20b',
+          () => _retireCategory(db, 'cat_sport_extreme', 'cat_sport'));
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
