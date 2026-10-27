@@ -296,7 +296,7 @@ class AppL10n {
     'cat_travel':         'Voyage',
     'cat_humour':         'Humour',
     'cat_musique':        'Musique',
-    'cat_wellness':       'Bien-être',
+    'cat_wellness':       'Développement personnel',
     'cat_podcast':        'Podcast',
     'cat_famille':        'Famille',
     'cat_finance':        'Finance',
@@ -320,7 +320,7 @@ class AppL10n {
     'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
     'cat_cinema':         'Cinéma',
-    'cat_growth':         'Dév. Personnel',
+    
     'cat_pets':           'Animaux',
     'cat_nature':         'Nature',
     'cat_truecrime':      'True Crime',
@@ -350,12 +350,12 @@ class AppL10n {
     'cat_education':      'Éducation',
     'cat_cosplay':        'Cosplay',
     'cat_dance':          'Danse',
-    'cat_comedy':         'Stand-up',
+    
     'cat_jardin':         'Jardinage',
     
     'cat_nutrition':      'Nutrition',
     'cat_vintage':        'Vintage',
-    'cat_fail':           'Fails',
+    
   };
 
   // Noms EN des catégories (par ID)
@@ -368,7 +368,7 @@ class AppL10n {
     'cat_travel':         'Travel',
     'cat_humour':         'Humor',
     'cat_musique':        'Music',
-    'cat_wellness':       'Wellness',
+    'cat_wellness':       'Self Growth',
     'cat_podcast':        'Podcast',
     'cat_famille':        'Family',
     'cat_finance':        'Finance',
@@ -392,7 +392,7 @@ class AppL10n {
     'cat_design':         'Design & UX',
     'cat_culture':        'Culture',
     'cat_cinema':         'Films',
-    'cat_growth':         'Self Growth',
+    
     'cat_pets':           'Pets',
     'cat_nature':         'Nature',
     'cat_truecrime':      'True Crime',
@@ -422,12 +422,12 @@ class AppL10n {
     'cat_education':      'Education',
     'cat_cosplay':        'Cosplay',
     'cat_dance':          'Dance',
-    'cat_comedy':         'Stand-up',
+    
     'cat_jardin':         'Gardening',
     
     'cat_nutrition':      'Nutrition',
     'cat_vintage':        'Vintage',
-    'cat_fail':           'Fails',
+    
     // anciens noms texte libre
     'Musique': 'Music', 'Voyage': 'Travel', 'Famille': 'Family',
     'Humour': 'Humor', 'Beauté': 'Beauty', 'Mode': 'Fashion',
@@ -454,8 +454,8 @@ class AppL10n {
     'cat_actu': ['actu', 'info', 'infos', 'news', 'actualite'],
     'cat_beauty': ['maquillage', 'makeup', 'make up', 'beauty', 'skincare'],
     'cat_travel': ['voyage', 'travel'],
-    'cat_humour': ['humor', 'humour', 'comedie', 'comedy'],
-    'cat_wellness': ['bien etre', 'wellness', 'wellbeing'],
+    'cat_humour': ['humor', 'humour', 'comedie', 'comedy', 'stand-up', 'stand up', 'fail', 'fails'],
+    'cat_wellness': ['bien etre', 'wellness', 'wellbeing', 'developpement personnel', 'dev personnel', 'self growth', 'self improvement'],
     'cat_musique': ['music', 'musique'],
     'cat_gaming': ['gaming', 'jeu video', 'jeux video', 'video game'],
     'cat_deco': ['deco', 'decoration', 'home decor'],
@@ -523,7 +523,7 @@ class AppL10n {
     'cat_actu': Color(0xFF90A4AE), 'cat_diy': Color(0xFFE17055),
     'cat_deco': Color(0xFFFAB1A0), 'cat_auto': Color(0xFFFFB347),
     'cat_culture': Color(0xFF8E44AD), 'cat_cinema': Color(0xFFEF9A9A),
-    'cat_growth': Color(0xFF27AE60), 'cat_pets': Color(0xFF16A085),
+    'cat_pets': Color(0xFF16A085),
     'cat_truecrime': Color(0xFFE57373), 'cat_astro': Color(0xFFCE93D8),
     'cat_business': Color(0xFF26A69A), 'cat_societe': Color(0xFF78909C),
     'cat_nature': Color(0xFF81C784), 'cat_sport': Color(0xFFFF5252),
@@ -537,10 +537,10 @@ class AppL10n {
     'cat_psycho': Color(0xFFFFAB91),
     'cat_luxe': Color(0xFFFFD700), 'cat_entrepreneuriat': Color(0xFF4CAF50),
     'cat_education': Color(0xFF29B6F6), 'cat_cosplay': Color(0xFFBA68C8),
-    'cat_dance': Color(0xFFFF4081), 'cat_comedy': Color(0xFFFFEB3B),
+    'cat_dance': Color(0xFFFF4081), 
     'cat_jardin': Color(0xFF8BC34A), 
     'cat_nutrition': Color(0xFF66BB6A), 'cat_vintage': Color(0xFFD7CCC8),
-    'cat_fail': Color(0xFFFF5722),
+    
     'cat_vibes': Color(0xFFCDB4FF), 'cat_tech': Color(0xFF64B5F6),
     'cat_design': Color(0xFF7C4DFF),
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.
@@ -569,7 +569,7 @@ class AppL10n {
     'cat_actu': Icons.newspaper_rounded, 'cat_diy': Icons.handyman_rounded,
     'cat_deco': Icons.home_rounded, 'cat_auto': Icons.directions_car_rounded,
     'cat_culture': Icons.theater_comedy_rounded, 'cat_cinema': Icons.movie_rounded,
-    'cat_growth': Icons.rocket_launch_rounded, 'cat_pets': Icons.pets_rounded,
+    'cat_pets': Icons.pets_rounded,
     'cat_truecrime': Icons.gavel_rounded, 'cat_astro': Icons.auto_awesome_rounded,
     'cat_business': Icons.business_center_rounded, 'cat_societe': Icons.people_rounded,
     'cat_nature': Icons.park_rounded, 'cat_sport': Icons.sports_soccer_rounded,
@@ -583,10 +583,10 @@ class AppL10n {
     'cat_psycho': Icons.psychology_rounded,
     'cat_luxe': Icons.diamond_rounded, 'cat_entrepreneuriat': Icons.lightbulb_rounded,
     'cat_education': Icons.school_rounded, 'cat_cosplay': Icons.masks_rounded,
-    'cat_dance': Icons.music_video_rounded, 'cat_comedy': Icons.mic_external_on_rounded,
+    'cat_dance': Icons.music_video_rounded, 
     'cat_jardin': Icons.yard_rounded, 
     'cat_nutrition': Icons.no_food_rounded, 'cat_vintage': Icons.watch_rounded,
-    'cat_fail': Icons.sentiment_very_dissatisfied_rounded,
+    
     'cat_vibes': Icons.blur_on_rounded, 'cat_tech': Icons.devices_rounded,
     'cat_design': Icons.design_services_rounded,
     // Repris de CategoryVisuals — absents des catégories "standard" d'origine.

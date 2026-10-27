@@ -72,7 +72,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
   static const Map<String, String> _categoryLabelsFr = {
     'Beauty': 'Beauté',
     'Travel': 'Voyage',
-    'Wellness': 'Bien-être',
+    'Wellness': 'Développement personnel',
     'Growth': 'Développement perso',
     'Pets & Nature': 'Animaux & Nature',
     // Meme doublon que le catalogue standard (voir AppL10n.canonicalCategoryId) :

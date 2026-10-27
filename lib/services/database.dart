@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 20, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 22, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 20, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 22, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -211,6 +211,24 @@ class DatabaseHelper {
       await _safely('v20b',
           () => _retireCategory(db, 'cat_sport_extreme', 'cat_sport'));
     }
+    if (oldVersion < 21) {
+      // Gateaux et desserts rangés dans Recette -> Pâtisserie (2026-10-27).
+      await _safely('v21', () => _movePastryFromFood(db));
+    }
+    if (oldVersion < 22) {
+      // Stand-up et Fails fusionnes dans Humour, Dev. Personnel dans Bien-etre
+      // (decision du 2026-10-27).
+      await _safely('v22a',
+          () => _retireCategory(db, 'cat_comedy', 'cat_humour'));
+      await _safely('v22b',
+          () => _retireCategory(db, 'cat_fail', 'cat_humour'));
+      await _safely('v22c',
+          () => _retireCategory(db, 'cat_growth', 'cat_wellness'));
+      await _safely('v22d', () async {
+        await db.update('categories', {'name': 'Développement personnel'},
+            where: 'id = ?', whereArgs: ['cat_wellness']);
+      });
+    }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
 
@@ -311,6 +329,59 @@ class DatabaseHelper {
         await db.delete('categories', where: 'id = ?', whereArgs: [loserId]);
       }
     }
+  }
+
+  /// Deplace de Recette vers Patisserie les clips (sans sous-categorie) dont
+  /// le titre contient un mot de dessert clair et aucun mot de plat sale.
+  Future<void> _movePastryFromFood(Database db) async {
+    const sweet = [
+      'gâteau', 'gateau', 'cake', 'brownie', 'cookie', 'baba', 'tiramisu',
+      'éclair', 'eclair', 'macaron', 'crème brûlée', 'creme brulee',
+      'crème pâtissière', 'creme patissiere', 'mousse au chocolat',
+      'cheesecake', 'cupcake', 'muffin', 'tarte tatin', 'fondant au chocolat',
+      'pâtisserie', 'patisserie', 'dessert', 'madeleine', 'financier',
+      'clafoutis', 'crumble', 'panna cotta', 'profiterole', 'millefeuille',
+      'religieuse', 'donut', 'brioche', 'viennoiserie',
+    ];
+    const salty = [
+      'salé', 'sale', 'poulet', 'viande', 'jambon', 'fromage', 'lardon',
+      'saumon', 'thon', 'légume', 'legume',
+    ];
+    final food = await db.query('categories',
+        where: "id = 'cat_food' OR name IN ('Recette', 'Food')");
+    if (food.isEmpty) return;
+    final foodIds = food.map((r) => r['id'] as String).toList();
+    final marks = List.filled(foodIds.length, '?').join(',');
+    final clips = await db.query('clips',
+        columns: ['id', 'title'],
+        where: "categoryId IN ($marks) AND (subcategoryId IS NULL OR subcategoryId = '')",
+        whereArgs: foodIds);
+    final ids = <String>[];
+    for (final c in clips) {
+      final t = ((c['title'] as String?) ?? '').toLowerCase();
+      if (salty.any(t.contains)) continue;
+      if (sweet.any(t.contains)) ids.add(c['id'] as String);
+    }
+    if (ids.isEmpty) return;
+    final pat =
+        await db.query('categories', where: 'id = ?', whereArgs: ['cat_patisserie']);
+    if (pat.isEmpty) {
+      final maxPos = Sqflite.firstIntValue(await db
+              .rawQuery('SELECT MAX(position) FROM categories')) ??
+          0;
+      await db.insert('categories', {
+        'id': 'cat_patisserie',
+        'name': 'Pâtisserie',
+        'color': 0xFFF8BBD0,
+        'icon': Icons.cake_rounded.codePoint,
+        'position': maxPos + 1,
+      });
+    }
+    for (final id in ids) {
+      await db.update('clips', {'categoryId': 'cat_patisserie'},
+          where: 'id = ?', whereArgs: [id]);
+    }
+    debugPrint('[db] v21 : ${ids.length} clips deplaces vers Patisserie');
   }
 
   /// Retire la categorie [fromId] : ses liens et sous-categories passent a

@@ -112,6 +112,14 @@ class CategoryClassifier {
       'city guide', 'vlog voyage', 'travel vlog', 'expat',
     ],
     'humour': [
+      'stand up', 'stand-up', 'one man show', 'one woman show',
+      'spectacle comique', 'humoriste', 'comedie', 'comédie',
+      'scene ouverte', 'scène ouverte', 'open mic', 'cafe theatre',
+      'café théâtre', 'gad elmaleh', 'jamel', 'fary', 'anne roumanoff',
+      'fail', 'fails', 'compilation', 'compilations', 'bloopers',
+      'accident drole', 'accident drôle', 'chute', 'epic fail',
+      'gone wrong', 'disaster', 'catastrophe', 'oops', 'wtf moment',
+      'best fails', 'try not to laugh', 'funniest moments',
       'humour', 'drole', 'drôle', 'blague', 'rire', 'comique', 'sketch',
       'parodie', 'funny', 'humor', 'comedy', 'meme', 'memes', 'prank',
       'standup', 'stand-up', 'lol', 'mdr', 'ptdr', 'fail drole', 'troll',
@@ -127,6 +135,12 @@ class CategoryClassifier {
       'classique', 'classical', 'opera', 'chorale',
     ],
     'wellness': [
+      'developpement personnel', 'développement personnel', 'self help',
+      'motivation', 'productivite', 'productivité', 'mindset', 'discipline',
+      'habitudes', 'habits', 'morning routine', 'journaling', 'meditation dev',
+      'stoicisme', 'stoïcisme', 'confiance en soi', 'self confidence',
+      'objectifs', 'goals', 'succes', 'succès', 'leadership dev',
+      'time management', 'organisation vie', 'life hack',
       'yoga', 'meditation', 'méditation', 'mindfulness', 'relaxation',
       'pilates', 'respiration', 'breathwork', 'zen', 'sophrologie',
       'asana', 'vinyasa', 'hatha', 'stretching', 'etirement', 'étirement',
@@ -295,14 +309,6 @@ class CategoryClassifier {
       'cosplay anime', 'figurine manga', 'japan culture', 'otaku',
       'webtoon', 'manhwa', 'shonen', 'shojo', 'seinen',
     ],
-    'growth': [
-      'developpement personnel', 'développement personnel', 'self help',
-      'motivation', 'productivite', 'productivité', 'mindset', 'discipline',
-      'habitudes', 'habits', 'morning routine', 'journaling', 'meditation dev',
-      'stoicisme', 'stoïcisme', 'confiance en soi', 'self confidence',
-      'objectifs', 'goals', 'succes', 'succès', 'leadership dev',
-      'time management', 'organisation vie', 'life hack',
-    ],
     'education': [
       'education', 'éducation', 'cours', 'lecon', 'leçon', 'apprendre',
       'learn', 'tutoriel educatif', 'mathematiques', 'mathématiques',
@@ -468,23 +474,11 @@ class CategoryClassifier {
       'salsa', 'bachata', 'kizomba', 'afrobeats dance', 'waacking',
       'popping', 'locking', 'breakdance', 'krump', 'dancehall',
     ],
-    'comedy': [
-      'stand up', 'stand-up', 'one man show', 'one woman show',
-      'spectacle comique', 'humoriste', 'comedie', 'comédie',
-      'scene ouverte', 'scène ouverte', 'open mic', 'cafe theatre',
-      'café théâtre', 'gad elmaleh', 'jamel', 'fary', 'anne roumanoff',
-    ],
     'vintage': [
       'vintage', 'retro', 'rétro', 'annees 80', 'années 80', 'annees 90',
       'années 90', 'nostalgie', 'throwback', 'brocante', 'vide grenier',
       'antiquite', 'antiquité', 'collection vintage', 'vinyle', 'vinyl',
       'cassette', 'polaroid', 'kodak', 'film photo', 'analogique',
-    ],
-    'fail': [
-      'fail', 'fails', 'compilation', 'compilations', 'bloopers',
-      'accident drole', 'accident drôle', 'chute', 'epic fail',
-      'gone wrong', 'disaster', 'catastrophe', 'oops', 'wtf moment',
-      'best fails', 'try not to laugh', 'funniest moments',
     ],
   };
 
@@ -539,11 +533,6 @@ class CategoryClassifier {
       color: Color(0xFF8E44AD),
       icon: Icons.theater_comedy_rounded,
     ),
-    'growth': CategorySuggestion(
-      key: 'growth', name: 'Dév. Personnel',
-      color: Color(0xFF27AE60),
-      icon: Icons.rocket_launch_rounded,
-    ),
     'food': CategorySuggestion(
       key: 'food', name: 'Food',
       color: Color.fromRGBO(212, 133, 106, 1),
@@ -555,7 +544,7 @@ class CategoryClassifier {
       icon: Icons.fitness_center_outlined,
     ),
     'yoga': CategorySuggestion(
-      key: 'yoga', name: 'Bien-être',
+      key: 'yoga', name: 'Développement personnel',
       color: Color.fromRGBO(166, 211, 220, 1),
       icon: Icons.self_improvement_outlined,
     ),
@@ -784,11 +773,6 @@ class CategoryClassifier {
       color: Color(0xFFFF4081),
       icon: Icons.music_video_outlined,
     ),
-    'comedy': CategorySuggestion(
-      key: 'comedy', name: 'Stand-up',
-      color: Color(0xFFFFEB3B),
-      icon: Icons.mic_external_on_outlined,
-    ),
     'jardin': CategorySuggestion(
       key: 'jardin', name: 'Jardinage',
       color: Color(0xFF8BC34A),
@@ -803,11 +787,6 @@ class CategoryClassifier {
       key: 'vintage', name: 'Vintage',
       color: Color(0xFFD7CCC8),
       icon: Icons.watch_outlined,
-    ),
-    'fail': CategorySuggestion(
-      key: 'fail', name: 'Fails',
-      color: Color(0xFFFF5722),
-      icon: Icons.sentiment_very_dissatisfied_outlined,
     ),
     'langue_culture': CategorySuggestion(
       key: 'langue_culture', name: 'Langues',
@@ -1320,7 +1299,7 @@ Titre ambigu ET image ambiguë (ou absente) → confiance ≤ 40.
 ━━━ ÉTAPE 1 — LE FORMAT, PUIS LE SUJET ━━━
 
 • PRANK / CAMÉRA CACHÉE / TROLL / GONE WRONG / SKETCH → cat_humour, sauf si un sujet précis est réellement montré (une vraie recette, même ratée ou drôle, reste cat_food : voir sa définition).
-• FAIL / compilation d'accidents → cat_fail
+• FAIL / compilation d'accidents → cat_humour
 • TUTO / "comment faire" / "how to" / RECETTE / ROUTINE → le SUJET décide (cat_food, cat_beauty, cat_fitness, cat_diy…). "Tuto", "tutorial" ou "DIY" seuls ne désignent jamais cat_diy.
 • HAUL / UNBOXING / AVIS / TEST / REVIEW / COMPARATIF → le PRODUIT décide (vêtements → cat_mode, makeup → cat_beauty, téléphone → cat_tech, appareil photo → cat_photo).
 • VLOG / "une journée" / "day in my life" → le contexte décide (cat_famille, cat_travel…).
@@ -1466,13 +1445,10 @@ cat_luxe            → produits/lifestyle haut de gamme, marques de luxe, montr
 cat_vintage         → mode ou objets rétro/seconde main d'époque (friperie, brocante). Diff. cat_mode : provenance ancienne/rétro, pas tendance actuelle.
 cat_shopping        → magasins et enseignes (page d'accueil, catalogue, promotions de la semaine), bons plans, codes promo, hauls d'achats multi-produits, sites marchands généralistes (Temu, Shein, Aliexpress). Diff. : un produit PRÉCIS va dans la catégorie de son usage (écouteurs → cat_tech, meuble → cat_deco, chocolat → cat_food, vêtement → cat_mode).
 cat_travel          → voyage, découverte de destinations, tourisme, road trip
-cat_humour          → humour, prank, sketch, situations comiques, mdr
-cat_comedy          → stand-up, one-man-show. Diff. cat_humour : humour = contenu drôle spontané/court ; comedy = spectacle structuré.
-cat_fail            → compilations d'échecs, "fail", "gone wrong". Diff. cat_humour : ratés/accidents, même sans intention comique.
+cat_humour          → humour, prank, sketch, situations comiques, mdr, stand-up, one-man-show, humoristes, compilations d'échecs (fails, "gone wrong")
 cat_musique         → chansons, concerts, clips, artistes musicaux
 cat_dance           → chorégraphie, danse, battle de danse. Diff. cat_musique : mouvement/chorégraphie est le sujet, pas la musique elle-même.
-cat_wellness        → bien-être, méditation, mindfulness, spiritualité intérieure, slow life
-cat_growth          → développement personnel, motivation, productivité. Diff. cat_wellness : wellness = apaisement ; growth = action/performance.
+cat_wellness        → bien-être, méditation, mindfulness, spiritualité intérieure, slow life, ET développement personnel, motivation, productivité, habitudes
 cat_psycho          → psychologie, comportement humain, relations, santé mentale expliquée. Diff. cat_wellness : psycho analyse/explique, wellness pratique/ressent.
 cat_astro           → astrologie, horoscope, zodiaque, tarot, ésotérisme
 cat_podcast         → interview longue durée, débat, talk-show, format micro/casque
@@ -1629,10 +1605,9 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 
 21. L'humour bat le sujet dont on rit. Un humoriste, un sketch ou un
     stand-up sur la nourriture, le sport, les animaux, la famille… →
-    cat_comedy (spectacle, humoriste sur scène) ou cat_humour (sketch
-    court). cat_food exige qu'on cuisine, goûte, teste ou présente
+    cat_humour (humoriste, stand-up ou sketch). cat_food exige qu'on cuisine, goûte, teste ou présente
     réellement de la nourriture ou une boisson (un lieu où manger = cat_restaurant).
-    Ex : "Humoriste : les Français au restaurant" → cat_comedy.
+    Ex : "Humoriste : les Français au restaurant" → cat_humour.
     Ex : "I ranked every gas station snack" → cat_food.
 
 22. Un ouvrage fait main se classe selon sa TECHNIQUE, jamais selon ce
@@ -1917,6 +1892,13 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     'cat_organizing': 'cat_rangement',
     'cat_hair': 'cat_coiffure',
     'cat_baking': 'cat_patisserie',
+    'cat_comedy': 'cat_humour',
+    'cat_standup': 'cat_humour',
+    'cat_fails': 'cat_humour',
+    'cat_fail': 'cat_humour',
+    'cat_growth': 'cat_wellness',
+    'cat_selfgrowth': 'cat_wellness',
+    'cat_devperso': 'cat_wellness',
     'cat_outdoor': 'cat_nature',
     'cat_sport_extreme': 'cat_sport',
     'cat_extreme': 'cat_sport',
@@ -2013,7 +1995,7 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
       Future<http.Response> post(dynamic content) {
         final body = jsonEncode({
           'model': _model,
-          'max_tokens': 900,
+          'max_tokens': 1800,
           if (_isGen5)
             'output_config': {'effort': 'low'}
           else

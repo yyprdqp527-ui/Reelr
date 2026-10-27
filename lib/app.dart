@@ -1261,6 +1261,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     if (meta == null || clip.platform != 'other') return meta;
     final thumb = meta.thumbnailUrl;
     if (thumb != null && thumb.isNotEmpty) return meta;
+    // Pages de resultats Google : bloquees par Google (le Worker repond
+    // 502), inutile de demander une capture.
+    final gUri = Uri.tryParse(clip.url);
+    if (gUri != null &&
+        gUri.host.contains('google.') &&
+        gUri.path.startsWith('/search')) {
+      return meta;
+    }
     debugPrint('[screenshot] capture demandee pour: ${clip.url}');
     return VideoData(
       title: meta.title,
