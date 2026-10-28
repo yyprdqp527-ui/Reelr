@@ -13,7 +13,7 @@ const String legalPrivacyPolicyFr = '''
 
 ## Qui sommes-nous
 
-Reelr est édité par Anne-Gaëlle Daval, exerçant sous le statut de micro-entreprise individuelle, sous le nom commercial Room79 (SIRET : 10628633900010), domiciliée 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+Reelr est édité par Anne-Gaëlle Daval, exerçant sous le statut de micro-entreprise individuelle, sous le nom commercial Room79 (SIRET : 93033341400017), domiciliée 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
 
 Contact : hello@myreelr.app
 
@@ -95,7 +95,7 @@ const String legalTermsFr = '''
 
 ## Article 1 — Identification de l'éditeur
 
-L'application Reelr (« l'Application ») est éditée par Anne-Gaëlle Daval, exerçant en tant que micro-entrepreneur individuel sous le nom commercial Room79, immatriculée sous le numéro SIRET 10628633900010, domiciliée 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+L'application Reelr (« l'Application ») est éditée par Anne-Gaëlle Daval, exerçant en tant que micro-entrepreneur individuel sous le nom commercial Room79, immatriculée sous le numéro SIRET 93033341400017, domiciliée 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
 
 Contact : hello@myreelr.app
 
@@ -184,7 +184,7 @@ const String legalPrivacyPolicyEn = '''
 
 ## Who we are
 
-Reelr is published by Anne-Gaëlle Daval, operating as an individual sole proprietor (micro-entreprise) under the trade name Room79 (SIRET: 10628633900010), based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+Reelr is published by Anne-Gaëlle Daval, operating as an individual sole proprietor (micro-entreprise) under the trade name Room79 (SIRET: 93033341400017), based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
 
 Contact: hello@myreelr.app
 
@@ -266,7 +266,7 @@ const String legalTermsEn = '''
 
 ## Article 1 — Publisher identification
 
-The Reelr application ("the App") is published by Anne-Gaëlle Daval, operating as an individual sole proprietor under the trade name Room79, registered under SIRET number 10628633900010, based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
+The Reelr application ("the App") is published by Anne-Gaëlle Daval, operating as an individual sole proprietor under the trade name Room79, registered under SIRET number 93033341400017, based at 79 Rue du Président Édouard Herriot, 69002 Lyon, France.
 
 Contact: hello@myreelr.app
 
