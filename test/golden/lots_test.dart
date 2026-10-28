@@ -258,7 +258,10 @@ void main() {
         final it = items[i];
         final pa = alone[i];
         final pg = grouped[i + 1];
-        final pb = (pg != null && pg.conf >= _groupMinConfidence) ? pg : pa;
+        var pb = (pg != null && pg.conf >= _groupMinConfidence) ? pg : pa;
+        // Meme garde-fou que l'app : un dessert (Patisserie) ne repasse pas
+        // en Food a cause du groupe.
+        if (pb.cat == 'cat_food' && pa.cat == 'cat_patisserie') pb = pa;
         final okA = _isOk(it, pa.cat);
         final okB = _isOk(it, pb.cat);
         if (okA) a++;

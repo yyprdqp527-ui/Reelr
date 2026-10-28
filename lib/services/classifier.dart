@@ -1934,8 +1934,8 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
 ━━━ MODE LOT (prioritaire sur le format de réponse ci-dessus) ━━━
 Tu reçois plusieurs liens partagés EN MÊME TEMPS par la même personne. Lis-les ensemble, comme une personne qui range sa liste.
 1. Sépare-les en groupes de même sujet. Un lien sans rapport avec les autres forme un groupe à lui seul.
-2. Les liens d'une même liste (mêmes objets : tapis, coupes de cheveux, recettes...) vont dans la MÊME catégorie, même si leurs titres n'ont aucun mot en commun ou sont dans des langues différentes.
-3. Pour chaque groupe, donne une catégorie : un ID cat_xxx de la liste, ou le nom exact d'une tuile personnelle si elle correspond mieux.
+2. Les liens d'une même liste (mêmes objets : tapis, coupes de cheveux, voyages...) vont dans la MÊME catégorie, même si leurs titres n'ont aucun mot en commun ou sont dans des langues différentes. EXCEPTION : des recettes ne sont JAMAIS toutes dans le même groupe par principe. Chaque recette sucrée (dessert, gâteau, crêpes, tarte, biscuit, crème) va dans un groupe cat_patisserie ; chaque plat salé va dans un groupe cat_food. Sépare-les, même s'ils viennent de la même liste.
+3. Pour chaque groupe, donne une catégorie : un ID cat_xxx de la liste, ou le nom exact d'une tuile personnelle si elle correspond mieux. Les règles de la liste des catégories valent pour chaque groupe : desserts, gâteaux, crêpes et tartes sucrées → cat_patisserie ; plats salés → cat_food. Une liste de recettes mêlant sucré et salé se sépare donc en plusieurs groupes.
 4. Réponds UNIQUEMENT avec ce JSON, sans texte autour :
 {"groupes":[{"liens":[1,2],"categorie":"cat_xxx","confiance":0-100,"raison":"courte"}]}
 Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu hésites.

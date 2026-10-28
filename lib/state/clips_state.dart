@@ -1312,6 +1312,11 @@ class ClipsState extends ChangeNotifier {
         // Range a la main pendant l'analyse : on n'y touche pas.
         if (fresh.categoryId != it.categoryAtStart) continue;
         if (fresh.categoryId == cat.id) continue;
+        // Un dessert deja range en Patisserie ne repasse pas en Food parce
+        // que le lot est une « liste de recettes ».
+        if (cat.id == 'cat_food' && fresh.categoryId == 'cat_patisserie') {
+          continue;
+        }
         await updateClip(fresh.copyWith(categoryId: cat.id));
         await alignSubcategory(fresh.id);
         await DatabaseHelper.instance.updateClipClassification(
