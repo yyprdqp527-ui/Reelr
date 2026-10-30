@@ -78,6 +78,10 @@ class RestaurantRules {
 
   static final Set<String> _learnedPages = <String>{};
 
+  /// Nombre de caracteres du titre examines par les regles « mot » et
+  /// « enseigne » (le compteur de vues et reactions de Facebook compris).
+  static const int _titleHeadChars = 110;
+
   static String _pageKey(String url) {
     final u = Uri.tryParse(url);
     if (u == null) return url;
@@ -105,7 +109,14 @@ class RestaurantRules {
     if (u != null && hotelBookingHost.hasMatch(u.host.toLowerCase())) {
       return null;
     }
-    final text = _norm('${title ?? ''} ${channel ?? ''}');
+    // Seul le DEBUT du titre compte. Sur Facebook, le « titre » est toute la
+    // legende du post : un explorateur qui raconte « un petit cafe (resto) »
+    // au milieu de sa journee (2026-10-30) etait classe Restaurant. Au-dela
+    // de ce debut, c'est Claude qui lit.
+    final head = (title ?? '').length > _titleHeadChars
+        ? title!.substring(0, _titleHeadChars)
+        : (title ?? '');
+    final text = _norm('$head ${channel ?? ''}');
     if (_word.hasMatch(text)) return 'le titre parle de restaurant';
     if (_chain.hasMatch(text)) return 'enseigne de restauration reconnue';
     if (u != null && u.host.isNotEmpty) {

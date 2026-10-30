@@ -49,6 +49,17 @@ void main() {
     expect(r(t: 'Chez Marcel', u: 'https://exemple-inconnu.fr/adresses/chez-marcel'), isNotNull);
   });
 
+  test('Legende longue : le mot au milieu du texte ne decide pas', () {
+    final longue = '38 K vues · 4,7 K réactions | Jour 894 +70km jusqu\'au bout '
+        'du monde sans moteur. Une belle journée de passée, elle était très '
+        'difficile, car les camions et la route enneigée me renvoient des '
+        'flaques d\'eau toutes les 30 secondes. Le soir, j\'arrive à poser '
+        'mon campement dans le terrain vague d\'un petit café, (resto ), et '
+        'je rencontre le patron Dima | Beyond The Capes';
+    expect(r(t: longue), isNull);
+    expect(r(t: 'Resto italien à Nice. ${'x' * 400}'), isNotNull);
+  });
+
   test('Pas de faux positifs', () {
     expect(r(t: 'Recette de la vraie carbonara', u: 'https://youtube.com/watch?v=1'), isNull);
     expect(r(t: 'Hôtel à Rome', u: 'https://www.booking.com/hotel/it/x.html'), isNull);
