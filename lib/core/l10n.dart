@@ -36,6 +36,11 @@ class AppL10n {
       'delete_category_deletes_clips':
           'Les {n} vidéos de cette catégorie seront aussi supprimées. '
               'Cette action est irréversible.',
+      'delete_many_title': 'Supprimer {n} vidéos ?',
+      'delete_many_body':
+          'Elles seront supprimées définitivement avec la tuile. '
+              'Tu confirmes ?',
+      'delete_many_confirm': 'Tout supprimer',
       'delete': 'Supprimer',
       'share': 'Partager',
       'rename': 'Renommer',
@@ -147,6 +152,11 @@ class AppL10n {
       'delete_category_deletes_clips':
           'The {n} videos in this category will be deleted too. '
               'This cannot be undone.',
+      'delete_many_title': 'Delete {n} videos?',
+      'delete_many_body':
+          'They will be permanently deleted along with the tile. '
+              'Are you sure?',
+      'delete_many_confirm': 'Delete all',
       'delete': 'Delete',
       'share': 'Share',
       'rename': 'Rename',

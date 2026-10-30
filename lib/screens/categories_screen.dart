@@ -9,6 +9,7 @@ import '../core/l10n.dart';
 import '../core/theme.dart';
 import '../models/category.dart';
 import '../state/clips_state.dart';
+import '../widgets/confirm_delete_many.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/offer_subcategory_move.dart';
 import '../widgets/sheet_field.dart';
@@ -853,9 +854,14 @@ class CategoriesScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(ctx), child: Text(l.t('cancel'))),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            onPressed: () {
-              state.removeCategory(id, deleteClips: true);
+            onPressed: () async {
+              final n = state.countForCategory(id);
               Navigator.pop(ctx);
+              if (n > kDeleteManyThreshold &&
+                  !await confirmDeleteMany(context, l, n)) {
+                return;
+              }
+              await state.removeCategory(id, deleteClips: true);
             },
             child: Text(l.t('delete')),
           ),

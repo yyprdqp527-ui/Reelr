@@ -24,6 +24,7 @@ import '../services/playlist_link.dart';
 import '../services/playlist_link_shortener.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
+import '../widgets/confirm_delete_many.dart';
 import '../widgets/background.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
@@ -732,9 +733,12 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await widget.state.removeCategory(categoryId, deleteClips: true);
+    if (confirmed != true || !mounted) return;
+    if (count > kDeleteManyThreshold &&
+        !await confirmDeleteMany(context, l, count)) {
+      return;
     }
+    await widget.state.removeCategory(categoryId, deleteClips: true);
   }
 
   static const int _crossAxisCount = 3;
@@ -3586,7 +3590,11 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
         ],
       ),
     );
-    if (confirmed != true) return;
+    if (confirmed != true || !mounted) return;
+    if (count > kDeleteManyThreshold &&
+        !await confirmDeleteMany(context, l, count)) {
+      return;
+    }
     await widget.state.removeCategory(cat.id, deleteClips: true);
     if (!mounted) return;
     setState(() {
