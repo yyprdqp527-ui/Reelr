@@ -21,12 +21,12 @@ class DatabaseHelper {
   Future<Database> _initDatabase() async {
     if (kIsWeb) {
         return openDatabase('clips.db',
-          version: 22, onCreate: _onCreate, onUpgrade: _onUpgrade);
+          version: 23, onCreate: _onCreate, onUpgrade: _onUpgrade);
     }
     final dbPath = await getDatabasesPath();
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
-      version: 22, onCreate: _onCreate, onUpgrade: _onUpgrade);
+      version: 23, onCreate: _onCreate, onUpgrade: _onUpgrade);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -228,6 +228,11 @@ class DatabaseHelper {
         await db.update('categories', {'name': 'Développement personnel'},
             where: 'id = ?', whereArgs: ['cat_wellness']);
       });
+    }
+    if (oldVersion < 23) {
+      // Titre personnalise (renommage par le client). Colonne a part, hors
+      // Clip.toMap(), pour qu'une mise a jour du clip ne l'ecrase jamais.
+      await db.execute('ALTER TABLE clips ADD COLUMN customTitle TEXT');
     }
     // Vision Reelr : aucune catégorie pré-créée — elles naissent au fil des partages.
   }
@@ -499,7 +504,8 @@ class DatabaseHelper {
         toBuy INTEGER DEFAULT 0,
         classification_alt TEXT,
         channel TEXT,
-        description TEXT
+        description TEXT,
+        customTitle TEXT
       )
     ''');
     await db.execute('''
@@ -601,6 +607,13 @@ class DatabaseHelper {
   Future<void> setClipToBuy(String clipId, bool toBuy) async {
     final db = await database;
     await db.update('clips', {'toBuy': toBuy ? 1 : 0},
+        where: 'id = ?', whereArgs: [clipId]);
+  }
+
+  /// Pose ou retire le titre personnalise (`null` = titre d'origine).
+  Future<void> setClipCustomTitle(String clipId, String? title) async {
+    final db = await database;
+    await db.update('clips', {'customTitle': title},
         where: 'id = ?', whereArgs: [clipId]);
   }
 
