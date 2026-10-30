@@ -579,6 +579,9 @@ class ClipsState extends ChangeNotifier {
     }
   }
 
+  /// Couche de mots-cles locaux (detectStrongMatch) : coupee, Claude lit tout.
+  static const bool _couchesMotsCles = false;
+
   Future<void> classifyClipInBackground(Clip clip) async {
     try {
       debugPrint('[classify] starting for: ${clip.title}');
@@ -613,7 +616,12 @@ class ClipsState extends ChangeNotifier {
 
       // Court-circuit local, dans l'ordre de fiabilite :
       // 1) Marque/influenceur/media connu (liste figee, fiable des la 1ere fois)
-      catName = isWebLink
+      // DESACTIVE le 2026-10-30 (`_couchesMotsCles`) : sur 15 liens que cette
+      // couche decidait seule, elle avait juste 6 fois (40 %), Claude seul 12
+      // fois (80 %). Des mots trop generiques (« legend » -> Podcast,
+      // « paris » -> Voyage, « france culture » -> Podcast) tranchaient sans
+      // lire la phrase. Le code reste en place pour pouvoir la reactiver.
+      catName = (isWebLink || !_couchesMotsCles)
           ? null
           : CategoryClassifier.detectStrongMatch(effectiveTitle, channel: clip.channel);
       if (catName != null) {
