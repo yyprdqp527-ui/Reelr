@@ -166,7 +166,7 @@ List<Clip> sortClipsByOrder(List<Clip> src, SortOrder order) {
     case SortOrder.chronological:
       list.sort((a, b) => b.addedAt.compareTo(a.addedAt));
     case SortOrder.alphabetical:
-      list.sort((a, b) => a.title.compareTo(b.title));
+      list.sort((a, b) => a.displayTitle.compareTo(b.displayTitle));
     case SortOrder.manual:
       list.sort((a, b) {
         final cmp = a.position.compareTo(b.position);
@@ -227,6 +227,7 @@ class ClipsState extends ChangeNotifier {
     final subSub = _subSubCategoryById(_clipSubSubcategoryMap[c.id]);
     return normalizeForSearch([
       c.title,
+      c.customTitle ?? '',
       c.url,
       c.tags.join(' '),
       category?.name ?? '',
@@ -280,6 +281,13 @@ class ClipsState extends ChangeNotifier {
       final normalizedTitle = normalizeForSearch(c.title);
       if (tokens.every((t) => normalizedTitle.contains(t))) {
         set.add(c.title);
+      }
+      final custom = c.customTitle;
+      if (custom != null && custom.trim().isNotEmpty) {
+        final normalizedCustom = normalizeForSearch(custom);
+        if (tokens.every((t) => normalizedCustom.contains(t))) {
+          set.add(custom);
+        }
       }
       for (final t in c.tags) {
         final normalizedTag = normalizeForSearch(t);
@@ -1361,7 +1369,31 @@ class ClipsState extends ChangeNotifier {
   Future<void> updateClip(Clip clip) async {
     await DatabaseHelper.instance.upsertClip(clip);
     final idx = _clips.indexWhere((c) => c.id == clip.id);
-    if (idx != -1) _clips[idx] = clip;
+    if (idx != -1) {
+      // De nombreux appelants (hydratation, classement...) reconstruisent un
+      // Clip sans connaitre le titre personnalise : la base le garde (colonne
+      // hors toMap), on garde aussi la valeur en memoire.
+      final kept = _clips[idx].customTitle;
+      _clips[idx] = (clip.customTitle == null && kept != null)
+          ? clip.withCustomTitle(kept)
+          : clip;
+    }
+    notifyListeners();
+  }
+
+  /// Renomme un clip. Un texte vide, ou identique au titre d'origine,
+  /// revient au titre d'origine (`newTitle == null` aussi).
+  Future<void> renameClip(String clipId, String? newTitle) async {
+    final idx = _clips.indexWhere((c) => c.id == clipId);
+    if (idx == -1) return;
+    String? t = newTitle
+        ?.split('\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+    if (t != null && (t.isEmpty || t == _clips[idx].title.trim())) t = null;
+    await DatabaseHelper.instance.setClipCustomTitle(clipId, t);
+    _clips[idx] = _clips[idx].withCustomTitle(t);
     notifyListeners();
   }
 
