@@ -35,7 +35,8 @@ class AppL10n {
       'subcategory_promote_action': 'Remettre en tuile',
       'delete_category_keeps_clips':
           'Les {n} vidéos de cette catégorie ne seront pas supprimées : '
-              'elles repasseront simplement en « À trier ».',
+              'Reelr va les ranger dans tes autres tuiles, sinon elles '
+              'passeront en « À trier ».',
       'delete': 'Supprimer',
       'share': 'Partager',
       'rename': 'Renommer',
@@ -146,7 +147,8 @@ class AppL10n {
       'subcategory_promote_action': 'Make it a tile again',
       'delete_category_keeps_clips':
           "The {n} videos in this category won't be deleted: "
-              'they will simply move back to "To sort".',
+              'Reelr will file them in your other tiles, otherwise they '
+              'will move to "To sort".',
       'delete': 'Delete',
       'share': 'Share',
       'rename': 'Rename',
