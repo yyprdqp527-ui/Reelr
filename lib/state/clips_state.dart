@@ -982,6 +982,26 @@ class ClipsState extends ChangeNotifier {
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
       if (matchedCat == null) {
+        // Lien venant d'une tuile que le client vient de supprimer : on ne
+        // recree pas cette tuile, le lien reste a trier.
+        final bloquee = _reclassBlocked[clip.id];
+        if (bloquee != null) {
+          final canon = AppL10n.canonicalCategoryId(catName) ?? catName;
+          if (canon == bloquee.id || _norm(catName) == _norm(bloquee.name)) {
+            debugPrint('[classify] tuile supprimee "${bloquee.name}" non '
+                'recreee, lien laisse a trier: ${clip.id}');
+            await DatabaseHelper.instance.updateClipClassification(
+              clipId: clip.id,
+              category: "",
+              confidence: 0,
+              reason: "[tuile-supprimee] La tuile « ${bloquee.name} » a été "
+                  "supprimée et aucune autre tuile ne convient. "
+                  "Lien laissé à trier.",
+              tags: const [],
+            );
+            return;
+          }
+        }
         final catNames = _aiCategoryNames;
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
         // jamais un ID `cat_xxx` litteral : l'ancien test
@@ -2397,7 +2417,37 @@ class ClipsState extends ChangeNotifier {
     return cat;
   }
 
-  Future<void> removeCategory(String id) async {
+  /// Tuile supprimee, par lien : le classement ne doit pas la recreer pour
+  /// ce lien (sinon supprimer une tuile ne servirait a rien).
+  final Map<String, ClipCategory> _reclassBlocked = {};
+
+  /// Apres la suppression d'une tuile par le client : ses liens sont
+  /// reclasses par Claude dans les autres tuiles, un par un (40 au plus).
+  /// La tuile supprimee n'est jamais recreee ; un lien qui ne trouve pas
+  /// d'autre tuile reste a trier.
+  Future<void> _reclassifyAfterDelete(
+      ClipCategory removed, List<String> ids) async {
+    try {
+      final batch = ids.take(40).toList();
+      for (final id in batch) {
+        _reclassBlocked[id] = removed;
+      }
+      for (final id in batch) {
+        final clip = _clips.where((c) => c.id == id).firstOrNull;
+        if (clip == null || clip.categoryId != null) continue;
+        await classifyClipInBackground(clip);
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+    } catch (e) {
+      debugPrint('[classify] reclassement apres suppression impossible: $e');
+    }
+  }
+
+  Future<void> removeCategory(String id, {bool reclassify = false}) async {
+    final removed = _categories.where((c) => c.id == id).firstOrNull;
+    final orphanIds = reclassify
+        ? _clips.where((c) => c.categoryId == id).map((c) => c.id).toList()
+        : <String>[];
     await DatabaseHelper.instance.deleteCategory(id);
     _categories.removeWhere((c) => c.id == id);
     _clips = _clips
@@ -2416,6 +2466,9 @@ class ClipsState extends ChangeNotifier {
     _subsubcategories.removeWhere((ss) => subIds.contains(ss.subCategoryId));
     _clipSubSubcategoryMap.removeWhere((_, v) => subSubIds.contains(v));
     notifyListeners();
+    if (removed != null && orphanIds.isNotEmpty) {
+      unawaited(_reclassifyAfterDelete(removed, orphanIds));
+    }
   }
 
   ClipCategory? categoryById(String? id) {
