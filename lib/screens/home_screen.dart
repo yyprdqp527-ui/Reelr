@@ -1867,7 +1867,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                               Positioned(
                                                 left: 8, right: 8, bottom: 8,
                                                 child: Text(
-                                                  c.title,
+                                                  c.displayTitle,
                                                   maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: const TextStyle(
@@ -3228,6 +3228,7 @@ class ClipCard extends StatelessWidget {
     return GlassCard(
       padding: EdgeInsets.zero,
       onTap: () => _openUrl(context, clip.url),
+      onLongPress: () => _handleAction(context, 'rename', l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3263,7 +3264,7 @@ class ClipCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        clip.title,
+                        clip.displayTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -3320,6 +3321,11 @@ class ClipCard extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                   itemBuilder: (_) => [
+                    PopupMenuItem(
+                        value: 'rename',
+                        child: _MenuItem(
+                            icon: Icons.edit_rounded,
+                            label: l.t('rename'))),
                     PopupMenuItem(
                         value: 'move',
                         child: _MenuItem(
@@ -3457,6 +3463,12 @@ class ClipCard extends StatelessWidget {
 
   void _handleAction(BuildContext context, String action, AppL10n l) {
     switch (action) {
+      case 'rename':
+        showDialog(
+          context: context,
+          builder: (_) => _RenameClipDialog(clip: clip, state: state),
+        );
+        return;
       case 'edit':
         if (currentCategoryId != null) {
         final subs = state.getSubCategoriesFor(currentCategoryId);
@@ -5166,7 +5178,7 @@ class _EditClipSheetState extends State<EditClipSheet> {
 /// lien. Titre sans interet (« Instagram », « Reddit »...) : lien seul.
 String _shareText(Clip clip) {
   const maxLength = 90;
-  final firstLine = clip.title
+  final firstLine = clip.displayTitle
       .split('\n')
       .map((l) => l.trim())
       .firstWhere((l) => l.isNotEmpty, orElse: () => '');
@@ -5182,4 +5194,91 @@ String _shareText(Clip clip) {
     title = '${(lastSpace > 40 ? cut.substring(0, lastSpace) : cut).trimRight()}…';
   }
   return '$title\n${clip.url}';
+}
+
+
+// ─────────────────────────────────────────────
+// RENOMMER UN CLIP
+// ─────────────────────────────────────────────
+
+class _RenameClipDialog extends StatefulWidget {
+  final Clip clip;
+  final ClipsState state;
+
+  const _RenameClipDialog({required this.clip, required this.state});
+
+  @override
+  State<_RenameClipDialog> createState() => _RenameClipDialogState();
+}
+
+class _RenameClipDialogState extends State<_RenameClipDialog> {
+  late final TextEditingController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = TextEditingController(text: widget.clip.displayTitle);
+    _ctrl.selection =
+        TextSelection(baseOffset: 0, extentOffset: _ctrl.text.length);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save(String? value) async {
+    await widget.state.renameClip(widget.clip.id, value);
+    if (mounted) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppL10n.of(context);
+    final custom = widget.clip.customTitle;
+    final hasCustom = custom != null && custom.trim().isNotEmpty;
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Text(l.t('rename')),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _ctrl,
+            autofocus: true,
+            minLines: 1,
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(hintText: l.t('title')),
+          ),
+          if (hasCustom) ...[
+            const SizedBox(height: 12),
+            Text(
+              '${l.t('original_title')} : ${widget.clip.title}',
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(l.t('cancel')),
+        ),
+        if (hasCustom)
+          TextButton(
+            onPressed: () => _save(null),
+            child: Text(l.t('restore_original')),
+          ),
+        TextButton(
+          onPressed: () => _save(_ctrl.text),
+          child: Text(l.t('save')),
+        ),
+      ],
+    );
+  }
 }
