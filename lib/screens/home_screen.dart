@@ -733,9 +733,7 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         ],
       ),
     );
-    if (confirmed == true) {
-      await widget.state.removeCategory(categoryId, reclassify: true);
-    }
+    if (confirmed == true) await widget.state.removeCategory(categoryId);
   }
 
   static const int _crossAxisCount = 3;
@@ -3588,7 +3586,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
       ),
     );
     if (confirmed != true) return;
-    await widget.state.removeCategory(cat.id, reclassify: true);
+    await widget.state.removeCategory(cat.id);
     if (!mounted) return;
     setState(() {
       if (_clip.categoryId == cat.id) {
