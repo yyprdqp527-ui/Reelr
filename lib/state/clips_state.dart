@@ -349,6 +349,7 @@ class ClipsState extends ChangeNotifier {
     _clipSubSubcategoryMap = await DatabaseHelper.instance.getClipSubSubcategoryMapAll();
     _isLoading = false;
     notifyListeners();
+    unawaited(_retryFailedClassificationsAtStart());
   }
 
   void setSearch(String query) {
@@ -525,6 +526,57 @@ class ClipsState extends ChangeNotifier {
       }
     }
     return null;
+  }
+
+  /// Nombre de relances deja faites, par lien, pour cette session.
+  final Map<String, int> _claudeRetryCount = {};
+
+  /// Delais des relances automatiques d'un lien laisse a trier parce que
+  /// Claude n'a pas repondu : une panne passagere est reparee avant que le
+  /// client revienne voir. Apres la derniere, le lien reste a trier.
+  static const List<Duration> _claudeRetryDelays = [
+    Duration(seconds: 30),
+    Duration(minutes: 2),
+    Duration(minutes: 10),
+  ];
+
+  void _scheduleClaudeRetry(Clip clip) {
+    final n = _claudeRetryCount[clip.id] ?? 0;
+    if (n >= _claudeRetryDelays.length) return;
+    _claudeRetryCount[clip.id] = n + 1;
+    Timer(_claudeRetryDelays[n], () {
+      final current = _clips.where((c) => c.id == clip.id).firstOrNull;
+      if (current == null || current.categoryId != null) return;
+      debugPrint('[classify] relance ${n + 1}/${_claudeRetryDelays.length} '
+          'apres echec Claude: ${clip.id}');
+      unawaited(classifyClipInBackground(current));
+    });
+  }
+
+  /// A l'ouverture de l'appli : relance (5 liens au plus, espaces de 5 s)
+  /// les liens des 7 derniers jours restes a trier a cause d'un echec de
+  /// Claude. Les autres liens a trier (confiance basse...) ne bougent pas.
+  Future<void> _retryFailedClassificationsAtStart() async {
+    try {
+      final limite = DateTime.now().subtract(const Duration(days: 7));
+      final aRelancer = <String>[];
+      for (final c in _clips) {
+        if (c.categoryId != null || c.addedAt.isBefore(limite)) continue;
+        final j = await DatabaseHelper.instance.getClassificationDiagnostic(c.id);
+        final reason = (j?['classification_reason'] as String?) ?? '';
+        if (reason.startsWith('[echec-claude]')) aRelancer.add(c.id);
+        if (aRelancer.length >= 5) break;
+      }
+      for (final id in aRelancer) {
+        await Future.delayed(const Duration(seconds: 5));
+        final current = _clips.where((c) => c.id == id).firstOrNull;
+        if (current == null || current.categoryId != null) continue;
+        debugPrint('[classify] relance a l\'ouverture: $id');
+        unawaited(classifyClipInBackground(current));
+      }
+    } catch (e) {
+      debugPrint('[classify] relance a l\'ouverture impossible: $e');
+    }
   }
 
   Future<void> classifyClipInBackground(Clip clip) async {
@@ -832,8 +884,8 @@ class ClipsState extends ChangeNotifier {
           //
           // Le repli mots-cles est retire d'ici volontairement : cette couche
           // n'a jamais ete mesuree sur ces cas precis, et rien ne dit qu'elle
-          // fasse mieux que le doute. Elle reste active plus bas, dans le
-          // chemin « Claude indisponible », ou elle est le seul recours.
+          // fasse mieux que le doute. Meme regle quand Claude est
+          // indisponible : le lien reste a trier et repart plus tard.
           if (result.confiance < 40) {
             debugPrint('[classify] confiance trop basse (${result.confiance}), clip laisse a trier: ${clip.id}');
             // Le journal est ecrit malgre tout : sans lui, « A trier » serait
@@ -864,7 +916,7 @@ class ClipsState extends ChangeNotifier {
         } catch (e) {
           debugPrint('[classify] Claude failed, retrying once: $e');
           try {
-            await Future.delayed(const Duration(milliseconds: 300));
+            await Future.delayed(const Duration(seconds: 3));
             await _ClassifyLimiter.acquire();
             final ClassificationResult retryResult;
             try {
@@ -891,17 +943,27 @@ class ClipsState extends ChangeNotifier {
             decisionToBuy = retryResult.aAcheter;
             debugPrint('[classify] retry succeeded: $catName');
           } catch (e2) {
-            debugPrint('[classify] retry failed, falling back to keywords: $e2');
-            final existingNames = _categories.map((c) => c.name).toList();
-            catName = CategoryClassifier.detectByKeywords(effectiveTitle, existingNames);
-            if (catName == null) {
-              debugPrint('[classify] keyword fallback found nothing, clip stays unclassified: ${clip.id}');
-              return;
+            // Claude n'a pas repondu deux fois : on ne devine plus avec des
+            // mots-cles (« montage » + « effets » avaient envoye une video
+            // Claude Code en Musique). Le lien reste « A trier », la cause
+            // est ecrite dans le journal, et un nouvel essai part plus tard.
+            debugPrint('[classify] retry failed, clip laisse a trier: $e2');
+            String court(Object err) {
+              final t = err.toString().replaceAll(RegExp(r'\s+'), ' ');
+              return t.length > 160 ? t.substring(0, 160) : t;
             }
-            debugPrint('[classify] keyword fallback result: $catName');
-            decisionSource = "repli mots-clés (Claude indisponible)";
-            decisionReason = "Claude n'a pas répondu après 2 tentatives. "
-                "Classement effectué par mots-clés locaux uniquement.";
+            await DatabaseHelper.instance.updateClipClassification(
+              clipId: clip.id,
+              category: "",
+              confidence: 0,
+              reason: "[echec-claude] Claude n'a pas répondu après 2 "
+                  "tentatives. 1er essai : ${court(e)} | 2e essai : "
+                  "${court(e2)}. Lien laissé à trier, nouvel essai "
+                  "automatique.",
+              tags: const [],
+            );
+            _scheduleClaudeRetry(clip);
+            return;
           }
         }
       }
