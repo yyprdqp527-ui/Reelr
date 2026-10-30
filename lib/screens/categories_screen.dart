@@ -849,7 +849,7 @@ class CategoriesScreen extends StatelessWidget {
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () {
-              state.removeCategory(id);
+              state.removeCategory(id, reclassify: true);
               Navigator.pop(ctx);
             },
             child: Text(l.t('delete')),
