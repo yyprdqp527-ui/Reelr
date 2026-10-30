@@ -30,6 +30,18 @@ class Clip {
   /// Lu par `fromMap`, jamais ecrit par `toMap` (colonne `classification_alt`).
   final List<String> candidates;
 
+  /// Titre choisi par le client. Le titre d'origine (`title`) n'est jamais
+  /// modifie : la recherche porte sur les deux. Lu par `fromMap`, jamais ecrit
+  /// par `toMap` (colonne `customTitle` geree par
+  /// `DatabaseHelper.setClipCustomTitle`), comme `toBuy`.
+  final String? customTitle;
+
+  /// Titre a afficher : celui du client s'il existe, sinon l'original.
+  String get displayTitle {
+    final t = customTitle?.trim();
+    return (t != null && t.isNotEmpty) ? t : title;
+  }
+
   const Clip({
     required this.id,
     required this.url,
@@ -44,6 +56,7 @@ class Clip {
     this.description,
     this.toBuy = false,
     this.candidates = const [],
+    this.customTitle,
   });
 
   Map<String, dynamic> toMap() => {
@@ -78,6 +91,7 @@ class Clip {
         channel: map['channel'] as String?,
         description: map['description'] as String?,
         toBuy: (map['toBuy'] as int?) == 1,
+        customTitle: map['customTitle'] as String?,
         candidates: ((map['classification_alt'] as String?) ?? '')
             .split(',')
             .where((c) => c.isNotEmpty)
@@ -98,5 +112,24 @@ class Clip {
         description: description,
         toBuy: toBuy ?? this.toBuy,
         candidates: candidates,
+        customTitle: customTitle,
+      );
+
+  /// Copie avec un autre titre personnalise (`null` = revenir a l'original).
+  Clip withCustomTitle(String? value) => Clip(
+        id: id,
+        url: url,
+        title: title,
+        platform: platform,
+        categoryId: categoryId,
+        tags: tags,
+        addedAt: addedAt,
+        thumbnailUrl: thumbnailUrl,
+        position: position,
+        channel: channel,
+        description: description,
+        toBuy: toBuy,
+        candidates: candidates,
+        customTitle: value,
       );
 }
