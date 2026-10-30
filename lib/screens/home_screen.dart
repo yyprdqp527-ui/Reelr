@@ -712,13 +712,12 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(l.t('delete_category_confirm').replaceAll('{name}', name)),
-        // Les clips ne sont jamais supprimés : `removeCategory` les repasse
-        // simplement en « À trier ». On le dit, sinon le geste paraît
-        // beaucoup plus destructeur qu'il ne l'est.
+        // Supprimer une tuile supprime aussi ses liens (choix d'Anne,
+        // 2026-10-30) : le message le dit clairement, c'est irreversible.
         content: Text(
           count == 0
               ? l.t('delete_category_empty')
-              : l.t('delete_category_keeps_clips').replaceAll('{n}', '$count'),
+              : l.t('delete_category_deletes_clips').replaceAll('{n}', '$count'),
         ),
         actions: [
           TextButton(
@@ -733,7 +732,9 @@ class _ReorderableCategoryGridState extends State<_ReorderableCategoryGrid> {
         ],
       ),
     );
-    if (confirmed == true) await widget.state.removeCategory(categoryId);
+    if (confirmed == true) {
+      await widget.state.removeCategory(categoryId, deleteClips: true);
+    }
   }
 
   static const int _crossAxisCount = 3;
@@ -3557,8 +3558,8 @@ class _MoveToCategorySheet extends StatefulWidget {
 class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
   late Clip _clip = widget.clip;
 
-  /// Appui long sur une categorie : propose de la supprimer. Les videos ne
-  /// sont jamais supprimees, elles repassent en « A trier ».
+  /// Appui long sur une categorie : propose de la supprimer, avec ses
+  /// videos (irreversible, le message le dit).
   Future<void> _confirmDeleteCategory(ClipCategory cat) async {
     final l = AppL10n.of(context);
     final name = l.localizeCategoryDisplay(cat.id, cat.name);
@@ -3570,7 +3571,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
         content: Text(
           count == 0
               ? l.t('delete_category_empty')
-              : l.t('delete_category_keeps_clips').replaceAll('{n}', '$count'),
+              : l.t('delete_category_deletes_clips').replaceAll('{n}', '$count'),
         ),
         actions: [
           TextButton(
@@ -3586,7 +3587,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
       ),
     );
     if (confirmed != true) return;
-    await widget.state.removeCategory(cat.id);
+    await widget.state.removeCategory(cat.id, deleteClips: true);
     if (!mounted) return;
     setState(() {
       if (_clip.categoryId == cat.id) {

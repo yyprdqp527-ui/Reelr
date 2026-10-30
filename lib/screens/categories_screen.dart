@@ -842,14 +842,19 @@ class CategoriesScreen extends StatelessWidget {
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(l.t('confirm_delete')),
-        content: Text(l.t('confirm_delete_sub')),
+        content: Text(
+          state.countForCategory(id) == 0
+              ? l.t('confirm_delete_sub')
+              : l.t('delete_category_deletes_clips').replaceAll(
+                  '{n}', '${state.countForCategory(id)}'),
+        ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: Text(l.t('cancel'))),
           TextButton(
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             onPressed: () {
-              state.removeCategory(id);
+              state.removeCategory(id, deleteClips: true);
               Navigator.pop(ctx);
             },
             child: Text(l.t('delete')),

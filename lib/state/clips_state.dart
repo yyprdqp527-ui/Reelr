@@ -2397,7 +2397,17 @@ class ClipsState extends ChangeNotifier {
     return cat;
   }
 
-  Future<void> removeCategory(String id) async {
+  /// Supprime la tuile [id]. Avec [deleteClips] (suppression voulue par le
+  /// client), ses liens sont supprimes aussi, sous-tuiles comprises. Sans
+  /// (fusion, reinitialisation), les liens ne sont pas touches ici.
+  Future<void> removeCategory(String id, {bool deleteClips = false}) async {
+    if (deleteClips) {
+      final ids =
+          _clips.where((c) => c.categoryId == id).map((c) => c.id).toList();
+      for (final clipId in ids) {
+        await removeClip(clipId);
+      }
+    }
     await DatabaseHelper.instance.deleteCategory(id);
     _categories.removeWhere((c) => c.id == id);
     _clips = _clips

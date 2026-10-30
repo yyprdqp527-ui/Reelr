@@ -33,9 +33,9 @@ class AppL10n {
           '« {from} » devient une sous-catégorie de « {to} », avec ses {n} liens. La tuile « {from} » disparaît de l\'accueil.',
       'category_merge_confirm': 'Fusionner',
       'subcategory_promote_action': 'Remettre en tuile',
-      'delete_category_keeps_clips':
-          'Les {n} vidéos de cette catégorie ne seront pas supprimées : '
-              'elles repasseront simplement en « À trier ».',
+      'delete_category_deletes_clips':
+          'Les {n} vidéos de cette catégorie seront aussi supprimées. '
+              'Cette action est irréversible.',
       'delete': 'Supprimer',
       'share': 'Partager',
       'rename': 'Renommer',
@@ -144,9 +144,9 @@ class AppL10n {
           '"{from}" becomes a subcategory of "{to}", with its {n} links. The "{from}" tile disappears from the home screen.',
       'category_merge_confirm': 'Merge',
       'subcategory_promote_action': 'Make it a tile again',
-      'delete_category_keeps_clips':
-          "The {n} videos in this category won't be deleted: "
-              'they will simply move back to "To sort".',
+      'delete_category_deletes_clips':
+          'The {n} videos in this category will be deleted too. '
+              'This cannot be undone.',
       'delete': 'Delete',
       'share': 'Share',
       'rename': 'Rename',
