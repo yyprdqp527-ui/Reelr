@@ -838,6 +838,7 @@ class ClipsState extends ChangeNotifier {
       if (userExamples.isNotEmpty) {
         debugPrint('[classify] exemples du carnet : $userExamples');
       }
+      final customExamples = await _customCategoryExamples();
 
       if (catName == null) {
         try {
@@ -855,6 +856,7 @@ class ClipsState extends ChangeNotifier {
               profile: profile,
               customCategories: _customCategoryNames(),
               userExamples: userExamples,
+              customExamples: customExamples,
             );
           } finally {
             _ClassifyLimiter.release();
@@ -931,6 +933,7 @@ class ClipsState extends ChangeNotifier {
                 profile: profile,
                 customCategories: _customCategoryNames(),
                 userExamples: userExamples,
+                customExamples: customExamples,
               );
             } finally {
               _ClassifyLimiter.release();
@@ -1616,6 +1619,42 @@ class ClipsState extends ChangeNotifier {
     debugPrint('[classify] tuiles personnelles envoyees a Claude : $names '
         '(sur ${_categories.length} categories)');
     return names;
+  }
+
+  /// Pour chaque tuile creee par le client : jusqu'a 4 titres deja ranges
+  /// dedans, envoyes a Claude pour qu'il comprenne le sujet de la tuile
+  /// (« Vibe coding » ne dit rien seul). Seuls les exemples fiables comptent :
+  /// un lien place a la main, ou classe par la machine avec une confiance
+  /// d'au moins 85. Un exemple douteux renforcerait sa propre erreur.
+  Future<Map<String, List<String>>> _customCategoryExamples() async {
+    final out = <String, List<String>>{};
+    try {
+      final journal =
+          await DatabaseHelper.instance.getClassificationJournalAll();
+      final custom = _categories.where((c) =>
+          !c.id.startsWith('cat_') &&
+          !c.id.startsWith('ai_') &&
+          c.name.trim().isNotEmpty);
+      for (final cat in custom) {
+        final titles = <String>[];
+        for (final clip in _clips) {
+          if (clip.categoryId != cat.id) continue;
+          final title = clip.title.trim();
+          if (title.isEmpty || titles.contains(title)) continue;
+          final j = journal[clip.id];
+          final predicted =
+              (j?['classification_category'] as String?)?.trim() ?? '';
+          final conf = (j?['classification_confidence'] as int?) ?? 0;
+          if (predicted.isNotEmpty && conf < 85) continue;
+          titles.add(title);
+          if (titles.length >= 4) break;
+        }
+        if (titles.isNotEmpty) out[cat.name.trim()] = titles;
+      }
+    } catch (e) {
+      debugPrint('[classify] exemples des tuiles impossibles: $e');
+    }
+    return out;
   }
 
   static String _norm(String v) => v

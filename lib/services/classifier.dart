@@ -1718,12 +1718,14 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     ClientProfile? profile,
     List<String> customCategories = const [],
     List<String> userExamples = const [],
+    Map<String, List<String>> customExamples = const {},
   }) async {
     final first = await _classifyPass(
       video: video,
       profile: profile,
       customCategories: customCategories,
       userExamples: userExamples,
+      customExamples: customExamples,
     );
     if (first.confiance >= _secondPassBelow ||
         _imageSentFirstPass(video) ||
@@ -1736,6 +1738,7 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         profile: profile,
         customCategories: customCategories,
         userExamples: userExamples,
+        customExamples: customExamples,
         forceImage: true,
       );
       final better = second.confiance > first.confiance;
@@ -1766,10 +1769,11 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
     ClientProfile? profile,
     List<String> customCategories = const [],
     List<String> userExamples = const [],
+    Map<String, List<String>> customExamples = const {},
     bool forceImage = false,
   }) async {
-    final userText =
-        _buildUserText(video, profile, customCategories, userExamples);
+    final userText = _buildUserText(
+        video, profile, customCategories, userExamples, customExamples);
 
     // Construction du contenu (multimodal si thumbnail disponible)
     final dynamic messageContent;
@@ -2323,9 +2327,22 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
         ).timeout(_requestTimeout));
   }
 
+  /// Titre d'exemple pour le prompt : sans le compteur de vues et de
+  /// reactions que Facebook ajoute devant (« 7,2 K vues · 103 reactions |
+  /// vrai titre | page »), sur une ligne, 90 caracteres au plus.
+  static String _exampleTitle(String raw) {
+    var t = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final m = RegExp(r'^[^|]*(vues|réactions|views|reactions)[^|]*\|\s*')
+        .firstMatch(t);
+    if (m != null) t = t.substring(m.end);
+    t = t.replaceAll('"', "'");
+    return t.length > 90 ? t.substring(0, 90) : t;
+  }
+
   static String _buildUserText(VideoData video, ClientProfile? profile,
       [List<String> customCategories = const [],
-      List<String> userExamples = const []]) {
+      List<String> userExamples = const [],
+      Map<String, List<String>> customExamples = const {}]) {
     // Lien web hors plateformes connues (article, fiche, page produit) :
     // presente comme une video, il faisait chercher a Claude une video
     // inexistante et faisait chuter sa confiance (Wikipedia « Belgique »
@@ -2408,6 +2425,26 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
           'tuiles (son nom, ou une marque/un site qu\'elle désigne), réponds '
           'avec son NOM EXACT dans categorie_principale, à la place d\'un '
           'cat_xxx. Sinon, ignore cette liste.');
+      // Ce que contient deja chaque tuile : un nom seul (« Vibe coding »)
+      // ne dit pas son sujet, des titres deja ranges dedans, oui.
+      final withExamples = custom
+          .where((n) => (customExamples[n] ?? const []).isNotEmpty)
+          .toList();
+      if (withExamples.isNotEmpty) {
+        buf.writeln('Contenus déjà rangés dans ces tuiles (ils montrent de quoi '
+            'parle chaque tuile) :');
+        for (final n in withExamples) {
+          final titles = customExamples[n]!
+              .map(_exampleTitle)
+              .where((t) => t.isNotEmpty)
+              .map((t) => '"$t"')
+              .join(' ; ');
+          buf.writeln('  • "$n" : $titles');
+        }
+        buf.writeln('Si ce contenu parle du même sujet que ceux d\'une tuile, '
+            'réponds avec le NOM EXACT de cette tuile, même si son nom '
+            'n\'apparaît pas dans le titre.');
+      }
     }
 
     // Rangements deja faits a la main par l'utilisatrice sur le meme sujet
