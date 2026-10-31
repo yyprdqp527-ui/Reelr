@@ -952,9 +952,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       }
       final stillHeld = <String>[];
       var newlyHeld = 0;
+      final duplicates = <String>[];
       for (final url in [...previouslyHeld, ...urls]) {
         if (!_isValidHttpUrl(url)) continue;
-        if (widget.state.isDuplicate(url)) continue;
+        if (widget.state.isDuplicate(url)) {
+          if (urls.contains(url) && !duplicates.contains(url)) {
+            duplicates.add(url);
+          }
+          continue;
+        }
         // Limite gratuite atteinte : le lien est garde, pas perdu.
         if (!canAddClip(silent: true)) {
           if (!stillHeld.contains(url)) stillHeld.add(url);
@@ -964,6 +970,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         await _ingestSharedUrl(url);
       }
       await prefs.setStringList(_heldShareUrlsKey, stillHeld);
+      if (duplicates.isNotEmpty) _showDuplicateNotice(duplicates);
       if (stillHeld.isNotEmpty) {
         debugPrint('[drain] ${stillHeld.length} lien(s) en attente '
             '(limite gratuite)');
@@ -977,6 +984,36 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     } finally {
       if (arrivalMarked) widget.state.endArrival();
     }
+  }
+
+  /// Lien deja enregistre, arrive par la boite de partage : on le dit.
+  void _showDuplicateNotice(List<String> urls) {
+    final ctx = _navigatorKey.currentContext;
+    if (ctx == null) return;
+    final fr = _locale.languageCode == 'fr';
+    var title = urls.length == 1
+        ? (widget.state.findDuplicate(urls.first)?.title ?? '').trim()
+        : '';
+    if (title.length > 60) title = '${title.substring(0, 60)}…';
+    final String text;
+    if (urls.length > 1) {
+      text = fr
+          ? '${urls.length} liens sont déjà dans votre liste.'
+          : '${urls.length} links are already in your list.';
+    } else if (title.isNotEmpty) {
+      text = fr
+          ? '"$title" est déjà dans votre liste.'
+          : '"$title" is already in your list.';
+    } else {
+      text = fr
+          ? 'Ce lien est déjà dans votre liste.'
+          : 'This link is already in your list.';
+    }
+    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+      content: Text(text),
+      duration: const Duration(seconds: 3),
+      behavior: SnackBarBehavior.floating,
+    ));
   }
 
   bool _isValidHttpUrl(String url) {
