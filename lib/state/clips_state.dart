@@ -352,6 +352,7 @@ class ClipsState extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
+    unawaited(_rangerATrierLocalement());
   }
 
   void setSearch(String query) {
@@ -2333,6 +2334,31 @@ class ClipsState extends ChangeNotifier {
     return null;
   }
 
+  /// Liens « a trier » deja enregistres : rangement local, sans Claude (nom
+  /// d'une sous-tuile dans le titre ou le createur, ou tuile des autres
+  /// liens du createur). Au demarrage et a chaque nouvelle sous-tuile.
+  Future<void> _rangerATrierLocalement() async {
+    var n = 0;
+    for (final clip in List.of(_clips)) {
+      if (clip.categoryId != null) continue;
+      if (SocialPlatform.detect(clip.url).id == 'other') continue;
+      final words = _clipWordsForSub(clip);
+      final parents = <String>{};
+      for (final cat in _categories) {
+        for (final sub in getSubCategoriesFor(cat.id)) {
+          if (_nameMatchesWords(sub.name, words)) parents.add(cat.id);
+        }
+      }
+      final target = (parents.length == 1 ? categoryById(parents.first) : null) ??
+          _creatorCategoryFromClips(clip);
+      if (target == null) continue;
+      await updateClip(clip.copyWith(categoryId: target.id));
+      await alignSubcategory(clip.id);
+      n++;
+    }
+    if (n > 0) debugPrint('[a-trier] $n lien(s) ranges sans Claude');
+  }
+
   /// Tuile des autres liens de ce createur, s'ils sont tous au meme endroit.
   ClipCategory? _creatorCategoryFromClips(Clip clip) {
     final key = _creatorKey(_creatorOf(clip));
@@ -2838,6 +2864,7 @@ class ClipsState extends ChangeNotifier {
     await DatabaseHelper.instance.insertSubCategory(sub.toMap());
     _subcategories.add(sub);
     notifyListeners();
+    unawaited(_rangerATrierLocalement());
   }
 
   Future<void> updateSubCategory(SubCategory sub) async {
