@@ -682,6 +682,28 @@ class ClipsState extends ChangeNotifier {
               "nom de ce créateur. Claude n'a pas été appelé.";
         }
       }
+      if (catName == null && !isWebLink) {
+        final words = _clipWordsForSub(clip);
+        final parents = <String>{};
+        String? subName;
+        for (final cat in _categories) {
+          for (final sub in getSubCategoriesFor(cat.id)) {
+            if (_nameMatchesWords(sub.name, words)) {
+              parents.add(cat.id);
+              subName = sub.name;
+            }
+          }
+        }
+        final parent = parents.length == 1 ? categoryById(parents.first) : null;
+        if (parent != null) {
+          catName = parent.name;
+          debugPrint('[classify] sous-tuile « $subName » dans le titre -> '
+              '${parent.name} (Claude saute)');
+          decisionSource = "couche 1 quater · sous-tuile du même nom";
+          decisionReason = "Le titre ou le créateur contient « $subName », ta "
+              "sous-tuile de ${parent.name}. Claude n'a pas été appelé.";
+        }
+      }
       if (catName == null && isWebLink) {
         final named = _customCategoryMatchingSite(clip.url, clip.channel);
         if (named != null) {
@@ -916,7 +938,19 @@ class ClipsState extends ChangeNotifier {
           // n'a jamais ete mesuree sur ces cas precis, et rien ne dit qu'elle
           // fasse mieux que le doute. Meme regle quand Claude est
           // indisponible : le lien reste a trier et repart plus tard.
-          if (result.confiance < 40) {
+          // Claude hesite, mais tous les autres liens de ce createur sont
+          // dans la meme tuile : le lien les rejoint.
+          final creatorCat =
+              result.confiance < 40 ? _creatorCategoryFromClips(clip) : null;
+          if (creatorCat != null) {
+            catName = creatorCat.name;
+            decisionSource = "créateur (Claude hésitait)";
+            decisionReason = "Claude hésitait (confiance ${result.confiance}). "
+                "Les autres liens de ce créateur sont dans "
+                "« ${creatorCat.name} ».";
+            debugPrint('[classify] Claude hesite, createur -> ${creatorCat.name}');
+          }
+          if (result.confiance < 40 && creatorCat == null) {
             debugPrint('[classify] confiance trop basse (${result.confiance}), clip laisse a trier: ${clip.id}');
             // Le journal est ecrit malgre tout : sans lui, « A trier » serait
             // une boite noire et tu ne saurais pas pourquoi le clip y est.
@@ -2022,7 +2056,29 @@ class ClipsState extends ChangeNotifier {
     final cleaned =
         normalizeForSearch(raw).replaceAll(RegExp(r'[^a-z0-9]+'), ' ').trim();
     if (cleaned.isEmpty) return const [];
-    return cleaned.split(' ').map((w) {
+    final merged = <String>[];
+    final run = StringBuffer();
+    var runLen = 0;
+    void flush() {
+      if (runLen >= 3) {
+        merged.add(run.toString());
+      } else if (runLen > 0) {
+        merged.addAll(run.toString().split(''));
+      }
+      run.clear();
+      runLen = 0;
+    }
+    for (final w in cleaned.split(' ')) {
+      if (w.length == 1) {
+        run.write(w);
+        runLen++;
+      } else {
+        flush();
+        merged.add(w);
+      }
+    }
+    flush();
+    return merged.map((w) {
       if (w.length > 3 && (w.endsWith('s') || w.endsWith('x'))) {
         return w.substring(0, w.length - 1);
       }
@@ -2043,6 +2099,7 @@ class ClipsState extends ChangeNotifier {
     final desc = c.description ?? '';
     final text = [
       c.title,
+      _creatorOf(c) ?? '',
       c.tags.join(' '),
       desc.length > 300 ? desc.substring(0, 300) : desc,
     ].join(' ');
@@ -2087,6 +2144,7 @@ class ClipsState extends ChangeNotifier {
       }
       final subs = getSubCategoriesFor(clip.categoryId);
       var sub = await _creatorSubcategory(_creatorOf(clip), clip.categoryId);
+      sub ??= _creatorSubFromClips(clip);
       sub ??= _bestNamed<SubCategory>(subs, (s) => s.name, clip);
       if (sub == null && subs.isNotEmpty) {
         // Le nom n'est pas dans le titre (« Keshi Yena » -> « Pates ») : Claude
@@ -2273,6 +2331,35 @@ class ClipsState extends ChangeNotifier {
       if (same != null) return same;
     }
     return null;
+  }
+
+  /// Tuile des autres liens de ce createur, s'ils sont tous au meme endroit.
+  ClipCategory? _creatorCategoryFromClips(Clip clip) {
+    final key = _creatorKey(_creatorOf(clip));
+    if (key.isEmpty) return null;
+    final ids = <String>{};
+    for (final c in _clips) {
+      if (c.id == clip.id || c.categoryId == null) continue;
+      if (!_sameCreator(_creatorKey(_creatorOf(c)), key)) continue;
+      ids.add(c.categoryId!);
+    }
+    return ids.length == 1 ? categoryById(ids.first) : null;
+  }
+
+  /// Sous-tuile des autres liens de ce createur dans la meme tuile, s'ils
+  /// sont tous dans la meme.
+  SubCategory? _creatorSubFromClips(Clip clip) {
+    final key = _creatorKey(_creatorOf(clip));
+    if (key.isEmpty) return null;
+    final ids = <String>{};
+    for (final c in _clips) {
+      if (c.id == clip.id || c.categoryId != clip.categoryId) continue;
+      if (!_sameCreator(_creatorKey(_creatorOf(c)), key)) continue;
+      final sid = _clipSubcategoryMap[c.id];
+      if (sid == null) return null;
+      ids.add(sid);
+    }
+    return ids.length == 1 ? _subCategoryById(ids.first) : null;
   }
 
   SubCategory? _namesakeSub(String name, String categoryId) {
