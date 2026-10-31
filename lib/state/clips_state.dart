@@ -12,6 +12,7 @@ import '../core/l10n.dart';
 import 'dart:async';
 import '../services/oembed.dart';
 import '../services/restaurant_rules.dart';
+import '../services/net.dart';
 import '../services/thumbnail_store.dart';
 import '../services/profile_service.dart';
 import '../services/sorting_notebook.dart';
@@ -866,8 +867,18 @@ class ClipsState extends ChangeNotifier {
       final isLoginWallImage = rawThumb != null &&
           RegExp(r'login_static|Take_A_Break|login_wall', caseSensitive: false)
               .hasMatch(rawThumb);
-      final classifyImage =
+      var classifyImage =
           gHints['image'] ?? (isLoginWallImage ? null : rawThumb);
+      // TikTok, Instagram, Facebook, Pinterest : le serveur n'arrive pas
+      // toujours a telecharger leurs images (adresses qui expirent, refus).
+      // On envoie la copie du telephone.
+      if (classifyImage != null &&
+          classifyImage.startsWith('https://') &&
+          const {'tiktok', 'instagram', 'facebook', 'pinterest'}
+              .contains(clip.platform)) {
+        final local = await _localThumbFor(clip.id, classifyImage);
+        if (local != null) classifyImage = local;
+      }
       final classifyDescription = gHints['words'] == null
           ? clip.description
           : [
@@ -2332,6 +2343,24 @@ class ClipsState extends ChangeNotifier {
       if (same != null) return same;
     }
     return null;
+  }
+
+  /// Copie de la vignette sur le telephone, telechargee si besoin.
+  Future<String?> _localThumbFor(String clipId, String url) async {
+    try {
+      if (await ThumbnailStore.instance.fileFor(clipId) == null) {
+        final r = await Net.client
+            .get(Uri.parse(url))
+            .timeout(const Duration(seconds: 8));
+        if (r.statusCode != 200 ||
+            !await ThumbnailStore.instance.saveBytes(clipId, r.bodyBytes)) {
+          return null;
+        }
+      }
+      return ThumbnailStore.localUrlFor(clipId);
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Liens « a trier » deja enregistres : rangement local, sans Claude (nom
