@@ -562,7 +562,7 @@ class ClipsState extends ChangeNotifier {
     try {
       final limite = DateTime.now().subtract(const Duration(days: 7));
       final aRelancer = <String>[];
-      for (final c in _clips) {
+      for (final c in List.of(_clips)) {
         if (c.categoryId != null || c.addedAt.isBefore(limite)) continue;
         final j = await DatabaseHelper.instance.getClassificationDiagnostic(c.id);
         final reason = (j?['classification_reason'] as String?) ?? '';
