@@ -354,6 +354,7 @@ class ClipsState extends ChangeNotifier {
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
     unawaited(_rangerATrierLocalement());
+    unawaited(_reclassShoppingOnce());
   }
 
   void setSearch(String query) {
@@ -2008,7 +2009,7 @@ class ClipsState extends ChangeNotifier {
           'cat_nutrition': 'Nutrition', 'cat_vintage': 'Vintage',
           
           'cat_vibes': 'Vibes', 'cat_tech': 'Tech',
-          'cat_shopping': 'Shopping',
+          'cat_shopping': 'Magasins',
           'cat_restaurant': 'Restaurant',
           'cat_menage': 'Ménage',
           'cat_travaux': 'Travaux',
@@ -2365,6 +2366,27 @@ class ClipsState extends ChangeNotifier {
   static String _collapseLetters(String s) => s.replaceAllMapped(
       RegExp(r'(?<!\p{L})(?:\p{L} ){3,}\p{L}(?!\p{L})', unicode: true),
       (m) => m[0]!.replaceAll(' ', ''));
+
+  /// Une seule fois : les liens de l'ancienne tuile Shopping sont reclasses
+  /// par sujet. Seuls les magasins pris en general y restent (Magasins).
+  Future<void> _reclassShoppingOnce() async {
+    const flag = 'shopping_reclasse_v1';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(flag) ?? false) return;
+    await prefs.setBool(flag, true);
+    final olds = _clips.where((c) => c.categoryId == 'cat_shopping').toList();
+    for (final c in olds) {
+      final cleared = Clip.fromMap({...c.toMap(), 'categoryId': null})
+          .copyWith(toBuy: c.toBuy);
+      await updateClip(cleared);
+      await setClipSubcategory(c.id, null);
+      await setClipSubSubcategory(c.id, null);
+      await classifyClipInBackground(cleared);
+    }
+    if (olds.isNotEmpty) {
+      debugPrint('[shopping] ${olds.length} lien(s) reclasse(s) par sujet');
+    }
+  }
 
   /// Copie de la vignette sur le telephone, telechargee si besoin.
   Future<String?> _localThumbFor(String clipId, String url) async {
