@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/category.dart';
 import '../models/clip.dart';
@@ -669,6 +671,32 @@ class ClipsState extends ChangeNotifier {
       // « Vinted » pour un lien vinted.fr, « Carrefour » pour carrefour.fr)
       // : routage local, sans Claude. Claude connait mal les tuiles
       // personnelles et classait Vinted en Mode avec 95 de confiance.
+      // Etendu aux videos (2026-10-31) : un createur dont le nom commence
+      // par celui de ta tuile (« Charly make up » -> tuile « Charly »).
+      // Createur deja range a la main dans une sous-tuile (2026-10-31) :
+      // meme tuile, sans Claude. Le dernier geste de la personne gagne.
+      if (catName == null && !isWebLink) {
+        final learnedSub = await _creatorSubcategory(clip.channel);
+        final parent =
+            learnedSub == null ? null : categoryById(learnedSub.categoryId);
+        if (learnedSub != null && parent != null) {
+          catName = parent.name;
+          debugPrint('[classify] createur "${clip.channel}" -> sous-tuile '
+              '${learnedSub.name} (Claude saute)');
+          decisionSource = "couche 1 quater · sous-tuile du créateur";
+          decisionReason = "Tu as rangé ce créateur dans « ${learnedSub.name} »"
+              " (${parent.name}). Claude n'a pas été appelé.";
+        }
+      }
+      if (catName == null && !isWebLink) {
+        final named = _customCategoryMatchingCreator(clip.channel);
+        if (named != null) {
+          catName = named.name;
+          decisionSource = "couche 1 quater · tuile du créateur";
+          decisionReason = "Tu as une tuile « ${named.name} » qui porte le "
+              "nom de ce créateur. Claude n'a pas été appelé.";
+        }
+      }
       if (catName == null && isWebLink) {
         final named = _customCategoryMatchingSite(clip.url, clip.channel);
         if (named != null) {
@@ -808,7 +836,17 @@ class ClipsState extends ChangeNotifier {
       final titreEstSeulementLeCreateur = channelTrimmed.isNotEmpty &&
           effectiveTitle.trim() == channelTrimmed;
       final aUneDescription = clip.description?.trim().isNotEmpty ?? false;
-      if (catName == null && titreEstSeulementLeCreateur && !aUneDescription) {
+      // 2026-10-31 : si une vignette exploitable existe, Claude la regarde
+      // (plat, paysage...) au lieu de laisser le lien a trier. Le pseudo
+      // n'est plus envoye comme « titre » : il rendait la reponse arbitraire.
+      final thumbForGuard = clip.thumbnailUrl;
+      final hasUsableThumb = thumbForGuard != null &&
+          thumbForGuard.isNotEmpty &&
+          !RegExp(r'login_static|Take_A_Break|login_wall',
+                  caseSensitive: false)
+              .hasMatch(thumbForGuard);
+      final titleOnlyCreator = titreEstSeulementLeCreateur && !aUneDescription;
+      if (catName == null && titleOnlyCreator && !hasUsableThumb) {
         debugPrint('[classify] Claude non appele : le titre n\'est que le '
             'createur ("$channelTrimmed"), aucun signal a interpreter');
         return;
@@ -855,7 +893,7 @@ class ClipsState extends ChangeNotifier {
           try {
             result = await ClaudeClassifier.classify(
               video: VideoData(
-                title: effectiveTitle,
+                title: titleOnlyCreator ? '(sans légende)' : effectiveTitle,
                 platform: clip.platform,
                 thumbnailUrl: classifyImage,
                 channel: clip.channel,
@@ -1694,6 +1732,19 @@ class ClipsState extends ChangeNotifier {
     return matches.length == 1 ? matches.first : null;
   }
 
+  /// Tuile personnelle dont le nom est le debut du nom du createur
+  /// (4 lettres minimum, une seule tuile possible).
+  ClipCategory? _customCategoryMatchingCreator(String? channel) {
+    final ch = _norm(channel ?? '');
+    if (ch.isEmpty) return null;
+    final matches = _categories.where((c) {
+      if (c.id.startsWith('cat_') || c.id.startsWith('ai_')) return false;
+      final n = _norm(c.name);
+      return n.length >= 4 && ch.startsWith(n);
+    }).toList();
+    return matches.length == 1 ? matches.first : null;
+  }
+
   /// Cle de site (« vinted.fr ») pour un lien web, ou null.
   static String? _siteKey(String url) {
     var uri = Uri.tryParse(url.trim());
@@ -2037,7 +2088,9 @@ class ClipsState extends ChangeNotifier {
         return; // deja range dans une sous-categorie valide
       }
       final subs = getSubCategoriesFor(clip.categoryId);
-      var sub = _bestNamed<SubCategory>(subs, (s) => s.name, clip);
+      var sub = await _creatorSubcategory(clip.channel);
+      if (sub != null && sub.categoryId != clip.categoryId) sub = null;
+      sub ??= _bestNamed<SubCategory>(subs, (s) => s.name, clip);
       if (sub == null && subs.isNotEmpty) {
         // Le nom n'est pas dans le titre (« Keshi Yena » -> « Pates ») : Claude
         // lit le titre, la description et la vignette et choisit parmi les
@@ -2101,9 +2154,48 @@ class ClipsState extends ChangeNotifier {
         categoryLabel: sub.name,
         addedAtMs: DateTime.now().millisecondsSinceEpoch,
       ));
+      await _learnCreatorSubcategory(clip, sub);
     } catch (e) {
       debugPrint('[sous-cat] apprentissage impossible : $e');
     }
+  }
+
+  static const String _creatorSubKey = 'creator_subcategory_v1';
+
+  static String _creatorKey(String? channel) =>
+      (channel ?? '').trim().toLowerCase();
+
+  Future<Map<String, String>> _loadCreatorSubs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_creatorSubKey);
+      if (raw == null || raw.isEmpty) return {};
+      return (jsonDecode(raw) as Map)
+          .map((k, v) => MapEntry(k.toString(), v.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// « Ce createur -> cette sous-tuile », retenu d'un seul geste. Le dernier
+  /// geste remplace le precedent. Les noms de plateforme sont ignores.
+  Future<void> _learnCreatorSubcategory(Clip clip, SubCategory sub) async {
+    final key = _creatorKey(clip.channel);
+    if (key.isEmpty || genericPlatformChannelNames.contains(key)) return;
+    final map = await _loadCreatorSubs();
+    map[key] = sub.id;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_creatorSubKey, jsonEncode(map));
+    debugPrint('[apprentissage] createur « ${clip.channel} » -> sous-tuile '
+        '${sub.name}');
+  }
+
+  /// Sous-tuile retenue pour ce createur, ou null (inconnu ou supprimee).
+  Future<SubCategory?> _creatorSubcategory(String? channel) async {
+    final key = _creatorKey(channel);
+    if (key.isEmpty || genericPlatformChannelNames.contains(key)) return null;
+    final id = (await _loadCreatorSubs())[key];
+    return _subCategoryById(id);
   }
 
   /// Liens de la categorie de [sub] qui ne sont dans aucune sous-tuile.
