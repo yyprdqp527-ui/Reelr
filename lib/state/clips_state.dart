@@ -597,7 +597,7 @@ class ClipsState extends ChangeNotifier {
       // Claude. Avant, un profil (« Nico_la - Live on Twitch ») partait en
       // Voyage a 75 : le titre ne porte que le pseudo et Claude devinait.
       final isTwitchLink = clip.url.toLowerCase().contains('twitch.tv');
-      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || isTwitchLink ? "gaming streaming ${clip.url}" : clip.title;
+      final effectiveTitle = clip.title.isEmpty || clip.title == "Twitch" || isTwitchLink ? "gaming streaming ${clip.url}" : _collapseLetters(clip.title);
       // Lien web hors plateformes connues (article, boutique, fiche...) :
       // les couches locales 1 et 2 sont reglees sur des titres de videos
       // et sur des createurs. Sur une page web, le titre porte souvent un
@@ -878,6 +878,13 @@ class ClipsState extends ChangeNotifier {
               .contains(clip.platform)) {
         final local = await _localThumbFor(clip.id, classifyImage);
         if (local != null) classifyImage = local;
+      }
+      // Titre qui n'est que « TikTok · Createur » : Claude lit la vignette.
+      final bareTitle = RegExp(r'^(TikTok|Instagram|Facebook|Pinterest) · ')
+              .hasMatch(clip.title.trim()) ||
+          clip.title.trim() == (clip.channel ?? '').trim();
+      if (classifyImage != null && bareTitle && clip.customTitle == null) {
+        unawaited(_titleFromThumb(clip.id, classifyImage));
       }
       final classifyDescription = gHints['words'] == null
           ? clip.description
@@ -2345,15 +2352,33 @@ class ClipsState extends ChangeNotifier {
     return null;
   }
 
+  Future<void> _titleFromThumb(String clipId, String image) async {
+    final t = await ClaudeClassifier.titleFromImage(image);
+    if (t == null) return;
+    final cur = _clips.where((c) => c.id == clipId).firstOrNull;
+    if (cur == null || cur.customTitle != null) return;
+    await renameClip(clipId, t);
+    debugPrint('[titre] lu sur la vignette : $t');
+  }
+
+  /// « V I T A A » -> « VITAA », « C h a r l y » -> « Charly ».
+  static String _collapseLetters(String s) => s.replaceAllMapped(
+      RegExp(r'(?<!\p{L})(?:\p{L} ){3,}\p{L}(?!\p{L})', unicode: true),
+      (m) => m[0]!.replaceAll(' ', ''));
+
   /// Copie de la vignette sur le telephone, telechargee si besoin.
   Future<String?> _localThumbFor(String clipId, String url) async {
     try {
       if (await ThumbnailStore.instance.fileFor(clipId) == null) {
-        final r = await Net.client
-            .get(Uri.parse(url))
-            .timeout(const Duration(seconds: 8));
+        final r = await Net.client.get(Uri.parse(url), headers: {
+          'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) '
+              'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 '
+              'Mobile/15E148 Safari/604.1',
+          'Accept': 'image/webp,image/jpeg,image/png,image/*;q=0.8',
+        }).timeout(const Duration(seconds: 8));
         if (r.statusCode != 200 ||
             !await ThumbnailStore.instance.saveBytes(clipId, r.bodyBytes)) {
+          debugPrint('[classify] vignette non telechargee (${r.statusCode})');
           return null;
         }
       }
