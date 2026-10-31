@@ -2162,6 +2162,69 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
   /// quand le nom de la sous-tuile n'apparait pas dans le titre (« Keshi
   /// Yena » -> « Pates »). Renvoie null si rien ne correspond clairement ou
   /// si l'appel echoue : le lien reste alors dans la tuile, sans sous-tuile.
+  /// Titre court lu sur la vignette : le texte ecrit dessus, sinon le sujet
+  /// visible. Pour les liens dont le titre n'est que le nom du createur.
+  static Future<String?> titleFromImage(String thumb) async {
+    try {
+      final Map<String, Object>? source = ThumbnailStore.isLocalUrl(thumb)
+          ? await _localImageSource(thumb)
+          : (thumb.startsWith('https://')
+              ? {'type': 'url', 'url': thumb}
+              : null);
+      if (source == null) return null;
+      final body = jsonEncode({
+        'model': _model,
+        'max_tokens': 1000,
+        if (_isGen5)
+          'output_config': {'effort': 'low'}
+        else
+          'temperature': 0,
+        'messages': [
+          {
+            'role': 'user',
+            'content': [
+              {'type': 'image', 'source': source},
+              {
+                'type': 'text',
+                'text': 'Donne un titre court (8 mots maximum) a cette video, '
+                    'dans la langue du texte visible. Si un texte est ecrit '
+                    'sur l\'image, reprends-le, en minuscules sauf la '
+                    'premiere lettre, sans emoji. Sinon, decris le sujet '
+                    'visible. Reponds UNIQUEMENT en JSON : {"titre": "..."} '
+                    'ou {"titre": null} si rien n\'est lisible ni reconnaissable.',
+              },
+            ],
+          },
+        ],
+      });
+      final resp = await Net.client
+          .post(
+            Uri.parse(_apiUrl),
+            headers: {
+              'x-reelr-secret': Secrets.appSharedSecret,
+              'anthropic-version': '2023-06-01',
+              'content-type': 'application/json',
+            },
+            body: body,
+          )
+          .timeout(_requestTimeout);
+      if (resp.statusCode != 200) return null;
+      final data = jsonDecode(resp.body) as Map<String, dynamic>;
+      final blocks =
+          (data['content'] as List<dynamic>).cast<Map<String, dynamic>>();
+      final textBlock =
+          blocks.where((b) => b['type'] == 'text').firstOrNull;
+      if (textBlock == null) return null;
+      final json = jsonDecode(_extractJson(textBlock['text'] as String))
+          as Map<String, dynamic>;
+      final t = (json['titre'] as String?)?.trim() ?? '';
+      return (t.length < 3 || t.length > 90) ? null : t;
+    } catch (e) {
+      debugPrint('[titre] lecture de la vignette impossible : $e');
+      return null;
+    }
+  }
+
   static Future<String?> pickSubcategory({
     required String title,
     String? description,
@@ -2188,7 +2251,7 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
     Future<http.Response> post(dynamic content) {
       final body = jsonEncode({
         'model': _model,
-        'max_tokens': 400,
+        'max_tokens': 1000,
         if (_isGen5)
           'output_config': {'effort': 'low'}
         else
@@ -2419,6 +2482,15 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
           'USAGE. Ignore le nom du site et le rayon ou fil d\'Ariane ajoutés '
           'au titre (ex. « Amazon.fr: Cuisine et Maison » ne dit rien du '
           'produit).');
+    }
+    // Lien vers le profil d'un createur, pas vers une video : Claude
+    // repondait « page sans contenu » et s'abstenait.
+    if (RegExp(r"Creator Profile|\(@[\w.]+\) \| TikTok", caseSensitive: false)
+        .hasMatch(video.title)) {
+      buf.writeln('Type: PROFIL DE CRÉATEUR (pas une vidéo). Classe-le selon '
+          'ce que fait cette personne : son nom si tu la connais, les mots '
+          'de son pseudo (ex. « musique », « food », « makeup ») et sa photo '
+          '(instrument, cuisine, maquillage...). Ce sont des indices forts.');
     }
     buf.writeln('Titre: ${video.title}');
     if (video.channel != null) buf.writeln('Chaîne: ${video.channel}');
