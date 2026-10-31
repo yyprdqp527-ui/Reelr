@@ -2186,12 +2186,13 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
               {'type': 'image', 'source': source},
               {
                 'type': 'text',
-                'text': 'Donne un titre court (8 mots maximum) a cette video, '
-                    'dans la langue du texte visible. Si un texte est ecrit '
-                    'sur l\'image, reprends-le, en minuscules sauf la '
-                    'premiere lettre, sans emoji. Sinon, decris le sujet '
-                    'visible. Reponds UNIQUEMENT en JSON : {"titre": "..."} '
-                    'ou {"titre": null} si rien n\'est lisible ni reconnaissable.',
+                'text': 'Recopie UNIQUEMENT le texte incruste sur cette image '
+                    '(titre ou phrase ecrite par le createur), 12 mots '
+                    'maximum, en minuscules sauf la premiere lettre, sans '
+                    'emoji. Ignore les logos, pseudos, filigranes et '
+                    'interfaces. Ne decris jamais l\'image. Reponds UNIQUEMENT '
+                    'en JSON : {"titre": "..."} ou {"titre": null} s\'il n\'y a '
+                    'aucun texte.',
               },
             ],
           },
