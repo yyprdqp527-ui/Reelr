@@ -676,7 +676,7 @@ class ClipsState extends ChangeNotifier {
       // Createur deja range a la main dans une sous-tuile (2026-10-31) :
       // meme tuile, sans Claude. Le dernier geste de la personne gagne.
       if (catName == null && !isWebLink) {
-        final learnedSub = await _creatorSubcategory(clip.channel);
+        final learnedSub = await _creatorSubcategory(_creatorOf(clip));
         final parent =
             learnedSub == null ? null : categoryById(learnedSub.categoryId);
         if (learnedSub != null && parent != null) {
@@ -689,7 +689,7 @@ class ClipsState extends ChangeNotifier {
         }
       }
       if (catName == null && !isWebLink) {
-        final named = _customCategoryMatchingCreator(clip.channel);
+        final named = _customCategoryMatchingCreator(_creatorOf(clip));
         if (named != null) {
           catName = named.name;
           decisionSource = "couche 1 quater · tuile du créateur";
@@ -780,9 +780,8 @@ class ClipsState extends ChangeNotifier {
       // d'ecraser l'evidence du titre avec l'historique de la chaine.
       if (catName == null &&
           !isWebLink &&
-          clip.channel != null &&
-          clip.channel!.isNotEmpty) {
-        final learned = profile.learnedCategoryForChannel(clip.channel!);
+          _creatorOf(clip) != null) {
+        final learned = _learnedCategoryForCreator(profile, _creatorOf(clip)!);
         if (learned != null) {
           final hint = CategoryClassifier.detectStrongMatch(
               effectiveTitle,
@@ -1848,7 +1847,7 @@ class ClipsState extends ChangeNotifier {
     Clip clip,
     String newCategoryId,
   ) async {
-    final channel = clip.channel?.trim() ?? '';
+    final channel = _creatorOf(clip) ?? '';
     if (channel.isEmpty) {
       debugPrint('[apprentissage] "${clip.title}" : aucun créateur connu, '
           'rien à retenir');
@@ -1865,7 +1864,13 @@ class ClipsState extends ChangeNotifier {
 
     final service = ProfileService();
     final profile = await service.loadProfile();
-    final key = channel.toLowerCase();
+    var key = channel.toLowerCase();
+    for (final k in profile.channelVocabulary.keys) {
+      if (_sameCreator(_creatorKey(k), _creatorKey(channel))) {
+        key = k;
+        break;
+      }
+    }
     final scores = profile.channelVocabulary[key] ?? const <String, int>{};
     var maxOther = 0;
     scores.forEach((name, v) {
@@ -1873,7 +1878,7 @@ class ClipsState extends ChangeNotifier {
     });
     final own = scores[chosen.name] ?? 0;
     final need = maxOther - own + 1;
-    final updated = profile.withLearnedChannel(channel, chosen.name,
+    final updated = profile.withLearnedChannel(key, chosen.name,
         increment: need > 3 ? need : 3);
     if (identical(updated, profile)) {
       debugPrint('[apprentissage] "$channel" écarté (nom de plateforme)');
@@ -2096,7 +2101,7 @@ class ClipsState extends ChangeNotifier {
         return; // deja range dans une sous-categorie valide
       }
       final subs = getSubCategoriesFor(clip.categoryId);
-      var sub = await _creatorSubcategory(clip.channel);
+      var sub = await _creatorSubcategory(_creatorOf(clip));
       if (sub != null && sub.categoryId != clip.categoryId) sub = null;
       sub ??= _bestNamed<SubCategory>(subs, (s) => s.name, clip);
       if (sub == null && subs.isNotEmpty) {
@@ -2170,8 +2175,56 @@ class ClipsState extends ChangeNotifier {
 
   static const String _creatorSubKey = 'creator_subcategory_v1';
 
+  /// Nom du createur sans espaces ni ponctuation :
+  /// « Not So Superflu », « not_so_superflu » -> « notsosuperflu ».
   static String _creatorKey(String? channel) =>
-      (channel ?? '').trim().toLowerCase();
+      (channel ?? '').toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+  /// Meme createur : meme nom, ou l'un commence par l'autre (6 lettres
+  /// minimum) : « notsosuperflufoodie » = « notsosuperflu ».
+  static bool _sameCreator(String a, String b) {
+    if (a.isEmpty || b.isEmpty) return false;
+    if (a == b) return true;
+    final short = a.length < b.length ? a : b;
+    final long = a.length < b.length ? b : a;
+    return short.length >= 6 && long.startsWith(short);
+  }
+
+  /// Createur d'un lien. Facebook sans createur : fin du titre
+  /// (« ... | Monelle Godaert »). TikTok : identifiant interne remplace
+  /// par le @pseudo du titre.
+  static String? _creatorOf(Clip clip) {
+    var ch = clip.channel?.trim() ?? '';
+    if (ch.startsWith('MS4wLjAB')) ch = '';
+    if (ch.isEmpty) {
+      final handle =
+          RegExp(r'\(@([A-Za-z0-9_.]{2,40})\)').firstMatch(clip.title);
+      if (handle != null) ch = handle.group(1)!;
+    }
+    if (ch.isEmpty && clip.platform == 'facebook') {
+      final parts = clip.title.split(' | ');
+      final last = parts.last.trim();
+      if (parts.length >= 2 && last.length >= 2 && last.length <= 60) {
+        ch = last;
+      }
+    }
+    if (ch.isEmpty ||
+        genericPlatformChannelNames.contains(ch.toLowerCase())) {
+      return null;
+    }
+    return ch;
+  }
+
+  /// Categorie apprise pour ce createur, noms proches compris.
+  String? _learnedCategoryForCreator(ClientProfile profile, String creator) {
+    final key = _creatorKey(creator);
+    for (final k in profile.channelVocabulary.keys) {
+      if (!_sameCreator(_creatorKey(k), key)) continue;
+      final found = profile.learnedCategoryForChannel(k);
+      if (found != null) return found;
+    }
+    return null;
+  }
 
   Future<Map<String, String>> _loadCreatorSubs() async {
     try {
@@ -2188,22 +2241,27 @@ class ClipsState extends ChangeNotifier {
   /// « Ce createur -> cette sous-tuile », retenu d'un seul geste. Le dernier
   /// geste remplace le precedent. Les noms de plateforme sont ignores.
   Future<void> _learnCreatorSubcategory(Clip clip, SubCategory sub) async {
-    final key = _creatorKey(clip.channel);
-    if (key.isEmpty || genericPlatformChannelNames.contains(key)) return;
+    final key = _creatorKey(_creatorOf(clip));
+    if (key.isEmpty) return;
     final map = await _loadCreatorSubs();
+    map.removeWhere((k, _) => _sameCreator(_creatorKey(k), key));
     map[key] = sub.id;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_creatorSubKey, jsonEncode(map));
-    debugPrint('[apprentissage] createur « ${clip.channel} » -> sous-tuile '
+    debugPrint('[apprentissage] createur « ${_creatorOf(clip)} » -> sous-tuile '
         '${sub.name}');
   }
 
   /// Sous-tuile retenue pour ce createur, ou null (inconnu ou supprimee).
   Future<SubCategory?> _creatorSubcategory(String? channel) async {
     final key = _creatorKey(channel);
-    if (key.isEmpty || genericPlatformChannelNames.contains(key)) return null;
-    final id = (await _loadCreatorSubs())[key];
-    return _subCategoryById(id);
+    if (key.isEmpty) return null;
+    for (final e in (await _loadCreatorSubs()).entries) {
+      if (!_sameCreator(_creatorKey(e.key), key)) continue;
+      final sub = _subCategoryById(e.value);
+      if (sub != null) return sub;
+    }
+    return null;
   }
 
   /// Liens de la categorie de [sub] qui ne sont dans aucune sous-tuile.
