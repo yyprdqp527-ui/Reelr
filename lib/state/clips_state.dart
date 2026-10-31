@@ -796,9 +796,7 @@ class ClipsState extends ChangeNotifier {
             debugPrint('[classify] chaine connue "${clip.channel}" -> $catName (Claude saute)');
             decisionSource = "couche 2 · chaîne apprise";
             decisionReason = "La chaîne « ${clip.channel} » a déjà été classée "
-                "au moins 3 fois dans cette catégorie. Claude n'a pas été "
-                "appelé. Cet apprentissage vient des prédictions passées, pas "
-                "de tes corrections.";
+                "dans cette catégorie. Claude n'a pas été appelé.";
           } else {
             debugPrint('[classify] chaine connue "${clip.channel}" -> $learned, '
                 'mais le titre suggere "$hint" : appel de Claude par '
@@ -1529,6 +1527,9 @@ class ClipsState extends ChangeNotifier {
       // on retient le site (independamment de ce que Claude avait predit).
       await _learnSiteFromUserChoice(clip, newCategoryId);
 
+      // Chaque rangement manuel apprend le createur : le dernier geste gagne.
+      await _learnChannelFromUserChoice(clip, newCategoryId);
+
       final journal =
           await DatabaseHelper.instance.getClassificationDiagnostic(clip.id);
       final predictedRaw =
@@ -1553,7 +1554,6 @@ class ClipsState extends ChangeNotifier {
         // `personalVocabulary`, desactive le 2026-08-09 parce qu'il
         // retenait des mots generiques (« vie », « affaire »). Le
         // createur est un signal autrement plus precis.
-        await _learnChannelFromUserChoice(clip, newCategoryId);
         return;
       }
 
@@ -1829,7 +1829,7 @@ class ClipsState extends ChangeNotifier {
   }
 
   /// Enseigne « ce créateur → cette catégorie » à partir d'un rangement
-  /// manuel, quand la machine s'était abstenue.
+  /// manuel. Le dernier geste passe devant les scores existants.
   ///
   /// Poids 3, soit exactement le seuil de `learnedCategoryForChannel` :
   /// **un seul geste de l'utilisateur suffit**, là où il faut trois
@@ -1865,8 +1865,16 @@ class ClipsState extends ChangeNotifier {
 
     final service = ProfileService();
     final profile = await service.loadProfile();
-    final updated =
-        profile.withLearnedChannel(channel, chosen.name, increment: 3);
+    final key = channel.toLowerCase();
+    final scores = profile.channelVocabulary[key] ?? const <String, int>{};
+    var maxOther = 0;
+    scores.forEach((name, v) {
+      if (name != chosen!.name && v > maxOther) maxOther = v;
+    });
+    final own = scores[chosen.name] ?? 0;
+    final need = maxOther - own + 1;
+    final updated = profile.withLearnedChannel(channel, chosen.name,
+        increment: need > 3 ? need : 3);
     if (identical(updated, profile)) {
       debugPrint('[apprentissage] "$channel" écarté (nom de plateforme)');
       return;
