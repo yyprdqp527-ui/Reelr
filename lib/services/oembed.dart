@@ -1662,9 +1662,20 @@ class OEmbedService {
               ? null
               : cleanedDescription;
 
+      // Instagram : og:site_name ne donne que « Instagram ». Le vrai createur
+      // est dans le titre (« Monelle Godaert on Instagram: ... »). Sans lui,
+      // aucun apprentissage par createur n'est possible (2026-10-31).
+      var channelOut = (channel ?? '').trim().isEmpty ? null : channel!.trim();
+      if (platformId == 'instagram') {
+        final m = RegExp(r'^(.{2,80}?) (?:on|sur) Instagram\b',
+                caseSensitive: false)
+            .firstMatch(cleanedTitle);
+        if (m != null) channelOut = m.group(1)!.trim();
+      }
+
       return VideoData(
         title: cleanedTitle.isEmpty ? SocialPlatform.detect(uri.toString()).name : cleanedTitle,
-        channel: (channel ?? '').trim().isEmpty ? null : channel!.trim(),
+        channel: channelOut,
         platform: platformId,
         thumbnailUrl: cleanedThumb,
         description: usableDescription,
