@@ -3476,7 +3476,10 @@ class ClipCard extends StatelessWidget {
         return;
       case 'edit':
         if (currentCategoryId != null) {
-        final subs = state.getSubCategoriesFor(currentCategoryId);
+        final subs = List<SubCategory>.of(
+            state.getSubCategoriesFor(currentCategoryId))
+          ..sort((a, b) => normalizeForSearch(a.name)
+              .compareTo(normalizeForSearch(b.name)));
         final currentSubId = state.subcategoryIdForClip(clip.id);
         final currentSubSubId = state.subsubcategoryIdForClip(clip.id);
         showModalBottomSheet(
@@ -3703,15 +3706,32 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
   @override
   Widget build(BuildContext context) {
     final fr = Localizations.localeOf(context).languageCode == 'fr';
+    // Ordre alphabetique sur le nom affiche, sans tenir compte des
+    // majuscules ni des accents.
+    final l10n = AppL10n.of(context);
+    String key(String v) => normalizeForSearch(v).trim();
+    String catLabel(ClipCategory c) => l10n.localizeCategoryDisplay(c.id, c.name);
+    String parentLabel(String id) {
+      final c = widget.state.categoryById(id);
+      return c == null ? '' : catLabel(c);
+    }
     final categories = List<ClipCategory>.from(widget.state.categories)
-      ..sort((a, b) => a.name.compareTo(b.name));
+      ..sort((a, b) => key(catLabel(a)).compareTo(key(catLabel(b))));
     // Toutes les sous-catégories de toutes les catégories, d'un coup.
     final subs = <SubCategory>[
       for (final c in categories) ...widget.state.getSubCategoriesFor(c.id),
-    ];
+    ]..sort((a, b) {
+        final n = key(a.name).compareTo(key(b.name));
+        return n != 0
+            ? n
+            : key(parentLabel(a.categoryId))
+                .compareTo(key(parentLabel(b.categoryId)));
+      });
     final currentSubId = widget.state.subcategoryIdForClip(_clip.id);
     final currentSubSubId = widget.state.subsubcategoryIdForClip(_clip.id);
-    final subsubs = widget.state.getSubSubCategoriesFor(currentSubId);
+    final subsubs =
+        List<SubSubCategory>.of(widget.state.getSubSubCategoriesFor(currentSubId))
+          ..sort((a, b) => key(a.name).compareTo(key(b.name)));
     const gap = 8.0;
     return ConstrainedBox(
       // Jamais plus haut que 88 % de l'ecran : le haut reste touchable pour
