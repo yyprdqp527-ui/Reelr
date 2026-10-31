@@ -673,21 +673,6 @@ class ClipsState extends ChangeNotifier {
       // personnelles et classait Vinted en Mode avec 95 de confiance.
       // Etendu aux videos (2026-10-31) : un createur dont le nom commence
       // par celui de ta tuile (« Charly make up » -> tuile « Charly »).
-      // Createur deja range a la main dans une sous-tuile (2026-10-31) :
-      // meme tuile, sans Claude. Le dernier geste de la personne gagne.
-      if (catName == null && !isWebLink) {
-        final learnedSub = await _creatorSubcategory(_creatorOf(clip));
-        final parent =
-            learnedSub == null ? null : categoryById(learnedSub.categoryId);
-        if (learnedSub != null && parent != null) {
-          catName = parent.name;
-          debugPrint('[classify] createur "${clip.channel}" -> sous-tuile '
-              '${learnedSub.name} (Claude saute)');
-          decisionSource = "couche 1 quater · sous-tuile du créateur";
-          decisionReason = "Tu as rangé ce créateur dans « ${learnedSub.name} »"
-              " (${parent.name}). Claude n'a pas été appelé.";
-        }
-      }
       if (catName == null && !isWebLink) {
         final named = _customCategoryMatchingCreator(_creatorOf(clip));
         if (named != null) {
@@ -2101,8 +2086,7 @@ class ClipsState extends ChangeNotifier {
         return; // deja range dans une sous-categorie valide
       }
       final subs = getSubCategoriesFor(clip.categoryId);
-      var sub = await _creatorSubcategory(_creatorOf(clip));
-      if (sub != null && sub.categoryId != clip.categoryId) sub = null;
+      var sub = await _creatorSubcategory(_creatorOf(clip), clip.categoryId);
       sub ??= _bestNamed<SubCategory>(subs, (s) => s.name, clip);
       if (sub == null && subs.isNotEmpty) {
         // Le nom n'est pas dans le titre (« Keshi Yena » -> « Pates ») : Claude
@@ -2168,6 +2152,12 @@ class ClipsState extends ChangeNotifier {
         addedAtMs: DateTime.now().millisecondsSinceEpoch,
       ));
       await _learnCreatorSubcategory(clip, sub);
+      // Les autres liens deja enregistres du meme createur suivent, seuls.
+      final moved = await _alignSameCreator(clipId, sub);
+      if (moved > 0) {
+        debugPrint('[apprentissage] $moved autre(s) lien(s) de '
+            '« ${_creatorOf(clip)} » ranges dans « ${sub.name} »');
+      }
     } catch (e) {
       debugPrint('[sous-cat] apprentissage impossible : $e');
     }
@@ -2218,12 +2208,21 @@ class ClipsState extends ChangeNotifier {
   /// Categorie apprise pour ce createur, noms proches compris.
   String? _learnedCategoryForCreator(ClientProfile profile, String creator) {
     final key = _creatorKey(creator);
+    final strong = <String>{};
     for (final k in profile.channelVocabulary.keys) {
       if (!_sameCreator(_creatorKey(k), key)) continue;
-      final found = profile.learnedCategoryForChannel(k);
-      if (found != null) return found;
+      profile.channelVocabulary[k]!.forEach((cat, v) {
+        if (v >= 3) strong.add(cat);
+      });
     }
-    return null;
+    if (strong.length != 1) return null;
+    // Tuiles standard (Recette, Patisserie...) : Claude sait choisir. Le
+    // raccourci ne sert qu'aux tuiles perso, que Claude ne comprend pas.
+    final cat = findBestCategoryMatch(strong.first);
+    if (cat == null || cat.id.startsWith('cat_') || cat.id.startsWith('ai_')) {
+      return null;
+    }
+    return strong.first;
   }
 
   Future<Map<String, String>> _loadCreatorSubs() async {
@@ -2244,24 +2243,66 @@ class ClipsState extends ChangeNotifier {
     final key = _creatorKey(_creatorOf(clip));
     if (key.isEmpty) return;
     final map = await _loadCreatorSubs();
-    map.removeWhere((k, _) => _sameCreator(_creatorKey(k), key));
-    map[key] = sub.id;
+    map.removeWhere((k, v) =>
+        _sameCreator(_creatorKey(k.split('@').first), key) &&
+        _subCategoryById(v)?.categoryId == sub.categoryId);
+    map['$key@${sub.categoryId}'] = sub.id;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_creatorSubKey, jsonEncode(map));
     debugPrint('[apprentissage] createur « ${_creatorOf(clip)} » -> sous-tuile '
         '${sub.name}');
   }
 
-  /// Sous-tuile retenue pour ce createur, ou null (inconnu ou supprimee).
-  Future<SubCategory?> _creatorSubcategory(String? channel) async {
+  /// Sous-tuile retenue pour ce createur dans [categoryId]. Sinon, une
+  /// sous-tuile de meme nom que celle retenue dans une autre tuile
+  /// (« La mère de Michelle » de Recette -> celle de Patisserie).
+  Future<SubCategory?> _creatorSubcategory(
+      String? channel, String? categoryId) async {
     final key = _creatorKey(channel);
-    if (key.isEmpty) return null;
+    if (key.isEmpty || categoryId == null) return null;
+    final learned = <SubCategory>[];
     for (final e in (await _loadCreatorSubs()).entries) {
-      if (!_sameCreator(_creatorKey(e.key), key)) continue;
+      if (!_sameCreator(_creatorKey(e.key.split('@').first), key)) continue;
       final sub = _subCategoryById(e.value);
-      if (sub != null) return sub;
+      if (sub == null) continue;
+      if (sub.categoryId == categoryId) return sub;
+      learned.add(sub);
+    }
+    for (final l in learned) {
+      final same = _namesakeSub(l.name, categoryId);
+      if (same != null) return same;
     }
     return null;
+  }
+
+  SubCategory? _namesakeSub(String name, String categoryId) {
+    final n = normalizeForSearch(name).trim();
+    return getSubCategoriesFor(categoryId)
+        .where((s) => normalizeForSearch(s.name).trim() == n)
+        .firstOrNull;
+  }
+
+  /// Autres liens du meme createur sans sous-tuile : rejoignent la sous-tuile
+  /// de meme nom dans LEUR tuile. Ils ne changent jamais de tuile.
+  Future<int> _alignSameCreator(String clipId, SubCategory sub) async {
+    final clip = _clips.where((c) => c.id == clipId).firstOrNull;
+    if (clip == null) return 0;
+    final key = _creatorKey(_creatorOf(clip));
+    if (key.isEmpty) return 0;
+    var moved = 0;
+    for (final c in List.of(_clips)) {
+      if (c.id == clipId || c.categoryId == null) continue;
+      if (_clipSubcategoryMap[c.id] != null) continue;
+      if (!_sameCreator(_creatorKey(_creatorOf(c)), key)) continue;
+      final target = c.categoryId == sub.categoryId
+          ? sub
+          : _namesakeSub(sub.name, c.categoryId!);
+      if (target == null) continue;
+      await setClipSubcategory(c.id, target.id);
+      await setClipSubSubcategory(c.id, null);
+      moved++;
+    }
+    return moved;
   }
 
   /// Liens de la categorie de [sub] qui ne sont dans aucune sous-tuile.
