@@ -1672,6 +1672,18 @@ class OEmbedService {
             .firstMatch(cleanedTitle);
         if (m != null) channelOut = m.group(1)!.trim();
       }
+      // Facebook : le createur est le dernier morceau du titre
+      // (« 1,5 K vues · 11 réactions | ... | Not So Superflu Foodie »).
+      if (platformId == 'facebook' && channelOut == null) {
+        final parts = cleanedTitle.split(' | ');
+        final last = parts.last.trim();
+        if (parts.length >= 2 &&
+            last.length >= 2 &&
+            last.length <= 60 &&
+            last.toLowerCase() != 'facebook') {
+          channelOut = last;
+        }
+      }
 
       return VideoData(
         title: cleanedTitle.isEmpty ? SocialPlatform.detect(uri.toString()).name : cleanedTitle,
