@@ -1394,12 +1394,18 @@ class CategoryDetailScreen extends StatefulWidget {
   /// (pages web de produits), tous sujets confondus. Pas de videos.
   final bool toBuyOnly;
 
+  /// Sous-tuile (et sous-dossier) selectionnes a l'ouverture.
+  final String? initialSubcategoryId;
+  final String? initialSubSubcategoryId;
+
   const CategoryDetailScreen({
     super.key,
     required this.state,
     required this.categoryId,
     required this.title,
     this.toBuyOnly = false,
+    this.initialSubcategoryId,
+    this.initialSubSubcategoryId,
   });
 
   @override
@@ -1419,6 +1425,8 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     super.initState();
     _sortOrder = widget.state.sortOrderFor(widget.categoryId);
     _gridView = widget.state.gridViewFor(widget.categoryId);
+    _selectedSubcategoryId = widget.initialSubcategoryId;
+    _selectedSubSubcategoryId = widget.initialSubSubcategoryId;
   }
   String? _selectedSubcategoryId;
   String? _selectedSubSubcategoryId;
@@ -3370,31 +3378,49 @@ class ClipCard extends StatelessWidget {
                     Builder(builder: (_) {
                       final sub = state.subCategoryForClip(clip.id);
                       final subSub = state.subSubCategoryForClip(clip.id);
+                      Widget open(Widget badge) {
+                        if (currentCategoryId == category.id) return badge;
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CategoryDetailScreen(
+                                state: state,
+                                categoryId: category.id,
+                                title: AppL10n.of(context)
+                                    .localizeCategoryDisplay(
+                                        category.id, category.name),
+                              ),
+                            ),
+                          ),
+                          child: badge,
+                        );
+                      }
                       // Le niveau le plus precis gagne : sous-sous-tuile,
                       // puis sous-tuile, puis tuile principale.
                       if (sub != null &&
                           sub.categoryId == category.id &&
                           subSub != null &&
                           subSub.subCategoryId == sub.id) {
-                        return _Badge(
+                        return open(_Badge(
                           label: subSub.name,
                           color: subSub.color,
                           icon: subSub.icon,
-                        );
+                        ));
                       }
                       if (sub != null && sub.categoryId == category.id) {
-                        return _Badge(
+                        return open(_Badge(
                           label: sub.name,
                           color: sub.color,
                           icon: sub.icon,
-                        );
+                        ));
                       }
-                      return _Badge(
+                      return open(_Badge(
                         label: AppL10n.of(context).localizeCategoryDisplay(
                             category.id, category.name),
                         color: category.color,
                         icon: category.icon,
-                      );
+                      ));
                     }),
                   if (isPendingClassification)
                     _Badge(
