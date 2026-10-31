@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'net.dart';
+import 'thumbnail_store.dart';
 
 import '../config/secrets.dart';
 import '../models/category.dart';
@@ -1706,6 +1707,51 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         !thumb.contains('reelr-proxy');
   }
 
+  /// Taille max d'une vignette locale envoyee en base64 (le Worker accepte
+  /// 300 Ko de requete : image + base64 + texte du prompt).
+  static const int _maxLocalImageBytes = 150000;
+
+  /// Lit la vignette locale `reelr-local://<id>` et la rend au format
+  /// `source` base64 de l'API, ou null si absente, trop grosse ou inconnue.
+  static Future<Map<String, Object>?> _localImageSource(String thumb) async {
+    try {
+      final id = thumb.substring(ThumbnailStore.localScheme.length + 3);
+      final file = await ThumbnailStore.instance.fileFor(id);
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      if (bytes.length < 12 || bytes.length > _maxLocalImageBytes) {
+        debugPrint('[classify] vignette locale non envoyee '
+            '(${bytes.length} octets)');
+        return null;
+      }
+      String? type;
+      if (bytes[0] == 0xFF && bytes[1] == 0xD8) {
+        type = 'image/jpeg';
+      } else if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E) {
+        type = 'image/png';
+      } else if (bytes[0] == 0x47 && bytes[1] == 0x49 && bytes[2] == 0x46) {
+        type = 'image/gif';
+      } else if (bytes[0] == 0x52 && bytes[1] == 0x49 && bytes[8] == 0x57 &&
+          bytes[9] == 0x45) {
+        type = 'image/webp';
+      }
+      if (type == null) {
+        debugPrint('[classify] vignette locale de format inconnu');
+        return null;
+      }
+      debugPrint('[classify] vignette locale envoyee ($type, '
+          '${bytes.length} octets)');
+      return {
+        'type': 'base64',
+        'media_type': type,
+        'data': base64Encode(bytes),
+      };
+    } catch (e) {
+      debugPrint('[classify] vignette locale illisible : $e');
+      return null;
+    }
+  }
+
   /// Seuil sous lequel Reelr reclasse AVEC la vignette (2e passe).
   static const int _secondPassBelow = 60;
 
@@ -1793,8 +1839,24 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
         thumb != null &&
         thumb.startsWith('https://') &&
         !thumb.contains('reelr-proxy');
-    if (thumb != null &&
+    // Vignette locale (reelr-local://, 2026-10-31) : le fichier n'existe que
+    // sur le telephone, le Worker ne peut pas le telecharger (il retirait
+    // l'image en silence et Claude devinait a l'aveugle). On l'envoie
+    // directement en base64.
+    final isLocalThumb = thumb != null && ThumbnailStore.isLocalUrl(thumb);
+    final localImage = isLocalThumb ? await _localImageSource(thumb) : null;
+    if (localImage != null) {
+      messageContent = [
+        {'type': 'image', 'source': localImage},
+        {
+          'type': 'text',
+          'text': 'Voici la miniature de la vidéo. Utilise-la comme signal '
+              'principal si le titre est ambigu.\n\n$userText',
+        },
+      ];
+    } else if (thumb != null &&
         thumb.isNotEmpty &&
+        !isLocalThumb &&
         (platformsWithReliableThumbnails.contains(video.platform) ||
             isWebWithDirectImage ||
             forceImageOk)) {
