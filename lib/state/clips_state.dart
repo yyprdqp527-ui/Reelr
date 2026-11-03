@@ -1721,18 +1721,36 @@ class ClipsState extends ChangeNotifier {
           c.name.trim().isNotEmpty);
       for (final cat in custom) {
         final titles = <String>[];
+        // 2026-11-03 : un lien range a la main est le meilleur exemple.
+        // Le journal garde la prediction de Claude meme apres un
+        // deplacement : avant, un lien predit sous 85 puis deplace ici par
+        // la cliente etait ecarte. On garde desormais :
+        //  - les liens ranges a la main (tuile actuelle differente de la
+        //    prediction, ou ranges depuis « A trier »), en premier ;
+        //  - les liens ranges par la machine avec une confiance >= 85.
+        final byHand = <String>[];
+        final bySure = <String>[];
         for (final clip in _clips) {
           if (clip.categoryId != cat.id) continue;
           final title = clip.title.trim();
-          if (title.isEmpty || titles.contains(title)) continue;
+          if (title.isEmpty) continue;
+          if (byHand.contains(title) || bySure.contains(title)) continue;
           final j = journal[clip.id];
           final predicted =
               (j?['classification_category'] as String?)?.trim() ?? '';
           final conf = (j?['classification_confidence'] as int?) ?? 0;
-          if (predicted.isNotEmpty && conf < 85) continue;
-          titles.add(title);
-          if (titles.length >= 4) break;
+          final predictedCat =
+              predicted.isEmpty ? null : findBestCategoryMatch(predicted);
+          final movedByHand =
+              predicted.isEmpty || predictedCat?.id != cat.id;
+          if (movedByHand) {
+            byHand.add(title);
+          } else if (conf >= 85) {
+            bySure.add(title);
+          }
+          if (byHand.length >= 4) break;
         }
+        titles.addAll([...byHand, ...bySure].take(4));
         if (titles.isNotEmpty) out[cat.name.trim()] = titles;
       }
     } catch (e) {
