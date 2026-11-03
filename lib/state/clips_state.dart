@@ -691,7 +691,7 @@ class ClipsState extends ChangeNotifier {
         String? subName;
         for (final cat in _categories) {
           for (final sub in getSubCategoriesFor(cat.id)) {
-            if (_nameMatchesWords(sub.name, words)) {
+            if (!_subIsTileName(sub) && _nameMatchesWords(sub.name, words)) {
               parents.add(cat.id);
               subName = sub.name;
             }
@@ -2106,6 +2106,15 @@ class ClipsState extends ChangeNotifier {
     }).toList();
   }
 
+  /// Sous-tuile qui porte le nom d'une tuile (« Voyage ») : elle ne choisit
+  /// pas la tuile, Claude le fait. Elle reste utilisee dans sa tuile.
+  bool _subIsTileName(SubCategory sub) {
+    if (AppL10n.canonicalCategoryId(sub.name) != null) return true;
+    final n = AppL10n.normalizeCategoryLabel(sub.name);
+    return _categories.any((c) =>
+        c.id != sub.categoryId && AppL10n.normalizeCategoryLabel(c.name) == n);
+  }
+
   static bool _nameMatchesWords(String name, Set<String> clipWords) {
     final words = _subWords(name);
     if (words.isEmpty) return false;
@@ -2422,7 +2431,9 @@ class ClipsState extends ChangeNotifier {
       final parents = <String>{};
       for (final cat in _categories) {
         for (final sub in getSubCategoriesFor(cat.id)) {
-          if (_nameMatchesWords(sub.name, words)) parents.add(cat.id);
+          if (!_subIsTileName(sub) && _nameMatchesWords(sub.name, words)) {
+            parents.add(cat.id);
+          }
         }
       }
       final target = (parents.length == 1 ? categoryById(parents.first) : null) ??
