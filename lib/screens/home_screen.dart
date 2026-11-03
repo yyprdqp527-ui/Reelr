@@ -3840,6 +3840,9 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                       // catégorie : on la vide.
                       await widget.state.setClipSubcategory(_clip.id, null);
                       await widget.state.setClipSubSubcategory(_clip.id, null);
+                      // 2026-11-03 : puis on cherche la bonne sous-catégorie
+                      // dans la nouvelle tuile (créateur appris, nom...).
+                      await widget.state.alignSubcategory(_clip.id);
                       if (!ctx.mounted) return;
                       // Choix fait : on ferme la feuille d'un seul geste.
                       Navigator.pop(ctx);
@@ -5077,6 +5080,10 @@ class _EditClipSheetState extends State<EditClipSheet> {
     );
     await widget.state.updateClip(updated);
     await widget.state.recordUserCategoryChoice(widget.clip, categoryId);
+    // 2026-11-03 : tuile changée depuis la fiche -> sous-catégorie recalculée.
+    if (widget.clip.categoryId != categoryId) {
+      await widget.state.alignSubcategory(updated.id);
+    }
     if (mounted) Navigator.pop(context);
   }
 
