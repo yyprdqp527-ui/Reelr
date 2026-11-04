@@ -186,6 +186,54 @@ class ClipsState extends ChangeNotifier {
   List<SubCategory> _subcategories = [];
   Map<String, String> _clipSubcategoryMap = {};
   List<SubSubCategory> _subsubcategories = [];
+
+  /// Noms (normalises) des tuiles FUSIONNEES dans une autre : seules
+  /// celles-ci redirigent le classement vers leur tuile mere. Une
+  /// sous-tuile creee par le client au nom d'une tuile (« Art » dans
+  /// Nature) ne vole plus les liens de cette tuile (2026-11-04).
+  Set<String> _fusedTileLabels = {};
+  static const String _fusedTileKey = 'fused_tile_labels_v1';
+
+  Future<void> _loadFusedTileLabels() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getStringList(_fusedTileKey);
+      if (saved != null) {
+        _fusedTileLabels = saved.toSet();
+        return;
+      }
+      // Premier lancement avec cette memoire : on retrouve les fusions
+      // deja faites. Une fusion garde la couleur de la tuile standard
+      // d'origine ; une sous-tuile creee a la main, non.
+      final seeded = <String>{};
+      bool fromStandardTile(String name, Color color) {
+        final canon = AppL10n.canonicalCategoryId(name);
+        return canon != null && AppL10n.categoryColors[canon] == color;
+      }
+      for (final s in _subcategories) {
+        if (fromStandardTile(s.name, s.color)) {
+          seeded.add(AppL10n.normalizeCategoryLabel(s.name));
+        }
+      }
+      for (final ss in _subsubcategories) {
+        if (fromStandardTile(ss.name, ss.color)) {
+          seeded.add(AppL10n.normalizeCategoryLabel(ss.name));
+        }
+      }
+      _fusedTileLabels = seeded;
+      await prefs.setStringList(_fusedTileKey, seeded.toList());
+      debugPrint('[fusion] tuiles fusionnees retrouvees : $seeded');
+    } catch (e) {
+      debugPrint('[fusion] memoire illisible: $e');
+    }
+  }
+
+  Future<void> _saveFusedTileLabels() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(_fusedTileKey, _fusedTileLabels.toList());
+    } catch (_) {}
+  }
   Map<String, String> _clipSubSubcategoryMap = {};
   String _searchQuery = '';
   bool _isLoading = false;
@@ -350,6 +398,7 @@ class ClipsState extends ChangeNotifier {
     final subSubMaps = await DatabaseHelper.instance.getAllSubSubCategories();
     _subsubcategories = subSubMaps.map(SubSubCategory.fromMap).toList();
     _clipSubSubcategoryMap = await DatabaseHelper.instance.getClipSubSubcategoryMapAll();
+    await _loadFusedTileLabels();
     _isLoading = false;
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
@@ -512,6 +561,10 @@ class ClipsState extends ChangeNotifier {
     for (final s in _subcategories) {
       final parent = categoryById(s.categoryId);
       if (parent == null) continue;
+      if (!_fusedTileLabels
+          .contains(AppL10n.normalizeCategoryLabel(s.name))) {
+        continue; // sous-tuile creee par le client, pas une fusion
+      }
       if (AppL10n.normalizeCategoryLabel(s.name) == comparable) return parent;
       if (canonicalId != null &&
           AppL10n.canonicalCategoryId(s.name) == canonicalId) {
@@ -524,6 +577,10 @@ class ClipsState extends ChangeNotifier {
       final sub = _subCategoryById(ss.subCategoryId);
       final parent = categoryById(sub?.categoryId);
       if (parent == null) continue;
+      if (!_fusedTileLabels
+          .contains(AppL10n.normalizeCategoryLabel(ss.name))) {
+        continue;
+      }
       if (AppL10n.normalizeCategoryLabel(ss.name) == comparable) return parent;
       if (canonicalId != null &&
           AppL10n.canonicalCategoryId(ss.name) == canonicalId) {
@@ -2844,6 +2901,10 @@ class ClipsState extends ChangeNotifier {
       await DatabaseHelper.instance.deleteSubCategory(os.id);
     }
     await removeCategory(fromId);
+    _fusedTileLabels
+      ..add(AppL10n.normalizeCategoryLabel(from.name))
+      ..add(AppL10n.normalizeCategoryLabel(subName));
+    await _saveFusedTileLabels();
   }
 
   /// Inverse de [mergeCategoryIntoCategory] : la sous-categorie [subId]
@@ -2865,6 +2926,9 @@ class ClipsState extends ChangeNotifier {
       color: sub.color,
       icon: sub.icon,
     ));
+    if (_fusedTileLabels.remove(AppL10n.normalizeCategoryLabel(sub.name))) {
+      await _saveFusedTileLabels();
+    }
 
     // 2) Sous-sous-categories -> sous-categories de la tuile.
     final oldSubSubs =
