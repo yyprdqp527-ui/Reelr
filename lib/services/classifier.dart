@@ -2264,11 +2264,23 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
     required String categoryName,
     required List<String> names,
     List<String> userExamples = const [],
+    Map<String, String> subCreators = const {},
   }) async {
     if (names.isEmpty) return null;
     final desc = (description ?? '').trim();
+    // 2026-11-04 : createurs deja ranges dans chaque sous-tuile.
+    final creatorsText = subCreators.isEmpty
+        ? ''
+        : 'Createurs deja ranges par la personne :\n'
+            '${subCreators.entries.map((e) => '- ${e.key} : ${e.value}').join('\n')}\n'
+            'Une sous-tuile au nom d\'une personne ou d\'un compte (ex. « La '
+            'mere de Michelle ») regroupe les videos de ses createurs : n\'y '
+            'range ce lien que s\'il vient de l\'un d\'eux. Une sous-tuile de '
+            'sujet (ex. « Foret », « Frites ») recoit tout lien sur ce sujet, '
+            'quel que soit le createur.\n';
     final text = 'Tuile : $categoryName\n'
         'Sous-tuiles : ${names.join(' | ')}\n'
+        '$creatorsText'
         '${userExamples.isEmpty ? '' : 'Rangements deja faits a la main par la personne (a suivre en priorite) :\n${userExamples.join('\n')}\n'}'
         'Titre : $title\n'
         '${desc.isEmpty ? '' : 'Description : ${desc.length > 400 ? desc.substring(0, 400) : desc}\n'}'
