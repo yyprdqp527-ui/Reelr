@@ -2092,7 +2092,9 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
       Future<http.Response> post(dynamic content) {
         final body = jsonEncode({
           'model': _model,
-          'max_tokens': 1800,
+          // 4000 (1800 avant, 2026-11-04) : la reflexion de Haiku 5.x
+          // mangeait la place et le JSON etait coupe vers 10 liens.
+          'max_tokens': 4000,
           if (_isGen5)
             'output_config': {'effort': 'low'}
           else
@@ -2146,6 +2148,8 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
         return null;
       }
       final lotBody = jsonDecode(utf8.decode(resp.bodyBytes)) as Map;
+      debugPrint('[lot] arret=${lotBody['stop_reason']} '
+          'tokens=${(lotBody['usage'] as Map?)?['output_tokens']}');
       final text = (lotBody['content'] as List)
           .map((b) => (b as Map)['text'] ?? '')
           .join();
