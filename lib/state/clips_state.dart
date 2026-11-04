@@ -1330,10 +1330,12 @@ class ClipsState extends ChangeNotifier {
       // 2) Sinon, sous-groupes de meme sujet (mots communs) : un lot
       // melange (plantes + entreprises + archives...) est range groupe par
       // groupe au lieu d'etre refuse en bloc.
-      final groups = _clusterBatch(items);
-      for (final g in groups) {
-        if (wholeTried && g.length == items.length) continue;
-        await _classifyAndMoveGroup(g, 'sous-groupe');
+      // 2) Repli « sous-groupes par mots communs » retire le 2026-11-04 :
+      // un mot partage (« automne ») mettait un feu de camp avec deux
+      // recettes, et le groupe partait en Food. Sans lecture groupee
+      // fiable, chaque lien garde son classement.
+      if (!wholeTried) {
+        debugPrint('[lot] lecture groupee indisponible, liens laisses tels quels');
       }
     } catch (e) {
       debugPrint('[lot] erreur: $e');
@@ -1353,6 +1355,8 @@ class ClipsState extends ChangeNotifier {
 
   /// Regroupe les liens du lot qui partagent au moins 2 mots (composantes
   /// connexes). Ne garde que les groupes d'au moins [_batchMinGroup] liens.
+  // Repli retire le 2026-11-04 (voir _reviewBatch), garde pour reference.
+  // ignore: unused_element
   List<List<_BatchItem>> _clusterBatch(List<_BatchItem> items) {
     final parent = List<int>.generate(items.length, (i) => i);
     int find(int i) {
@@ -2294,6 +2298,19 @@ class ClipsState extends ChangeNotifier {
         // lit le titre, la description et la vignette et choisit parmi les
         // sous-tuiles du client. Jamais de creation de sous-tuile.
         final subNames = [for (final s in subs) s.name];
+        // 2026-11-04 : createurs deja ranges par la cliente dans chaque
+        // sous-tuile, et si ce lien vient de l'un d'eux.
+        final creatorsBySub = await _creatorsBySubName();
+        final myKey = _creatorKey(_creatorOf(clip));
+        final subCreators = <String, String>{};
+        for (final s in subs) {
+          final ks = creatorsBySub[AppL10n.normalizeCategoryLabel(s.name)];
+          if (ks == null || ks.isEmpty) continue;
+          final mine =
+              myKey.isNotEmpty && ks.any((k) => _sameCreator(k, myKey));
+          subCreators[s.name] = '${ks.take(5).join(', ')}'
+              '${mine ? ' (dont le createur de ce lien)' : ' (ce lien vient d\'un autre createur)'}';
+        }
         // Ce que la personne a deja range a la main dans ces sous-tuiles.
         final examples = (await SortingNotebook(key: _subNotebookKey)
                 .promptExamples(
@@ -2309,6 +2326,7 @@ class ClipsState extends ChangeNotifier {
           categoryName: categoryById(clip.categoryId)?.name ?? '',
           names: subNames,
           userExamples: examples,
+          subCreators: subCreators,
         );
         if (picked != null) {
           sub = subs.where((s) => s.name == picked).firstOrNull;
@@ -2440,6 +2458,20 @@ class ClipsState extends ChangeNotifier {
 
   /// « Ce createur -> cette sous-tuile », retenu d'un seul geste. Le dernier
   /// geste remplace le precedent. Les noms de plateforme sont ignores.
+  /// Createurs (cles) appris pour chaque sous-tuile, par nom normalise :
+  /// « La mere de Michelle » de Recette et de Patisserie partagent la liste.
+  Future<Map<String, List<String>>> _creatorsBySubName() async {
+    final out = <String, List<String>>{};
+    for (final e in (await _loadCreatorSubs()).entries) {
+      final s = _subCategoryById(e.value);
+      if (s == null) continue;
+      out
+          .putIfAbsent(AppL10n.normalizeCategoryLabel(s.name), () => [])
+          .add(e.key.split('@').first);
+    }
+    return out;
+  }
+
   Future<void> _learnCreatorSubcategory(Clip clip, SubCategory sub) async {
     final key = _creatorKey(_creatorOf(clip));
     if (key.isEmpty) return;
