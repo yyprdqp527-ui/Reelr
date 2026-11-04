@@ -2023,12 +2023,12 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
   /// retombe alors sur l'ancienne methode.
   static Future<List<LotGroup>?> classifyLot(
       List<String> lines, List<String> customCategories,
-      [List<String?> images = const []]) async {
+      [List<String?> images = const [],
+      Map<String, List<String>> customExamples = const {},
+      List<String> userExamples = const []]) async {
     try {
-      final tiles = customCategories.isEmpty
-          ? ''
-          : '\nTuiles personnelles de l\'utilisatrice : '
-              '${customCategories.join(', ')}.';
+      final tiles =
+          _lotContext(customCategories, customExamples, userExamples);
       final header = 'Lot de ${lines.length} liens partagés en même temps :\n';
       final textOnly = '$header'
           '${[for (var i = 0; i < lines.length; i++) '${i + 1}. ${lines[i]}'].join('\n')}'
@@ -2456,6 +2456,47 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
   /// Titre d'exemple pour le prompt : sans le compteur de vues et de
   /// reactions que Facebook ajoute devant (« 7,2 K vues · 103 reactions |
   /// vrai titre | page »), sur une ligne, 90 caracteres au plus.
+  /// 2026-11-04 : le lot recoit le meme contexte que le classement d'un
+  /// lien seul : tuiles perso, ce qu'elles contiennent deja, et rangements
+  /// faits a la main. Sans lui, le lot pouvait sortir d'une tuile perso un
+  /// lien que Claude y avait bien range.
+  static String _lotContext(List<String> customCategories,
+      Map<String, List<String>> customExamples, List<String> userExamples) {
+    final buf = StringBuffer();
+    if (customCategories.isNotEmpty) {
+      buf.write('\nTuiles personnelles de l\'utilisatrice : '
+          '${customCategories.join(', ')}.');
+      final withEx = customCategories
+          .where((n) => (customExamples[n] ?? const []).isNotEmpty)
+          .toList();
+      if (withEx.isNotEmpty) {
+        buf.write('\nContenus déjà rangés dans ces tuiles (ils montrent de '
+            'quoi parle chaque tuile) :');
+        for (final n in withEx) {
+          final titles = customExamples[n]!
+              .map(_exampleTitle)
+              .where((t) => t.isNotEmpty)
+              .map((t) => '"$t"')
+              .join(' ; ');
+          buf.write('\n  • "$n" : $titles');
+        }
+        buf.write('\nSi un groupe parle du même sujet que les contenus '
+            'd\'une tuile, utilise le NOM EXACT de cette tuile.');
+      }
+    }
+    if (userExamples.isNotEmpty) {
+      buf.write('\nExemples déjà rangés à la main par l\'utilisatrice '
+          '(son choix prime) :');
+      for (final e in userExamples) {
+        buf.write('\n  • $e');
+      }
+      buf.write('\nSi un groupe traite du même sujet réel que l\'un de ces '
+          'exemples, range-le dans la même catégorie. Un mot en commun ne '
+          'suffit pas.');
+    }
+    return buf.toString();
+  }
+
   static String _exampleTitle(String raw) {
     var t = raw.replaceAll(RegExp(r'\s+'), ' ').trim();
     final m = RegExp(r'^[^|]*(vues|réactions|views|reactions)[^|]*\|\s*')
