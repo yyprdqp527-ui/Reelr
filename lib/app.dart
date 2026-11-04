@@ -934,6 +934,17 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         'drainPendingUrls',
       );
       debugPrint('[drain] raw result: $raw');
+      // Journal de l'extension de partage (2026-11-04) : ce qu'elle a fait
+      // de chaque partage, y compris ceux qui ne sont jamais arrives.
+      try {
+        final dynamic log =
+            await _silentShareInboxChannel.invokeMethod('drainShareLog');
+        if (log is List) {
+          for (final e in log.whereType<String>()) {
+            debugPrint('[extension] $e');
+          }
+        }
+      } catch (_) {}
       final urls = (raw is List)
           ? raw.whereType<String>().map((u) => u.trim()).toList()
           : <String>[];
@@ -1326,7 +1337,6 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// (Yoann Gourcuff en Tech, « walibi » laisse a trier). Le titre
   /// devient la requete elle-meme.
   VideoData? _withSearchQueryTitle(Clip clip, VideoData? meta) {
-    if (meta == null) return meta;
     final uri = Uri.tryParse(clip.url);
     if (uri == null || uri.path != '/search') return meta;
     final host = uri.host.toLowerCase();
@@ -1334,6 +1344,17 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     final query = uri.queryParameters['q']?.trim() ?? '';
     if (query.isEmpty) return meta;
     debugPrint('[hydrate] recherche Google, titre = requete: $query');
+    // 2026-11-04 : page illisible (recherche de videos, « ibp=video ») : la
+    // requete suffit. Avant, le lien restait « Autre », a trier.
+    if (meta == null) {
+      return VideoData(
+        title: query,
+        description: 'Recherche Google de « $query ». Le sujet est ce qui '
+            'est recherché : une personne, une équipe, un lieu, une marque '
+            'ou un thème. Identifie-le pour choisir la catégorie.',
+        platform: 'other',
+      );
+    }
     return VideoData(
       title: query,
       channel: meta.channel,
