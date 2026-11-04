@@ -1173,7 +1173,7 @@ class ClipsState extends ChangeNotifier {
   // Un sous-groupe de meme sujet (plantes, entreprises...) a partir de 2 liens.
   static const int _batchMinGroup = 2;
   static const int _batchMaxItems = 20;
-  static const int _batchMinConfidence = 75;
+  static const int _batchMinConfidence = 70;
 
   /// Note qu'un lien vient d'etre classe. Seuls les liens ajoutes dans les
   /// dernieres minutes comptent : une reclassification d'anciens clips ne
