@@ -961,7 +961,7 @@ class ClipsState extends ChangeNotifier {
           // Claude hesite, mais tous les autres liens de ce createur sont
           // dans la meme tuile : le lien les rejoint.
           final creatorCat =
-              result.confiance < 40 ? _creatorCategoryFromClips(clip) : null;
+              result.confiance < 40 ? await _creatorCategoryFromClips(clip) : null;
           if (creatorCat != null) {
             catName = creatorCat.name;
             decisionSource = "créateur (Claude hésitait)";
@@ -1311,6 +1311,10 @@ class ClipsState extends ChangeNotifier {
       numbered.writeln('${i + 1}. ${group[i].line}');
     }
     final profile = await ProfileService().loadProfile();
+    // 2026-11-04 : meme contexte que pour un lien seul.
+    final customExamples = await _customCategoryExamples();
+    final userExamples = await SortingNotebook()
+        .promptExamples([for (final it in group) it.line].join(' '));
     final ClassificationResult result;
     await _ClassifyLimiter.acquire();
     try {
@@ -1327,6 +1331,8 @@ class ClipsState extends ChangeNotifier {
         ),
         profile: profile,
         customCategories: _customCategoryNames(),
+        userExamples: userExamples,
+        customExamples: customExamples,
       );
     } finally {
       _ClassifyLimiter.release();
@@ -1411,12 +1417,18 @@ class ClipsState extends ChangeNotifier {
   /// true sinon (le lot a ete lu, meme si rien n'a bouge).
   Future<bool> _partitionAndMove(List<_BatchItem> items) async {
     List<LotGroup>? groups;
+    // 2026-11-04 : meme contexte que pour un lien seul.
+    final customExamples = await _customCategoryExamples();
+    final userExamples = await SortingNotebook()
+        .promptExamples([for (final it in items) it.line].join(' '));
     await _ClassifyLimiter.acquire();
     try {
       groups = await ClaudeClassifier.classifyLot(
           [for (final it in items) it.line],
           _customCategoryNames(),
-          [for (final it in items) it.image]);
+          [for (final it in items) it.image],
+          customExamples,
+          userExamples);
     } catch (e) {
       debugPrint('[lot] lecture groupee echouee: $e');
       return false;
@@ -2442,6 +2454,8 @@ class ClipsState extends ChangeNotifier {
   /// liens du createur). Au demarrage et a chaque nouvelle sous-tuile.
   Future<void> _rangerATrierLocalement() async {
     var n = 0;
+    final journal =
+        await DatabaseHelper.instance.getClassificationJournalAll();
     for (final clip in List.of(_clips)) {
       if (clip.categoryId != null) continue;
       if (SocialPlatform.detect(clip.url).id == 'other') continue;
@@ -2455,7 +2469,7 @@ class ClipsState extends ChangeNotifier {
         }
       }
       final target = (parents.length == 1 ? categoryById(parents.first) : null) ??
-          _creatorCategoryFromClips(clip);
+          await _creatorCategoryFromClips(clip, journal);
       if (target == null) continue;
       await updateClip(clip.copyWith(categoryId: target.id));
       await alignSubcategory(clip.id);
@@ -2465,16 +2479,49 @@ class ClipsState extends ChangeNotifier {
   }
 
   /// Tuile des autres liens de ce createur, s'ils sont tous au meme endroit.
-  ClipCategory? _creatorCategoryFromClips(Clip clip) {
+  /// 2026-11-04 : seuls comptent les liens bien ranges (a la main, par une
+  /// regle locale, ou par Claude a 85 et plus). Un rangement incertain de
+  /// la machine ne sert plus de modele : sinon une erreur se repetait d'un
+  /// lien a l'autre.
+  Future<ClipCategory?> _creatorCategoryFromClips(Clip clip,
+      [Map<String, Map<String, Object?>>? journal]) async {
     final key = _creatorKey(_creatorOf(clip));
     if (key.isEmpty) return null;
+    final others = [
+      for (final c in _clips)
+        if (c.id != clip.id &&
+            c.categoryId != null &&
+            _sameCreator(_creatorKey(_creatorOf(c)), key))
+          c,
+    ];
+    if (others.isEmpty) return null;
+    final j = journal ??
+        await DatabaseHelper.instance.getClassificationJournalAll();
     final ids = <String>{};
-    for (final c in _clips) {
-      if (c.id == clip.id || c.categoryId == null) continue;
-      if (!_sameCreator(_creatorKey(_creatorOf(c)), key)) continue;
-      ids.add(c.categoryId!);
+    for (final c in others) {
+      if (_rangementFiable(c, j)) ids.add(c.categoryId!);
     }
     return ids.length == 1 ? categoryById(ids.first) : null;
+  }
+
+  /// Lien range a la main, depuis « A trier », par une regle locale, ou par
+  /// Claude avec une confiance >= 85.
+  bool _rangementFiable(Clip c, Map<String, Map<String, Object?>> journal) {
+    final j = journal[c.id];
+    if (j == null) return true; // lien ancien, sans journal
+    final predicted =
+        (j['classification_category'] as String?)?.trim() ?? '';
+    if (predicted.isEmpty) return true; // range depuis « A trier »
+    if (findBestCategoryMatch(predicted)?.id != c.categoryId) {
+      return true; // deplace a la main
+    }
+    final reason = (j['classification_reason'] as String?) ?? '';
+    final parMachine = reason.startsWith('[Claude') ||
+        reason.startsWith('[lot]') ||
+        reason.startsWith('[créateur');
+    if (!parMachine) return true; // regle locale
+    final conf = (j['classification_confidence'] as int?) ?? 0;
+    return conf >= 85;
   }
 
   /// Sous-tuile des autres liens de ce createur dans la meme tuile, s'ils
