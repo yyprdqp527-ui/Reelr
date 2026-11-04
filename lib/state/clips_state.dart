@@ -1116,9 +1116,9 @@ class ClipsState extends ChangeNotifier {
         tags: decisionTags,
       );
       if (decisionToBuy) {
-        debugPrint('[classify] a_acheter ${clip.platform == 'other' ? 'pose' : 'ignore (video)'} : plateforme=${clip.platform}');
+        debugPrint('[classify] a_acheter ${Clip.canBeShopping(clip.platform) ? 'pose' : 'ignore (video)'} : plateforme=${clip.platform}');
       }
-      if (decisionToBuy && clip.platform == 'other') {
+      if (decisionToBuy && Clip.canBeShopping(clip.platform)) {
         await DatabaseHelper.instance.setClipToBuy(updated.id, true);
       }
       _newlyClassifiedCategoryIds.add(matchedCat.id);
