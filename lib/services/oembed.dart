@@ -474,7 +474,16 @@ class OEmbedService {
     if (lower.contains('youtube.com') || lower.contains('youtu.be')) {
       if (uri == null) return null;
       final videoId = _youtubeVideoIdFromUri(uri);
-      if (videoId == null || videoId.isEmpty) return null;
+      if (videoId == null || videoId.isEmpty) {
+        // 2026-11-04 : lien de playlist (/playlist?list=...). Sans cela, la
+        // page renvoyait le titre de sa premiere video, sans createur, et
+        // le lien ressemblait a un doublon de cette video.
+        final listId = uri.queryParameters['list'];
+        if (listId != null && listId.isNotEmpty) {
+          return _fetchYouTubePlaylistMetadata(listId);
+        }
+        return null;
+      }
       return _fetchYouTubeMetadata(uri, videoId);
     }
 
@@ -565,6 +574,39 @@ class OEmbedService {
       );
     } catch (e) {
       debugPrint('[oembed] youtube proxy: $e');
+      return null;
+    }
+  }
+
+  /// Titre, createur et vignette d'une playlist YouTube (oEmbed accepte les
+  /// adresses de playlist). Echec : null, comme avant.
+  static Future<VideoData?> _fetchYouTubePlaylistMetadata(String listId) async {
+    try {
+      final playlistUrl =
+          'https://www.youtube.com/playlist?list=${Uri.encodeComponent(listId)}';
+      final oembedUrl = 'https://www.youtube.com/oembed?url='
+          '${Uri.encodeComponent(playlistUrl)}&format=json';
+      final response = await Net.client
+          .get(Uri.parse(oembedUrl), headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
+      if (response.statusCode != 200) {
+        debugPrint('[oembed] playlist youtube : ${response.statusCode}');
+        return null;
+      }
+      final payload = json.decode(response.body) as Map<String, dynamic>;
+      final title = (payload['title'] as String?)?.trim() ?? '';
+      if (title.isEmpty) return null;
+      final author = (payload['author_name'] as String?)?.trim();
+      final thumb = (payload['thumbnail_url'] as String?)?.trim();
+      debugPrint('[oembed] playlist youtube : $title');
+      return VideoData(
+        title: 'Playlist · $title',
+        channel: (author == null || author.isEmpty) ? null : author,
+        platform: 'youtube',
+        thumbnailUrl: (thumb == null || thumb.isEmpty) ? null : thumb,
+      );
+    } catch (e) {
+      debugPrint('[oembed] playlist youtube: $e');
       return null;
     }
   }
