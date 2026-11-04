@@ -82,6 +82,8 @@ import UIKit
       }
       if call.method == "drainPendingUrls" {
         result(self.drainPendingUrls())
+      } else if call.method == "drainShareLog" {
+        result(self.drainShareLog())
       } else if call.method == "setSharedLocale" {
         self.setSharedLocale(call.arguments)
         result(nil)
@@ -188,6 +190,23 @@ import UIKit
     defaults.removeObject(forKey: silentShareInboxKey)
     defaults.synchronize()
     return urls
+  }
+
+  /// Journal de l'extension de partage (« ReelrShareLog.* »), vide a la lecture.
+  private func drainShareLog() -> [String] {
+    let groupId = (Bundle.main.object(forInfoDictionaryKey: "AppGroupId") as? String)
+      ?? "group.com.reelr.app.shared"
+    guard let defaults = UserDefaults(suiteName: groupId) else { return [] }
+    let keys = defaults.dictionaryRepresentation().keys
+      .filter { $0.hasPrefix("ReelrShareLog.") }
+      .sorted()
+    var events: [String] = []
+    for key in keys {
+      if let e = defaults.string(forKey: key) { events.append(e) }
+      defaults.removeObject(forKey: key)
+    }
+    defaults.synchronize()
+    return events
   }
   private func setSharedLocale(_ arguments: Any?) {
     guard let languageCode = arguments as? String else { return }
