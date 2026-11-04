@@ -599,7 +599,10 @@ class ClipsState extends ChangeNotifier {
       r'|entdecke \(und sammle\)'
       r'|ontdek \(en bewaar\)'
       r'|d[ÉEée]couvrez cette [ÉEée]pingle'
-      r'|discover this pin)',
+      r'|discover this pin'
+      // Toutes langues (vietnamien vu le 2026-11-04) : « <verbe> (<et
+      // enregistrer>) <vos epingles> <sur> Pinterest. » en fin de texte.
+      r'|\([^()]{1,30}\)[^()]{0,70}pinterest\.?\s*$)',
       caseSensitive: false);
 
   Future<void> classifyClipInBackground(Clip clip) async {
