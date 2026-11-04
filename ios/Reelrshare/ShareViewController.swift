@@ -201,9 +201,11 @@ class ShareViewController: UIViewController {
     private func handleSharedURL() {
         // Safety net: avoid hanging share UI if provider never resolves.
         // Keep a small buffer so slower providers still complete normally.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+        // 8 s (3 s avant le 2026-11-04) : TikTok met parfois plus de 3 s a
+        // fournir l'adresse ; l'extension se fermait avant de l'enregistrer.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.0) { [weak self] in
             if self?.didStore == false {
-                self?.logShare("delai depasse : aucun lien recu en 3 s")
+                self?.logShare("delai depasse : aucun lien recu en 8 s")
             }
             self?.closeExtension()
         }
