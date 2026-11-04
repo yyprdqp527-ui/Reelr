@@ -22,9 +22,14 @@ class Clip {
   final bool toBuy;
 
   /// Lien commercial a montrer dans le panier « a acheter » : une PAGE WEB
-  /// etiquetee produit. Jamais une video (reel, short, TikTok...), meme si
-  /// elle presente un produit.
-  bool get isShoppingLink => toBuy && platform == 'other';
+  /// ou une EPINGLE PINTEREST etiquetee produit (2026-11-04 : une epingle
+  /// est une image de produit, pas une video). Jamais une video (reel,
+  /// short, TikTok...), meme si elle presente un produit.
+  bool get isShoppingLink => toBuy && Clip.canBeShopping(platform);
+
+  /// Plateformes qui peuvent recevoir le panier « a acheter ».
+  static bool canBeShopping(String platform) =>
+      platform == 'other' || platform == 'pinterest';
 
   /// Deux categories proposees pour un lien laisse « a trier » (IDs cat_xxx).
   /// Lu par `fromMap`, jamais ecrit par `toMap` (colonne `classification_alt`).
