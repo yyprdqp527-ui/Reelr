@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -1711,6 +1713,27 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
   /// 300 Ko de requete : image + base64 + texte du prompt).
   static const int _maxLocalImageBytes = 150000;
 
+  /// 2026-11-04 : vignette trop lourde (reels Facebook, ~250 Ko) : on la
+  /// reduit en PNG au lieu de ne rien envoyer. Largeurs essayees de la plus
+  /// grande a la plus petite ; Claude lit tres bien une image de 224 px.
+  static Future<Uint8List?> _shrinkImage(Uint8List bytes) async {
+    for (final w in const [384, 288, 224]) {
+      try {
+        final codec = await ui.instantiateImageCodec(bytes, targetWidth: w);
+        final frame = await codec.getNextFrame();
+        final data =
+            await frame.image.toByteData(format: ui.ImageByteFormat.png);
+        frame.image.dispose();
+        if (data == null) return null;
+        final out = data.buffer.asUint8List();
+        if (out.length <= _maxLocalImageBytes) return out;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   /// Lit la vignette locale `reelr-local://<id>` et la rend au format
   /// `source` base64 de l'API, ou null si absente, trop grosse ou inconnue.
   static Future<Map<String, Object>?> _localImageSource(String thumb) async {
@@ -1718,7 +1741,15 @@ Réponds UNIQUEMENT en JSON valide sur une seule ligne, sans markdown, sans aucu
       final id = thumb.substring(ThumbnailStore.localScheme.length + 3);
       final file = await ThumbnailStore.instance.fileFor(id);
       if (file == null) return null;
-      final bytes = await file.readAsBytes();
+      var bytes = await file.readAsBytes();
+      if (bytes.length > _maxLocalImageBytes) {
+        final small = await _shrinkImage(bytes);
+        if (small != null) {
+          debugPrint('[classify] vignette locale reduite '
+              '(${bytes.length} -> ${small.length} octets)');
+          bytes = small;
+        }
+      }
       if (bytes.length < 12 || bytes.length > _maxLocalImageBytes) {
         debugPrint('[classify] vignette locale non envoyee '
             '(${bytes.length} octets)');
@@ -2422,10 +2453,11 @@ Chaque lien apparaît dans exactement un groupe. Mets une confiance basse si tu 
   static Future<http.Response> _post(dynamic content) {
     final body = jsonEncode({
       'model': _model,
-      // 800 : le JSON de reponse depassait parfois 500 tokens (reponse
-      // coupee, FormatException) ; Haiku 5.x y compte aussi sa reflexion.
-      // Le Worker plafonne a 1000.
-      'max_tokens': 800,
+      // 1500 (2026-11-04, 800 avant) : Haiku 5.x compte sa reflexion dans
+      // max_tokens ; a 800 la reponse etait parfois coupee au milieu du
+      // JSON (« Unterminated string »). Le Worker plafonne a 2000. On ne
+      // paie que les tokens produits.
+      'max_tokens': 1500,
       if (_isGen5)
         'output_config': {'effort': 'low'}
       else
