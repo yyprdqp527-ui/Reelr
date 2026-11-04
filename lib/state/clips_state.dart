@@ -1308,7 +1308,7 @@ class ClipsState extends ChangeNotifier {
             .toList();
         items.add(_BatchItem(clip, line, tags, current,
             SortingNotebook.tokens(info).map(_stem).toSet(),
-            anchor: isAnchor, image: _lotImage(clip)));
+            anchor: isAnchor, image: _lotImage(clip), confidence: conf));
       }
       if (items.length < _batchMinGroup) {
         debugPrint('[lot] ${items.length} lien(s) eligible(s), rien a faire');
@@ -1448,6 +1448,8 @@ class ClipsState extends ChangeNotifier {
     var moved = 0;
     for (final it in group) {
       if (it.anchor) continue;
+      // Le lien seul etait plus sur que le lot : on le laisse.
+      if (it.confidence >= result.confiance) continue;
       final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
       if (fresh == null) continue;
       // Rangé à la main pendant l'analyse : on n'y touche pas.
@@ -1554,6 +1556,8 @@ class ClipsState extends ChangeNotifier {
       var moved = 0;
       for (final it in members) {
         if (it.anchor) continue;
+        // Le lien seul etait plus sur que le lot : on le laisse.
+        if (it.confidence >= g.confidence) continue;
         final fresh = _clips.where((c) => c.id == it.clip.id).firstOrNull;
         if (fresh == null) continue;
         // Range a la main pendant l'analyse : on n'y touche pas.
@@ -3649,6 +3653,10 @@ class _BatchItem {
   /// Vignette https du lien (jointe a la lecture groupee du lot), ou null.
   final String? image;
 
+  /// Confiance du classement du lien seul (0 s'il est a trier). Le lot ne
+  /// le deplace que s'il est plus sur que cela (2026-11-04).
+  final int confidence;
+
   _BatchItem(this.clip, this.line, this.tags, this.categoryAtStart, this.tokens,
-      {this.anchor = false, this.image});
+      {this.anchor = false, this.image, this.confidence = 0});
 }
