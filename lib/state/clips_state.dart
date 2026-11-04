@@ -587,6 +587,21 @@ class ClipsState extends ChangeNotifier {
   /// Couche de mots-cles locaux (detectStrongMatch) : coupee, Claude lit tout.
   static const bool _couchesMotsCles = false;
 
+  /// Legende generique servie par Pinterest quand l'epingle n'en a pas
+  /// (« Scopri (e salva) i tuoi Pin su Pinterest », « Découvrez cette
+  /// Épingle de X »...) : elle ne dit rien du contenu. 2026-11-04 : un pin
+  /// de tableaux est parti en Tech a cause de ce texte.
+  static final RegExp _genericPinTitle = RegExp(
+      r'(discover \(and save!?\) your own pins'
+      r'|d[ÉEée]couvrez \(et enregistrez ?!?\) vos propres [ÉEée]pingles'
+      r'|scopri \(e salva\)'
+      r'|descubre \(y guarda\)'
+      r'|entdecke \(und sammle\)'
+      r'|ontdek \(en bewaar\)'
+      r'|d[ÉEée]couvrez cette [ÉEée]pingle'
+      r'|discover this pin)',
+      caseSensitive: false);
+
   Future<void> classifyClipInBackground(Clip clip) async {
     try {
       debugPrint('[classify] starting for: ${clip.title}');
@@ -881,9 +896,12 @@ class ClipsState extends ChangeNotifier {
         if (local != null) classifyImage = local;
       }
       // Titre qui n'est que « TikTok · Createur » : Claude lit la vignette.
+      final pinSansLegende = clip.platform == 'pinterest' &&
+          _genericPinTitle.hasMatch(clip.title);
       final bareTitle = RegExp(r'^(TikTok|Instagram|Facebook|Pinterest) · ')
               .hasMatch(clip.title.trim()) ||
-          clip.title.trim() == (clip.channel ?? '').trim();
+          clip.title.trim() == (clip.channel ?? '').trim() ||
+          pinSansLegende;
       if (classifyImage != null && bareTitle && clip.customTitle == null) {
         unawaited(_titleFromThumb(clip.id, classifyImage));
       }
@@ -917,7 +935,9 @@ class ClipsState extends ChangeNotifier {
           try {
             result = await ClaudeClassifier.classify(
               video: VideoData(
-                title: titleOnlyCreator ? '(sans légende)' : effectiveTitle,
+                title: (titleOnlyCreator || pinSansLegende)
+                    ? '(sans légende)'
+                    : effectiveTitle,
                 platform: clip.platform,
                 thumbnailUrl: classifyImage,
                 channel: clip.channel,
