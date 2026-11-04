@@ -13,6 +13,7 @@ class ShareViewController: UIViewController {
     private let silentShareInboxKey = "ReelrSilentInboxUrls"
     private let inboxPlopSound: SystemSoundID = 1104
     private var didComplete = false
+    private var didStore = false
     private let safariPreviewsKey = "ReelrSafariPreviews"
     private var didLoadSafariPreview = false
     private var feedbackWrapper: UIView?
@@ -201,6 +202,9 @@ class ShareViewController: UIViewController {
         // Safety net: avoid hanging share UI if provider never resolves.
         // Keep a small buffer so slower providers still complete normally.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
+            if self?.didStore == false {
+                self?.logShare("delai depasse : aucun lien recu en 3 s")
+            }
             self?.closeExtension()
         }
 
@@ -208,6 +212,7 @@ class ShareViewController: UIViewController {
             let item = extensionContext?.inputItems.first as? NSExtensionItem,
             let attachments = item.attachments
         else {
+            logShare("rien a lire dans le partage")
             closeExtension()
             return
         }
@@ -282,7 +287,19 @@ class ShareViewController: UIViewController {
             }
         }
 
+        let types = attachments.flatMap { $0.registeredTypeIdentifiers }
+        logShare("aucun type lisible : \(types.joined(separator: ", "))")
         closeExtension()
+    }
+
+    /// Journal de l'extension, lu et vide par l'appli (« [extension] »).
+    /// Une cle par evenement : rien n'est jamais reecrit.
+    private func logShare(_ event: String) {
+        guard let defaults = UserDefaults(suiteName: appGroupId) else { return }
+        let stamp = Int(Date().timeIntervalSince1970 * 1000)
+        let key = "ReelrShareLog.\(stamp).\(UUID().uuidString.prefix(6))"
+        defaults.set(event, forKey: key)
+        defaults.synchronize()
     }
 
     /// Adresse de la page fournie par ReelrPreprocess.js, ou nil si les
@@ -417,6 +434,7 @@ class ShareViewController: UIViewController {
             let scheme = parsed.scheme?.lowercased(),
             (scheme == "http" || scheme == "https")
         else {
+            logShare("aucun lien trouve : \(String((urlString ?? "rien").prefix(80)))")
             closeExtension()
             return
         }
@@ -430,7 +448,11 @@ class ShareViewController: UIViewController {
                 urls.append(rawURL)
                 defaults.set(urls, forKey: silentShareInboxKey)
                 defaults.synchronize()
+                logShare("lien range (boite : \(urls.count)) : \(String(rawURL.prefix(80)))")
+            } else {
+                logShare("deja dans la boite : \(String(rawURL.prefix(80)))")
             }
+            didStore = true
         }
 
         let haptic = UIImpactFeedbackGenerator(style: .light)
