@@ -1,6 +1,32 @@
 import 'package:flutter/material.dart';
 import '../models/legal_content.dart';
+import '../services/oembed.dart' show SocialPlatform;
+import '../widgets/resilient_thumbnail.dart';
+import '../widgets/thumbnail_fallback.dart';
 import 'legal_document_screen.dart';
+
+/// Une vignette montree sur le paywall : celle d'un lien en attente, ou celle
+/// d'un lien deja enregistre.
+class PaywallThumb {
+  /// Identifiant stable (id du clip, ou adresse du lien en attente).
+  final String id;
+
+  /// Adresse du lien (sert au logo de repli si l'image manque).
+  final String linkUrl;
+
+  /// Adresse de l'image, si on l'a.
+  final String? url;
+
+  /// Id du clip, pour retrouver la copie permanente de la vignette.
+  final String? persistId;
+
+  const PaywallThumb({
+    required this.id,
+    required this.linkUrl,
+    this.url,
+    this.persistId,
+  });
+}
 
 /// Shown when a free user reaches the saved-videos limit.
 class PaywallScreen extends StatefulWidget {
@@ -20,6 +46,10 @@ class PaywallScreen extends StatefulWidget {
   /// sur l'ecran pour que l'utilisatrice sache qu'ils ne sont pas perdus.
   final int heldCount;
 
+  /// Charge les vignettes a montrer (liens en attente, sinon derniers liens
+  /// enregistres). Appele une fois a l'ouverture ; l'ecran ne l'attend jamais.
+  final Future<List<PaywallThumb>> Function()? loadThumbs;
+
   const PaywallScreen({
     super.key,
     required this.onUpgrade,
@@ -28,6 +58,7 @@ class PaywallScreen extends StatefulWidget {
     this.priceText,
     this.isLoading = false,
     this.heldCount = 0,
+    this.loadThumbs,
   });
 
   @override
@@ -45,18 +76,27 @@ class _PaywallScreenState extends State<PaywallScreen> {
   /// qu'une operation est en vol.
   bool get _upgradeBlocked => widget.isLoading || _busy;
 
-  /// Bandeau « X liens t'attendent » : glisse depuis le haut à l'ouverture
-  /// (seulement s'il y a des liens en attente), et se ferme avec la croix.
-  bool _popOn = false;
-  bool _popClosed = false;
+  /// Vignettes : null = en cours de chargement (cartes vides douces),
+  /// liste vide = rien a montrer (la rangee est masquee).
+  List<PaywallThumb>? _thumbs;
 
   @override
   void initState() {
     super.initState();
-    if (widget.heldCount > 0) {
-      Future.delayed(const Duration(milliseconds: 700), () {
-        if (mounted) setState(() => _popOn = true);
-      });
+    _loadThumbs();
+  }
+
+  Future<void> _loadThumbs() async {
+    final loader = widget.loadThumbs;
+    if (loader == null) {
+      _thumbs = const [];
+      return;
+    }
+    try {
+      final list = await loader().timeout(const Duration(seconds: 8));
+      if (mounted) setState(() => _thumbs = list.take(3).toList());
+    } catch (_) {
+      if (mounted) setState(() => _thumbs = const []);
     }
   }
 
@@ -76,7 +116,6 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return Localizations.localeOf(context).languageCode == 'fr';
   }
 
-
   String _heldBold(bool fr) {
     final n = widget.heldCount;
     if (fr) return n == 1 ? '1 lien t’attend.' : '$n liens t’attendent.';
@@ -95,107 +134,167 @@ class _PaywallScreenState extends State<PaywallScreen> {
         : 'They will be added as soon as you upgrade.';
   }
 
+  /// Une carte de la rangee : vraie vignette, ou carte douce en attendant.
+  Widget _card(PaywallThumb? t, double sc) {
+    final w = 76 * sc;
+    final h = 100 * sc;
+    Widget inner;
+    if (t == null) {
+      inner = Container(color: Colors.white.withValues(alpha: 0.08));
+    } else {
+      inner = ResilientThumbnail(
+        key: ValueKey('pw_${t.id}'),
+        url: t.url,
+        cacheKeyId: t.id,
+        persistId: t.persistId,
+        platformId: SocialPlatform.detect(t.linkUrl).id,
+        fit: BoxFit.cover,
+        fallbackBuilder: (_) => ThumbnailFallback(url: t.linkUrl, compact: true),
+      );
+    }
+    return Container(
+      width: w,
+      height: h,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16 * sc),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2), width: 1.5),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 20, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14.5 * sc),
+        child: inner,
+      ),
+    );
+  }
+
+  /// Rangee de trois cartes en eventail.
+  Widget _cards(double sc) {
+    final list = _thumbs;
+    if (list != null && list.isEmpty) return const SizedBox.shrink();
+    final n = list == null ? 3 : list.length;
+    PaywallThumb? at(int i) => (list != null && i < list.length) ? list[i] : null;
+    final angles = n == 1
+        ? const [0.0]
+        : n == 2
+            ? const [-0.07, 0.07]
+            : const [-0.14, 0.0, 0.14];
+    final lifts = n == 3 ? const [6.0, -4.0, 6.0] : const [0.0, 0.0, 0.0];
+    return Padding(
+      padding: EdgeInsets.only(top: 20 * sc),
+      child: SizedBox(
+        height: 116 * sc,
+        child: Stack(
+          alignment: Alignment.center,
+          clipBehavior: Clip.none,
+          children: [
+            for (var i = 0; i < n; i++)
+              Transform.translate(
+                offset: Offset((i - (n - 1) / 2) * 68 * sc, lifts[i] * sc),
+                child: Transform.rotate(angle: angles[i], child: _card(at(i), sc)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _check(String text, double sc) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4 * sc),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('✓', style: TextStyle(color: _pwSun, fontSize: 17 * sc, fontWeight: FontWeight.w900)),
+          SizedBox(width: 9 * sc),
+          Text(
+            text,
+            style: TextStyle(
+              fontFamily: 'Figtree',
+              color: const Color(0xFFD7D4F6),
+              fontSize: 15.5 * sc,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final fr = _isFr(context);
     final sc = (MediaQuery.sizeOf(context).height / 844).clamp(0.78, 1.0).toDouble();
-    final showPop = widget.heldCount > 0 && _popOn && !_popClosed;
 
     Widget fit(Widget w) => FittedBox(fit: BoxFit.scaleDown, child: w);
 
     final top = Column(
       children: [
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 450),
-          curve: Curves.easeOut,
-          height: showPop ? 104 * sc : 36 * sc,
-        ),
-        // Logo
-        Container(
-          width: 72 * sc,
-          height: 72 * sc,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(20 * sc),
-            border: Border.all(color: const Color(0xFF8B5CF6), width: 1.5),
-            boxShadow: [
-              BoxShadow(color: const Color(0xFF8B5CF6).withValues(alpha: 0.7), blurRadius: 30),
-              BoxShadow(color: const Color(0xFF2563EB).withValues(alpha: 0.5), blurRadius: 60),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20 * sc),
-            child: Image.asset('assets/icon/icon.png', fit: BoxFit.cover),
-          ),
-        ),
-        SizedBox(height: 12 * sc),
-        _PwGradText(
-          'Reelr',
-          TextStyle(fontSize: 40 * sc, fontWeight: FontWeight.w800, letterSpacing: -1.2, height: 1),
-        ),
-        SizedBox(height: 26 * sc),
-        fit(Text(
-          fr ? 'Ne perds plus rien.' : 'Never lose a thing.',
-          style: TextStyle(color: Colors.white, fontSize: 27 * sc, fontWeight: FontWeight.w700, letterSpacing: -0.4),
-        )),
-        SizedBox(height: 4 * sc),
-        fit(Text(
-          fr ? 'Mets tout dans Reelr.' : 'Drop it all in Reelr.',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.92),
-            fontSize: 21 * sc,
-            fontWeight: FontWeight.w600,
-          ),
-        )),
-        SizedBox(height: 16 * sc),
-        fit(Text.rich(
-          TextSpan(
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 16.5 * sc, height: 1.45),
-            children: [
-              TextSpan(
-                text: fr
-                    ? 'Pour moins d’un café par mois,\ntu peux tout garder '
-                    : 'For less than a coffee a month,\nkeep everything ',
-              ),
-              TextSpan(
-                text: fr ? 'en illimité' : 'unlimited',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  foreground: Paint()..shader = _pwGradient.createShader(const Rect.fromLTWH(0, 0, 200, 30)),
-                ),
-              ),
-              const TextSpan(text: '.'),
-            ],
-          ),
-          textAlign: TextAlign.center,
-        )),
-        SizedBox(height: 30 * sc),
-        fit(Text.rich(
-          TextSpan(
-            style: TextStyle(color: Colors.white, fontSize: 30 * sc, fontWeight: FontWeight.w800, height: 1.25, letterSpacing: -0.6),
-            children: [
-              TextSpan(
-                text: 'Reelr',
-                style: TextStyle(
-                  foreground: Paint()..shader = _pwGradient.createShader(const Rect.fromLTWH(0, 0, 90, 38)),
-                ),
-              ),
-              TextSpan(
-                text: fr
-                    ? ' un endroit pour tout\nce qui compte pour toi.'
-                    : ', one place for everything\nthat matters to you.',
-              ),
-            ],
-          ),
-          textAlign: TextAlign.center,
-        )),
-        SizedBox(height: 14 * sc),
-        fit(Text(
+        Text(
           fr
               ? 'Tu as utilisé tes 50 sauvegardes gratuites\n(même celles supprimées).'
               : 'You’ve used your 50 free saves\n(deleted ones count too).',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 12.5 * sc, height: 1.45),
+          style: TextStyle(
+            fontFamily: 'Figtree',
+            color: Colors.white.withValues(alpha: 0.66),
+            fontSize: 13.5 * sc,
+            fontWeight: FontWeight.w800,
+            height: 1.45,
+          ),
+        ),
+        SizedBox(height: 26 * sc),
+        // Slogan comme sur myreelr.app : « Mets tout dans » puis le logo.
+        fit(Text(
+          fr ? 'Mets tout dans' : 'Put it all in',
+          style: TextStyle(
+            fontFamily: 'Figtree',
+            color: Colors.white,
+            fontSize: 46 * sc,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -2.1 * sc,
+            height: 1.0,
+          ),
         )),
+        SizedBox(height: 4 * sc),
+        Image.asset(
+          'assets/onboarding/reelr-wordmark.png',
+          height: 44 * sc,
+          fit: BoxFit.contain,
+        ),
+        SizedBox(height: 14 * sc),
+        fit(Text(
+          fr ? 'Ne perds plus rien' : 'Never lose a thing',
+          style: TextStyle(
+            fontFamily: 'Figtree',
+            color: Colors.white,
+            fontSize: 23 * sc,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.7,
+          ),
+        )),
+        SizedBox(height: 14 * sc),
+        _check(fr ? 'Sauvegardes illimitées' : 'Unlimited saves', sc),
+        _check(fr ? 'Tri automatique' : 'Automatic sorting', sc),
+        _check(fr ? 'Retrouve tout en 2 secondes' : 'Find anything in 2 seconds', sc),
+        _cards(sc),
+        if (widget.heldCount > 0) ...[
+          SizedBox(height: 10 * sc),
+          Text.rich(
+            TextSpan(
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13 * sc, height: 1.4),
+              children: [
+                TextSpan(
+                  text: _heldBold(fr),
+                  style: TextStyle(color: _pwSun, fontWeight: FontWeight.w800, fontSize: 14 * sc),
+                ),
+                TextSpan(text: '\n${_heldRest(fr)}'),
+              ],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ],
     );
 
@@ -208,44 +307,35 @@ class _PaywallScreenState extends State<PaywallScreen> {
           )
         else ...[
           Text(
-            'Reelr Premium',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14 * sc),
-          ),
-          const SizedBox(height: 2),
-          Text(
             widget.priceText!,
-            style: TextStyle(color: Colors.white, fontSize: 34 * sc, fontWeight: FontWeight.w600, height: 1.1),
+            style: TextStyle(
+              fontFamily: 'Figtree',
+              color: Colors.white,
+              fontSize: 36 * sc,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -1.1,
+              height: 1.1,
+            ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
           Text(
-            fr ? 'par an' : 'per year',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.6), fontSize: 14 * sc),
+            fr ? 'par an · moins d’un café par mois' : 'per year · less than a coffee a month',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.66), fontSize: 13),
           ),
         ],
-        SizedBox(height: 22 * sc),
+        SizedBox(height: 16 * sc),
         // Bouton d'achat
         Container(
           width: double.infinity,
           height: 54,
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: _upgradeBlocked
-                  ? const [Color(0xFF5B4B7A), Color(0xFF7A5B9A)]
-                  : const [Color(0xFF7C3AED), Color(0xFFA855F7)],
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.45),
-                blurRadius: 24,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            color: _upgradeBlocked ? _pwSun.withValues(alpha: 0.55) : _pwSun,
+            borderRadius: BorderRadius.circular(27),
           ),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(27),
               onTap: _upgradeBlocked ? null : () => _run(widget.onUpgrade),
               child: Center(
                 child: _upgradeBlocked
@@ -254,18 +344,27 @@ class _PaywallScreenState extends State<PaywallScreen> {
                         width: 22,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1A1651)),
                         ),
                       )
                     : Text(
-                        fr ? 'Je passe à Premium' : 'Upgrade to Premium',
-                        style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700),
+                        fr ? 'Tout garder' : 'Keep everything',
+                        style: const TextStyle(
+                          fontFamily: 'Figtree',
+                          color: Color(0xFF1A1651),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 8),
+        Text(
+          fr ? 'Résiliable à tout moment' : 'Cancel anytime',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.72), fontSize: 13.5, fontWeight: FontWeight.w700),
+        ),
         Wrap(
           alignment: WrapAlignment.center,
           crossAxisAlignment: WrapCrossAlignment.center,
@@ -275,7 +374,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               onPressed: widget.onClose,
               child: Text(
                 fr ? 'Pas maintenant' : 'Not now',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.55), fontSize: 14),
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.62), fontSize: 14, fontWeight: FontWeight.w600),
               ),
             ),
             if (widget.onRestore != null)
@@ -284,8 +383,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 child: Text(
                   fr ? 'Restaurer mes achats' : 'Restore purchases',
                   style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+                    color: Colors.white.withValues(alpha: 0.62),
                     fontSize: 14,
+                    fontWeight: FontWeight.w600,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -293,13 +393,11 @@ class _PaywallScreenState extends State<PaywallScreen> {
           ],
         ),
         Text(
-          fr
-              ? 'Renouvellement automatique annuel · Résiliable à tout moment'
-              : 'Renews automatically every year · Cancel anytime',
+          fr ? 'Renouvellement automatique annuel' : 'Renews automatically every year',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11, height: 1.5),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11, height: 1.5),
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Wrap(
           alignment: WrapAlignment.center,
           spacing: 6,
@@ -316,13 +414,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
               child: Text(
                 fr ? 'Politique de confidentialité' : 'Privacy Policy',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 11,
                   decoration: TextDecoration.underline,
                 ),
               ),
             ),
-            Text('·', style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 11)),
+            Text('·', style: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 11)),
             GestureDetector(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(
@@ -335,7 +433,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
               child: Text(
                 fr ? 'Conditions d’utilisation' : 'Terms of Use',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.45),
+                  color: Colors.white.withValues(alpha: 0.5),
                   fontSize: 11,
                   decoration: TextDecoration.underline,
                 ),
@@ -343,7 +441,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 10),
       ],
     );
 
@@ -363,7 +461,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
                       constraints: BoxConstraints(minHeight: box.maxHeight),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: [top, SizedBox(height: 24 * sc), bottom],
+                        children: [
+                          SizedBox(height: 36 * sc),
+                          top,
+                          SizedBox(height: 22 * sc),
+                          bottom,
+                        ],
                       ),
                     ),
                   ),
@@ -392,89 +495,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
               ),
             ),
           ),
-          // Bandeau « liens en attente »
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutBack,
-            top: showPop ? MediaQuery.paddingOf(context).top + 10 : -220,
-            left: 16,
-            right: 16,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-              decoration: BoxDecoration(
-                color: const Color(0xF514182B),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _pwLilac, width: 1.5),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withValues(alpha: 0.5), blurRadius: 30, offset: const Offset(0, 10)),
-                  BoxShadow(color: const Color(0xFF8B5CF6).withValues(alpha: 0.5), blurRadius: 18),
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(color: _pwLilac, shape: BoxShape.circle),
-                    child: Text(
-                      '${widget.heldCount}',
-                      style: const TextStyle(color: Color(0xFF0B1440), fontSize: 16, fontWeight: FontWeight.w900),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
-                        children: [
-                          TextSpan(text: _heldBold(fr), style: const TextStyle(fontWeight: FontWeight.w600)),
-                          TextSpan(text: '\n${_heldRest(fr)}'),
-                        ],
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => _popClosed = true),
-                    icon: Icon(Icons.close, size: 18, color: Colors.white.withValues(alpha: 0.5)),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 }
 
-const Color _pwBg = Color(0xFF0B0820);
-const Color _pwLilac = Color(0xFFA78BFA);
-const LinearGradient _pwGradient = LinearGradient(
-  colors: [Color(0xFF8B5CF6), Color(0xFF2563EB), Color(0xFF22D3EE)],
-  stops: [0.0, 0.6, 1.0],
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-);
+const Color _pwBg = Color(0xFF1A1651);
+const Color _pwSun = Color(0xFFE6E98A);
 
-/// Texte au dégradé du logo.
-class _PwGradText extends StatelessWidget {
-  final String text;
-  final TextStyle style;
-
-  const _PwGradText(this.text, this.style);
-
-  @override
-  Widget build(BuildContext context) {
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => _pwGradient.createShader(bounds),
-      child: Text(text, textAlign: TextAlign.center, style: style.copyWith(color: Colors.white)),
-    );
-  }
-}
-
-/// Halos violets (mêmes que l'onboarding).
+/// Lueurs bleues du site (mêmes que l'onboarding).
 class _PwGlow extends StatelessWidget {
   const _PwGlow();
 
@@ -493,10 +523,9 @@ class _PwGlow extends StatelessWidget {
       child: Stack(
         clipBehavior: Clip.hardEdge,
         children: [
-          Positioned(top: -160, right: -180, child: _halo(const Color(0xFF6D28D9), 460, 0.45)),
-          Positioned(top: 240, left: -230, child: _halo(const Color(0xFF312E81), 420, 0.6)),
-          Positioned(top: 420, right: -220, child: _halo(_pwLilac, 360, 0.22)),
-          Positioned(bottom: -230, left: -40, child: _halo(const Color(0xFF4C1D95), 480, 0.5)),
+          Positioned(top: -190, left: -200, child: _halo(const Color(0xFF2B43F4), 520, 0.62)),
+          Positioned(top: 400, right: -240, child: _halo(const Color(0xFF12C2DA), 440, 0.30)),
+          Positioned(bottom: -240, left: -60, child: _halo(const Color(0xFF2B43F4), 520, 0.40)),
         ],
       ),
     );
