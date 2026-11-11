@@ -45,8 +45,8 @@
           "billingPlans" : [
             {
               "billingPlanType" : "BILLED_UPFRONT",
-              "commitmentDisplayPrice" : "0.99",
-              "displayPrice" : "0.99",
+              "commitmentDisplayPrice" : "29.99",
+              "displayPrice" : "29.99",
               "internalID" : "DD260CCB",
               "isEnabled" : true
             }
@@ -54,7 +54,7 @@
           "codeOffers" : [
 
           ],
-          "displayPrice" : "29,99",
+          "displayPrice" : "29.99",
           "familyShareable" : false,
           "groupNumber" : 1,
           "internalID" : "955E7BCA",
