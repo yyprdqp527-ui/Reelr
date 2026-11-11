@@ -1498,7 +1498,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(isFr
             ? "Le partage n'a pas pu s'ouvrir. Réessaie."
-            : "Sharing couldn't open. Try again."),
+            : "Couldn't open sharing. Try again."),
       ));
     }
   }
@@ -1996,7 +1996,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
         builder: (ctx, setDlgState) => AlertDialog(
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouvelle sous-catégorie' : 'New subfolder'),
+          title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Nouvelle sous-catégorie' : 'New subcategory'),
           content: SizedBox(
             width: 300,
             child: SingleChildScrollView(
@@ -2311,7 +2311,7 @@ class _SubcategoryBar extends StatelessWidget {
       builder: (ctx) => AlertDialog(
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer la sous-catégorie ?' : 'Delete subfolder?'),
+        title: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? 'Supprimer la sous-catégorie ?' : 'Delete subcategory?'),
         content: Text(Localizations.localeOf(ctx).languageCode == 'fr' ? '"${sub.name}" sera supprimée.' : '"${sub.name}" will be deleted.'),
         actions: [
           TextButton(
@@ -2703,7 +2703,7 @@ class _ArrivingState extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            isFr ? 'Reelr range ton lien…' : 'Reelr is filing your link…',
+            isFr ? 'Reelr range ton lien…' : 'Reelr is sorting your link…',
             style: TextStyle(color: color, fontSize: 15),
           ),
         ],
@@ -2827,7 +2827,7 @@ class _SubcategoryEmptyState extends StatelessWidget {
               Text(
                 isFr
                     ? 'Va dans l\'onglet Tout, appuie sur le menu ⋮ d\'un clip,\npuis choisis Classer pour l\'ajouter ici'
-                    : 'Go to the All tab, tap the ⋮ menu on a clip,\nthen choose Sort to add it here',
+                    : 'Go to the All tab, tap the ⋮ menu on a video,\nthen choose Add to… to put it here',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 14, height: 1.6, color: subColor),
               ),
@@ -3712,7 +3712,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
               Text(
                 fr
                     ? 'Appui long sur une catégorie, une sous-catégorie ou un sous-dossier pour le supprimer.'
-                    : 'Long-press a category, subfolder or sub-subfolder to delete it.',
+                    : 'Long-press a category, subcategory, or subfolder to delete it.',
                 style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
               const SizedBox(height: 10),
@@ -3785,7 +3785,7 @@ class _MoveToCategorySheetState extends State<_MoveToCategorySheet> {
                       onLongPress: () => _confirmDeleteSub(
                         title: fr
                             ? 'Supprimer la sous-catégorie ?'
-                            : 'Delete subfolder?',
+                            : 'Delete subcategory?',
                         name: sc.name,
                         onYes: () => widget.state.deleteSubCategory(sc.id),
                       ),
@@ -3910,7 +3910,7 @@ class _SubcategoryAssignSheet extends StatelessWidget {
             if (subcategories.isEmpty)
               Center(
                 child: Text(
-                  Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun dossier — crée-en un depuis la vue catégorie' : 'No folder — create one from the category view',
+                  Localizations.localeOf(context).languageCode == 'fr' ? 'Aucun dossier — crée-en un depuis la vue catégorie' : 'No folders yet — create one from the category view',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                       color: isDark ? Colors.grey.withValues(alpha: 0.6) : AppTheme.lightTextTertiary,

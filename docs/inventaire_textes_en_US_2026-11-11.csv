@@ -1,0 +1,239 @@
+﻿famille;fichier;ligne / clé;français;anglais actuel;anglais proposé (US);remarque;statut
+clé l10n;lib/core/l10n.dart;app_name;Reelr;Reelr;;;OK
+clé l10n;lib/core/l10n.dart;home;Accueil;Home;;;OK
+clé l10n;lib/core/l10n.dart;categories;Catégories;Categories;;;OK
+clé l10n;lib/core/l10n.dart;settings;Paramètres;Settings;;;OK
+clé l10n;lib/core/l10n.dart;add_clip;Ajouter;Add;;;OK
+clé l10n;lib/core/l10n.dart;paste_url;Coller un lien vidéo…;Paste a video URL…;Paste a video link…;« link » partout, comme sur le bouton « Paste a link »;à revoir
+clé l10n;lib/core/l10n.dart;add;Ajouter;Add;;;OK
+clé l10n;lib/core/l10n.dart;cancel;Annuler;Cancel;;;OK
+clé l10n;lib/core/l10n.dart;move_to_category;Déplacer vers...;Move to...;;;OK
+clé l10n;lib/core/l10n.dart;to_sort;À trier;To sort;;;OK
+clé l10n;lib/core/l10n.dart;to_sort_hint;Titre trop vague pour classer — appuie pour choisir;Title too vague to classify — tap to choose;Title too vague to sort — tap to choose;« sort » plutôt que « classify »;à revoir
+clé l10n;lib/core/l10n.dart;delete_category_confirm;Supprimer « {name} » ?;"Delete ""{name}""?";;;OK
+clé l10n;lib/core/l10n.dart;delete_category_empty;Cette catégorie est vide.;This category is empty.;;;OK
+clé l10n;lib/core/l10n.dart;category_merge_action;Fusionner avec une autre tuile…;Merge with another tile…;;;OK
+clé l10n;lib/core/l10n.dart;category_merge_pick_title;Fusionner « {name} » avec…;"Merge ""{name}"" with…";;;OK
+clé l10n;lib/core/l10n.dart;category_merge_confirm_title;Fusionner « {from} » avec « {to} » ?;"Merge ""{from}"" with ""{to}""?";;;OK
+clé l10n;lib/core/l10n.dart;category_merge_confirm_body;« {from} » devient une sous-catégorie de « {to} », avec ses {n} liens. La tuile « {from} » disparaît de l'accueil.;"""{from}"" becomes a subcategory of ""{to}"", with its {n} links. The ""{from}"" tile disappears from the home screen.";"""{from}"" becomes a subcategory of ""{to}"", along with its {n} links. The ""{from}"" tile will no longer appear on the home screen.";plus naturel;à revoir
+clé l10n;lib/core/l10n.dart;category_merge_confirm;Fusionner;Merge;;;OK
+clé l10n;lib/core/l10n.dart;subcategory_promote_action;Remettre en tuile;Make it a tile again;Turn back into a tile;plus idiomatique;à revoir
+clé l10n;lib/core/l10n.dart;delete_category_deletes_clips;Les {n} vidéos de cette catégorie seront aussi supprimées. Cette action est irréversible.;The {n} videos in this category will be deleted too. This cannot be undone.;;;OK
+clé l10n;lib/core/l10n.dart;delete_many_title;Supprimer {n} vidéos ?;Delete {n} videos?;;;OK
+clé l10n;lib/core/l10n.dart;delete_many_body;Elles seront supprimées définitivement avec la tuile. Tu confirmes ?;They will be permanently deleted along with the tile. Are you sure?;They'll be permanently deleted along with the tile. Continue?;ton plus naturel;à revoir
+clé l10n;lib/core/l10n.dart;delete_many_confirm;Tout supprimer;Delete all;;;OK
+clé l10n;lib/core/l10n.dart;delete;Supprimer;Delete;;;OK
+clé l10n;lib/core/l10n.dart;share;Partager;Share;;;OK
+clé l10n;lib/core/l10n.dart;rename;Renommer;Rename;;;OK
+clé l10n;lib/core/l10n.dart;restore_original;Rétablir l'original;Restore original;;;OK
+clé l10n;lib/core/l10n.dart;original_title;Titre d'origine;Original title;;;OK
+clé l10n;lib/core/l10n.dart;open;Ouvrir;Open;;;OK
+clé l10n;lib/core/l10n.dart;no_clips;Aucun clip;No clips yet;No videos yet;« clip » → « video » (voir décision de vocabulaire);à revoir
+clé l10n;lib/core/l10n.dart;no_clips_sub;Appuyez sur + pour ajouter votre premier lien vidéo;Tap + to add your first video link;;;OK
+clé l10n;lib/core/l10n.dart;title;Titre;Title;;;OK
+clé l10n;lib/core/l10n.dart;tags;Tags (séparés par virgules);Tags (comma separated);Tags (comma-separated);tournure usuelle;à revoir
+clé l10n;lib/core/l10n.dart;category;Catégorie;Category;;;OK
+clé l10n;lib/core/l10n.dart;none;Aucune;None;;;OK
+clé l10n;lib/core/l10n.dart;new_category;Nouvelle catégorie;New Category;New category;casse de phrase, comme les autres libellés;à revoir
+clé l10n;lib/core/l10n.dart;category_name;Nom de la catégorie;Category name;;;OK
+clé l10n;lib/core/l10n.dart;color;Couleur;Color;;;OK
+clé l10n;lib/core/l10n.dart;icon;Icône;Icon;;;OK
+clé l10n;lib/core/l10n.dart;save;Enregistrer;Save;;;OK
+clé l10n;lib/core/l10n.dart;confirm_delete;Supprimer ?;Delete?;;;OK
+clé l10n;lib/core/l10n.dart;confirm_delete_sub;Cette action est irréversible.;This action cannot be undone.;;;OK
+clé l10n;lib/core/l10n.dart;no_title;Vidéo sans titre;Untitled Video;Untitled video;casse de phrase;à revoir
+clé l10n;lib/core/l10n.dart;share_list;Partager la liste;Share list;;;OK
+clé l10n;lib/core/l10n.dart;theme;Thème;Theme;;;OK
+clé l10n;lib/core/l10n.dart;language;Langue;Language;;;OK
+clé l10n;lib/core/l10n.dart;system;Auto;Auto;;;OK
+clé l10n;lib/core/l10n.dart;light;Clair;Light;;;OK
+clé l10n;lib/core/l10n.dart;dark;Sombre;Dark;;;OK
+clé l10n;lib/core/l10n.dart;search;Retrouve une vidéo…;Find a video…;;;OK
+clé l10n;lib/core/l10n.dart;all;Tout;All;;;OK
+clé l10n;lib/core/l10n.dart;no_category;Aucune catégorie;No categories yet;;;OK
+clé l10n;lib/core/l10n.dart;edit;Sous-catégorie...;Subcategory...;;;OK
+clé l10n;lib/core/l10n.dart;edit_clip;Sous-catégorie...;Subcategory...;;;OK
+clé l10n;lib/core/l10n.dart;edit_category;Modifier la catégorie;Edit category;;;OK
+clé l10n;lib/core/l10n.dart;settings_my_data_section;Mes données;My data;;;OK
+clé l10n;lib/core/l10n.dart;settings_export_clips;Exporter mes clips;Export my clips;Export my videos;« clip » → « video »;à revoir
+clé l10n;lib/core/l10n.dart;settings_notebook;Ce que Reelr a appris;What Reelr has learned;;;OK
+clé l10n;lib/core/l10n.dart;notebook_intro;Chaque fois que tu ranges un lien toi-même, Reelr le retient ici. Il s'en sert pour classer les liens qui parlent du même sujet. Supprime un exemple s'il est faux.;Whenever you sort a link yourself, Reelr remembers it here. It uses these examples to sort links about the same topic. Remove an example if it is wrong.;Whenever you sort a link yourself, Reelr remembers it here and uses it to sort other links on the same topic. Remove an example if it's wrong.;plus fluide;à revoir
+clé l10n;lib/core/l10n.dart;notebook_empty;Rien pour l'instant. Range un lien à la main et il apparaîtra ici.;Nothing yet. Sort a link by hand and it will appear here.;;;OK
+clé l10n;lib/core/l10n.dart;notebook_clear;Tout effacer;Clear all;;;OK
+clé l10n;lib/core/l10n.dart;notebook_clear_confirm;Effacer tous les exemples appris ?;Clear all learned examples?;;;OK
+clé l10n;lib/core/l10n.dart;settings_delete_all_data;Supprimer toutes les données;Delete all data;;;OK
+clé l10n;lib/core/l10n.dart;settings_delete_all_confirm;Supprimer toutes les données ?;Delete all data?;;;OK
+clé l10n;lib/core/l10n.dart;settings_delete_all_confirm_sub;Cette action supprimera définitivement tous vos clips.;This will permanently delete all your clips.;This will permanently delete all your videos.;« clip » → « video »;à revoir
+clé l10n;lib/core/l10n.dart;settings_upgrade_premium;Passer à Premium;Upgrade to Premium;;;OK
+clé l10n;lib/core/l10n.dart;settings_manage_subscription;Gérer mon abonnement;Manage my subscription;;;OK
+clé l10n;lib/core/l10n.dart;settings_restore_purchases;Restaurer mes achats;Restore purchases;;;OK
+clé l10n;lib/core/l10n.dart;settings_restore_purchases_started;Recherche de tes achats précédents…;Checking for previous purchases…;;;OK
+clé l10n;lib/core/l10n.dart;settings_legal_section;Légal;Legal;;;OK
+clé l10n;lib/core/l10n.dart;settings_privacy_policy;Politique de confidentialité;Privacy Policy;;;OK
+clé l10n;lib/core/l10n.dart;settings_terms;Conditions d'utilisation;Terms of Use;;;OK
+clé l10n;lib/core/l10n.dart;settings_contact;Contact;Contact;;;OK
+clé l10n;lib/core/l10n.dart;thumbnail_unavailable_title;Vignette non disponible;Thumbnail unavailable;;;OK
+clé l10n;lib/core/l10n.dart;thumbnail_unavailable_body;Certaines plateformes limitent la durée de vie des liens d'image. Le contenu original reste accessible en ouvrant le lien.;Some platforms limit how long image links stay valid. The original content is still accessible by opening the link.;Some platforms limit how long image links stay valid. You can still open the original content by tapping the link.;plus clair;à revoir
+clé l10n;lib/core/l10n.dart;settings_about_section;À propos;About;;;OK
+clé l10n;lib/core/l10n.dart;settings_version;Version;Version;;;OK
+clé l10n;lib/core/l10n.dart;settings_rate_app;Noter l'app;Rate the app;Rate Reelr;plus direct;à revoir
+clé l10n;lib/core/l10n.dart;settings_share_app;Partager l'app;Share the app;Share Reelr;plus direct;à revoir
+clé l10n;lib/core/l10n.dart;rate_app;Noter l'app;Rate the app;Rate Reelr;plus direct;à revoir
+clé l10n;lib/core/l10n.dart;share_app;Partager l'app;Share the app;Share Reelr;plus direct;à revoir
+clé l10n;lib/core/l10n.dart;sort;Trier;Sort;;;OK
+clé l10n;lib/core/l10n.dart;sort_date_added;Date d'ajout;Date added;;;OK
+clé l10n;lib/core/l10n.dart;sort_alphabetical;Alphabétique;Alphabetical;;;OK
+clé l10n;lib/core/l10n.dart;sort_manual;Manuel;Manual;;;OK
+clé l10n;lib/core/l10n.dart;reorder;Réorganiser;Reorder;;;OK
+clé l10n;lib/core/l10n.dart;reorder_done;Terminé;Done;;;OK
+clé l10n;lib/core/l10n.dart;reorder_hint;Maintenez et faites glisser une vidéo pour la réordonner;Hold and drag a video to reorder it;Press and hold a video, then drag to reorder;formulation iOS usuelle;à revoir
+clé l10n;lib/core/l10n.dart;reorder_order_saved;Ordre enregistré;Order saved;;;OK
+clé l10n;lib/core/l10n.dart;reorder_move_up;Déplacer vers le haut;Move up;;;OK
+clé l10n;lib/core/l10n.dart;reorder_move_down;Déplacer vers le bas;Move down;;;OK
+clé l10n;lib/core/l10n.dart;add_subcategory_tooltip;Ajouter une sous-catégorie;Add a subcategory;;;OK
+clé l10n;lib/core/l10n.dart;add_subsubcategory_tooltip;Ajouter un sous-dossier;Add a subfolder;;;OK
+clé l10n;lib/core/l10n.dart;playlist_import_action;Importer;Import;;;OK
+clé l10n;lib/core/l10n.dart;playlist_import_select_all;Tout sélectionner;Select all;;;OK
+clé l10n;lib/core/l10n.dart;playlist_import_deselect_all;Tout désélectionner;Deselect all;;;OK
+clé l10n;lib/core/l10n.dart;playlist_import_already_saved;Déjà enregistré;Already saved;;;OK
+clé l10n;lib/core/l10n.dart;playlist_import_none_selected;Sélectionne au moins un lien à importer.;Select at least one link to import.;;;OK
+clé l10n;lib/core/l10n.dart;playlist_share_none_selected;Choisis au moins un lien;Choose at least one link;;;OK
+texte dans le code (FR/EN);lib/app.dart;206;Un ami t'a envoyé une playlist;A friend sent you a playlist;;;OK
+texte dans le code (FR/EN);lib/app.dart;209;Reelr a trouvé le lien de la playlist. Tu veux l'ouvrir ?;Reelr found the playlist link. Do you want to open it?;;;OK
+texte dans le code (FR/EN);lib/app.dart;218;Ouvrir la playlist;Open the playlist;;;OK
+texte dans le code (FR/EN);lib/app.dart;583;"""$title"" est déjà dans votre liste.";"""$title"" is already in your list.";;;OK
+texte dans le code (FR/EN);lib/app.dart;584;Ce lien est déjà dans votre liste.;"""$title"" is already in your list.";;;OK
+texte dans le code (FR/EN);lib/app.dart;799;Plus qu'une vidéo avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.;Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.;Just 1 video left before the free limit (deleted videos count too). Upgrade to Premium to keep saving without limits.;plus naturel, évite « keep going without limits »;à revoir
+texte dans le code (FR/EN);lib/app.dart;800;Plus que $remaining vidéos avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.;Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.;Just {remaining} videos left before the free limit (deleted videos count too). Upgrade to Premium to keep saving without limits.;version pluriel : l'anglais actuel affiché ici est celui du singulier;à revoir
+texte dans le code (FR/EN);lib/app.dart;829;Cette playlist n'a pas pu être ouverte. Vérifie ta connexion, ou demande à ton ami de te renvoyer le lien.;This playlist couldn't be opened. Check your connection, or ask your friend to send the link again.;;;OK
+texte dans le code (FR/EN);lib/app.dart;860;Ce lien ne pointe pas vers une vidéo précise — ouvre la vidéo, puis partage-la depuis son écran.;This link doesn't point to a specific video — open the video first, then share it from there.;;;OK
+texte dans le code (FR/EN);lib/app.dart;950;Aucun abonnement à restaurer sur ce compte Apple.;No subscription to restore on this Apple account.;No subscription found to restore for this Apple Account.;Apple dit « Apple Account » depuis iOS 18;à revoir
+texte dans le code (FR/EN);lib/app.dart;1207;${urls.length} liens sont déjà dans votre liste.;{n} links are already in your list.;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;121;1 lien t’attend.;{n} links are waiting.;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;121;$n liens t’attendent.;{n} links are waiting.;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;129;Il sera ajouté dès que tu passes à Premium.;It will be added as soon as you upgrade.;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;130;Ils seront ajoutés dès que tu passes à Premium.;They will be added as soon as you upgrade.;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;236;"Tu as utilisé tes 50 sauvegardes gratuites
+(même celles supprimées).";"You’ve used your 50 free saves
+(deleted ones count too).";;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;250;Mets tout dans;Put it all in;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;278;Sauvegardes illimitées;Unlimited saves;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;305;Chargement du prix…;Loading price…;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;322;par an · moins d’un café par mois;per year · less than a coffee a month;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;365;Résiliable à tout moment;Cancel anytime;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;376;Pas maintenant;Not now;;;OK
+texte dans le code (FR/EN);lib/screens/paywall_screen.dart;409;Politique de confidentialité;Privacy Policy;;;OK
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;344;Impossible d'ajouter la sous-catégorie : $e;Could not add subcategory: $e;;;OK
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;531;Sous-catégories;Subcategories;;;OK
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;558;Aucune sous-catégorie;No subcategory;No subcategories;pluriel;à revoir
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;575;Nouvelle sous-catégorie;New subcategory;;;OK
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;905;Catégorie similaire détectée;Similar category detected;;;OK
+texte dans le code (FR/EN);lib/screens/categories_screen.dart;908;"Vous voulez dire ""${suggested.name}"" au lieu de ""$typedName"" ?";"Did you mean ""${suggested.name}"" instead of ""$typedName""?";;;OK
+texte dans le code (FR/EN);lib/screens/settings_screen.dart;76;Sans categorie;Uncategorized;;;OK
+texte dans le code (FR/EN);lib/screens/settings_screen.dart;164;Impossible d'ouvrir ce lien;Could not open this link;;;OK
+texte dans le code (FR/EN);lib/screens/onboarding_screen.dart;59;Je ne trouve pas Reelr;I can't find Reelr;;;OK
+texte dans le code (FR/EN);lib/screens/onboarding_screen.dart;61;Non, ça va;No, I'm good;;;OK
+texte dans le code (FR/EN);lib/screens/onboarding_screen.dart;65;"Pas de panique, ça arrive$_nbsp!
+Il suffit de l’activer dans ta liste d’applis.";"No worries, it happens!
+Just turn it on in your app list.";;;OK
+texte dans le code (FR/EN);lib/screens/onboarding_screen.dart;71;"Clique sur ton appli préférée
+et choisis une vidéo";"Tap your favorite app
+and pick a video";;;OK
+texte dans le code (FR/EN);lib/screens/onboarding_screen.dart;325;"Bienvenue dans
+";"Welcome to
+";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;357;À acheter;To buy;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;373;Coller un lien;Paste a link;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;410;Rien à coller. Copie le lien de la vidéo, puis appuie sur « Autoriser le collage » si iOS le demande.;"Nothing to paste. Copy the video link, then tap ""Allow Paste"" if iOS asks.";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;414;Aucun lien trouvé dans le texte copié.;No link found in the copied text.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;418;Impossible d'ajouter ce lien pour le moment.;Can't add this link right now.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;1490;"Je te fais découvrir ma playlist « $name » sur Reelr :
+
+$link";"Check out my playlist ""$name"" on Reelr:
+
+$link";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;1500;Le partage n'a pas pu s'ouvrir. Réessaie.;Sharing couldn't open. Try again.;Couldn't open sharing. Try again.;tournure active;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;1940;Supprimer ce clip ?;Delete this clip?;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;1941;Cette action est irréversible.;This action cannot be undone.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;1999;Nouvelle sous-catégorie;New subfolder;New subcategory;incohérent avec « Subcategories » ailleurs (le français dit sous-catégorie);à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2073;Créer;Create;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2314;Supprimer la sous-catégorie ?;Delete subfolder?;Delete subcategory?;même terme que le français;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2315;"""${sub.name}"" sera supprimée.";"""${sub.name}"" will be deleted.";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2339;Supprimer ce sous-dossier ?;Delete this subfolder?;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2706;Reelr range ton lien…;Reelr is filing your link…;Reelr is sorting your link…;« sorting » cohérent avec le reste;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2733;Aucun résultat;No results;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2757;Comment ajouter un lien ?;How do I add a link?;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2812;ORGANISE TES CLIPS;ORGANIZE YOUR CLIPS;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2822;"Cette liste est vide
+pour l\'instant";"This list is empty
+for now";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2829;"Va dans l\'onglet Tout, appuie sur le menu ⋮ d\'un clip,
+puis choisis Classer pour l\'ajouter ici";"Go to the All tab, tap the ⋮ menu on a clip,
+then choose Sort to add it here";"Go to the All tab, tap the ⋮ menu on a video,
+then choose Add to… to put it here";l'anglais disait « Sort » alors que le menu s'appelle « Add to… »;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2891;"Cette catégorie est vide
+pour l\'instant";"This category is empty
+for now";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;2898;"Ouvre le menu ⋮ d\'une vidéo, appuie sur
+Déplacer vers, puis choisis cette catégorie";"Open a video\'s ⋮ menu, tap
+Move to, then choose this category";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3391;Impossible d'ouvrir ce lien;Could not open this link;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3553;"""$name"" sera supprimée.";"""$name"" will be deleted.";;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3698;Catégorie;Category;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3714;Appui long sur une catégorie, une sous-catégorie ou un sous-dossier pour le supprimer.;Long-press a category, subfolder or sub-subfolder to delete it.;Long-press a category, subcategory, or subfolder to delete it.;supprime « sub-subfolder », virgule d'énumération US;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3759;Sous-catégorie;Subcategory;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3766;Aucune sous-catégorie créée;No subcategory created;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3900;Classer dans...;Add to...;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;3913;Aucun dossier — crée-en un depuis la vue catégorie;No folder — create one from the category view;No folders yet — create one from the category view;plus naturel;à revoir
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4367;URL invalide. Vérifiez que le lien commence par http:// ou https://.;Invalid URL. Make sure the link starts with http:// or https://.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4387;Ce lien ne pointe pas vers une vidéo précise. Ouvre la vidéo, puis copie son lien.;This link doesn't point to a specific video. Open the video, then copy its link.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4393;Ce lien est déjà dans votre liste.;This link is already in your list.;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4542;Nouvelle catégorie;New category;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4585;Dans quelle catégorie ?;Which category?;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4610;Nom de la catégorie;Category name;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4708;Cette vidéo ressemble à du \${s.name};This video looks like \${s.name};;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4725;Ajouter dans \${s.name};Add to \${s.name};;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4738;Autre catégorie;Other category;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4745;Ajouter sans catégorie;Add without category;;;OK
+texte dans le code (FR/EN);lib/screens/home_screen.dart;4757;Nom de la catégorie...;Category name...;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;65;Erreur du service d\'achat. Réessaie plus tard.;Purchase service error. Please try again later.;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;138;Les achats ne sont pas disponibles sur cet appareil.;Purchases are not available on this device.;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;146;Produit indisponible pour le moment. Réessaie dans un instant.;Product unavailable right now. Please try again in a moment.;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;167;Achat impossible. Réessaie plus tard.;Purchase failed. Please try again later.;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;189;Restauration impossible. Réessaie plus tard.;Restore failed. Please try again later.;;;OK
+texte dans le code (FR/EN);lib/services/purchase_service.dart;320;L\'achat a échoué. Réessaie plus tard.;The purchase failed. Please try again later.;;;OK
+texte dans le code (FR/EN);lib/widgets/offer_subcategory_move.dart;29;Reelr cherche les liens…;Reelr is looking…;;;OK
+texte dans le code (FR/EN);lib/widgets/offer_subcategory_move.dart;46;} dans « ${sub.name} » ?;Move ${n == 1 ? ;;;OK
+texte dans le code (FR/EN);lib/widgets/offer_subcategory_move.dart;50;Un lien déjà enregistré correspond à ce nom.;One saved link matches this name.;;;OK
+texte dans le code (FR/EN);lib/widgets/offer_subcategory_move.dart;51;$n liens déjà enregistrés correspondent à ce nom.;{n} saved links match this name.;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;63;Actu & Société;News & Society;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;64;DIY & Créa;DIY & Craft;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;65;Déco & Home;Home Decor;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;66;Cinéma & Séries;Movies & Series;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;160;Correction enregistrée;Correction saved;;;OK
+texte dans le code (FR/EN);lib/widgets/classification_result_card.dart;196;Quelle est la bonne catégorie ?;What is the right category?;Which category is right?;plus naturel;à revoir
+texte dans le code (FR/EN);lib/widgets/resilient_thumbnail.dart;260;miniature réseau copiée dans le stockage permanent;;;;journal (non affiché)
+texte dans le code (FR/EN);lib/widgets/resilient_thumbnail.dart;261;copie permanente impossible après chargement réseau;;;;journal (non affiché)
+texte dans le code (FR seul);lib/widgets/classification_result_card.dart;472;Cette classification est-elle correcte ?;;Is this classification correct?;TEXTE QUI N'EXISTAIT PAS EN ANGLAIS;à revoir
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;97;Ajout en cours…;Adding…;;;OK
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;98;Capture silencieuse;Silent capture;;;OK
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;145;Ajout en cours...;Adding...;;;OK
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;151;Capture silencieuse;Silent capture;;;OK
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;480;Ajouté à Reelr;Added to Reelr;;;OK
+extension de partage (Swift);ios/Reelrshare/ShareViewController.swift;481;Inbox mis à jour;Inbox updated;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Famille;Family;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Humour;Humor;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Musique;Music;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Actu & Société;News & Society;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;DIY & Créa;DIY & Craft;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Déco & Home;Home Decor;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Cinéma & Séries;Movies & Series;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Astro & Spirituel;Astrology & Spirituality;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Tricot/Couture;Knitting & Sewing;;;OK
+nom de catégorie (affichage);lib/widgets/classification_result_card.dart;;Documentaire;Documentary;;;OK
+à prévoir (US);mentions légales;;CGU/CGV et politique de confidentialité : droit français, SIRET, RGPD/CNIL, droit de rétractation (Code de la consommation), médiation;Version anglaise actuelle fondée sur le droit français;;À faire relire pour les US : loi applicable, mention CCPA (Californie), enfants (COPPA), renouvellement automatique de l'abonnement, prix en dollars;à décider
+à prévoir (US);App Store Connect;;Fiche App Store en anglais (US) : nom, sous-titre, description, mots-clés, texte promotionnel, nouveautés, captures d'écran;;;À rédiger/traduire (hors du dépôt);à faire
+à prévoir (US);App Store Connect;;Abonnement Reelr Premium : nom affiché et description en anglais (US);;;Localisation anglaise de l'abonnement dans App Store Connect;à faire
+à prévoir (US);site myreelr.app;;Page /en/ du site encore à l'ancienne version;;;À aligner sur la page française (activer dans la liste d'applis, etc.);à faire
+à prévoir (US);assets/onboarding;;Images animées d'onboarding en anglais (onb_*_en.webp);Présentes;;Vérifier que leur texte à l'écran est en anglais US;à vérifier
+à prévoir (US);classement;;Enseignes et marques reconnues par le classement (surtout françaises);;;Hors texte affiché : à étendre aux enseignes américaines pour bien classer les achats;à décider

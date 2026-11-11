@@ -799,8 +799,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
                   ? "Plus qu'une vidéo avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite."
                   : 'Plus que $remaining vidéos avant la limite gratuite (même les vidéos supprimées comptent) — passe à Premium pour continuer sans limite.')
               : (remaining == 1
-                  ? 'Only 1 video left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'
-                  : 'Only $remaining videos left before the free limit (deleted videos still count) — upgrade to Premium to keep going without limits.'),
+                  ? 'Just 1 video left before the free limit (deleted videos count too). Upgrade to Premium to keep saving without limits.'
+                  : 'Just $remaining videos left before the free limit (deleted videos count too). Upgrade to Premium to keep saving without limits.'),
         ),
         duration: const Duration(seconds: 6),
         behavior: SnackBarBehavior.floating,
@@ -948,7 +948,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
               content: Text(
                 _locale.languageCode == 'fr'
                     ? 'Aucun abonnement à restaurer sur ce compte Apple.'
-                    : 'No subscription to restore on this Apple account.',
+                    : 'No subscription found to restore for this Apple Account.',
               ),
             ),
           );

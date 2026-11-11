@@ -556,7 +556,7 @@ class _EditCategorySheetState extends State<EditCategorySheet> {
                       Text(
                         Localizations.localeOf(context).languageCode == 'fr'
                             ? 'Aucune sous-catégorie'
-                            : 'No subcategory',
+                            : 'No subcategories',
                         style: TextStyle(
                             color: isDark
                                 ? Colors.grey.withValues(alpha: 0.6)

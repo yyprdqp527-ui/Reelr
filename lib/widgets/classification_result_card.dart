@@ -193,7 +193,7 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                Localizations.localeOf(context).languageCode == 'fr' ? 'Quelle est la bonne catégorie ?' : 'What is the right category?',
+                Localizations.localeOf(context).languageCode == 'fr' ? 'Quelle est la bonne catégorie ?' : 'Which category is right?',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -467,10 +467,12 @@ class _ClassificationResultCardState extends State<ClassificationResultCard> {
                 else
                   Row(
                     children: [
-                      const Expanded(
+                      Expanded(
                         child: Text(
-                          'Cette classification est-elle correcte ?',
-                          style: TextStyle(
+                          Localizations.localeOf(context).languageCode == 'fr'
+                              ? 'Cette classification est-elle correcte ?'
+                              : 'Is this classification correct?',
+                          style: const TextStyle(
                               fontSize: 12, color: Colors.black54),
                         ),
                       ),
