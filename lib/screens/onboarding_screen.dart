@@ -113,6 +113,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (widget.rescueOnly || !mounted) return;
+    if (state == AppLifecycleState.inactive &&
+        (_kind == _Kind.dots || _kind == _Kind.apps)) {
+      _leaveOnInactive();
+      return;
+    }
     if (state == AppLifecycleState.paused) {
       _leftAt = (_kind == _Kind.dots || _kind == _Kind.apps)
           ? DateTime.now()
@@ -125,6 +130,27 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _complete();
       }
     }
+  }
+
+  bool _leftOnInactive = false;
+
+  /// Le client quitte Reelr depuis les dernieres pages : on bascule vers
+  /// l'accueil (avec son spinner) AVANT que iOS prenne sa derniere image,
+  /// pour ne pas montrer l'onboarding au retour. Synchrone expres : apres
+  /// « inactive », Flutter n'a presque plus le temps de dessiner.
+  void _leaveOnInactive() {
+    if (_leftOnInactive || _inRescue) return;
+    final app = ClipsApp.of(context);
+    if (app == null) return;
+    _leftOnInactive = true;
+    app.holdArrivalForLeave();
+    app.markOnboardingDone();
+    final base = app.lifetimeClipsAdded;
+    SharedPreferences.getInstance().then((p) {
+      p.setInt(kOnbRescueBase, base);
+      p.setInt(kOnbRescueAt, DateTime.now().millisecondsSinceEpoch);
+      p.setBool(kOnbRescuePending, true);
+    }).catchError((_) {});
   }
 
   bool get _isAndroid => defaultTargetPlatform == TargetPlatform.android;

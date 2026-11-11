@@ -695,6 +695,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     // redescend jamais, meme apres suppression du clip.
     if (OEmbedService.isContentlessUrl(dedupUrl)) {
       debugPrint('[ingest] URL sans contenu ignoree : $dedupUrl');
+      _contentlessSeen = true;
       if (!silent) _showContentlessUrlNotice();
       return false;
     }
@@ -978,6 +979,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// Depart de l'onboarding vers une autre appli : l'accueil (encore vide)
   /// montre le spinner d'arrivee au lieu de l'ecran vide, jusqu'au retour.
   bool _leaveArrivalHeld = false;
+  // Un lien sans contenu precis vient d'etre refuse : le message dit deja
+  // quoi faire, l'aide « tu n'as pas trouve Reelr ? » serait hors sujet.
+  bool _contentlessSeen = false;
   Timer? _leaveArrivalTimer;
 
   void holdArrivalForLeave() {
@@ -1006,6 +1010,11 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         // L'onboarding a ete marque termine juste avant de quitter l'appli.
         if (!(p.getBool('onboarding_done') ?? false)) return;
         setState(() => _onboardingDone = true);
+      }
+      if (_contentlessSeen) {
+        _contentlessSeen = false;
+        debugPrint('[rescue] lien sans contenu refuse -> pas d\'aide');
+        return;
       }
       final base = p.getInt('onb_rescue_base') ?? 0;
       debugPrint('[rescue] base=$base now=$_lifetimeClipsAdded');
