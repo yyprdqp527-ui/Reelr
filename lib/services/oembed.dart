@@ -1,3 +1,4 @@
+import 'dart:async' show TimeoutException;
 import 'dart:convert';
 import 'dart:io' show HttpClient;
 
@@ -1587,7 +1588,8 @@ class OEmbedService {
       final needsRealisticHeaders = platformId == 'pinterest' ||
           platformId == 'reddit' ||
           platformId == 'tiktok';
-      final response = await Net.client.get(
+      // ignore: prefer_function_declarations_over_variables
+      final fetchPage = () => Net.client.get(
         uri,
         headers: previewBotUserAgent
             ? const {
@@ -1608,7 +1610,28 @@ class OEmbedService {
                 'User-Agent': 'Mozilla/5.0 (compatible; Reelr/1.0)',
                 'Accept': 'text/html,application/xhtml+xml',
               },
-      ).timeout(const Duration(seconds: 10));
+      );
+      // Facebook : la premiere lecture d'un lien depasse parfois 10 s
+      // (journal du 2026-11-11 : TimeoutException), alors que la meme
+      // requete relancee juste apres rend la page en ~1 s. Une seule
+      // nouvelle tentative, sur Facebook seulement, apres un delai depasse.
+      // Les durees sont journalisees pour mesurer avant / apres.
+      final ogStart = DateTime.now();
+      final response = platformId == 'facebook'
+          ? await fetchPage()
+              .timeout(const Duration(seconds: 10))
+              .catchError((Object e) {
+              final ms = DateTime.now().difference(ogStart).inMilliseconds;
+              debugPrint('[oembed] og facebook : delai depasse apres $ms ms, '
+                  'nouvelle tentative');
+              return fetchPage().timeout(const Duration(seconds: 10));
+            }, test: (e) => e is TimeoutException)
+          : await fetchPage().timeout(const Duration(seconds: 10));
+      if (platformId == 'facebook') {
+        final ms = DateTime.now().difference(ogStart).inMilliseconds;
+        debugPrint('[oembed] og facebook : reponse ${response.statusCode} '
+            'en $ms ms');
+      }
       if (response.statusCode != 200) {
         return null;
       }

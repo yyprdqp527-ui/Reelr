@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 // Mesure Claude SEUL (sans regles locales) sur ton jeu de 100 liens
 // etiquete a la main, avec et sans exemples de tuiles.
 //

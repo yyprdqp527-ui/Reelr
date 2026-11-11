@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 // Lecture groupee du lot sur 12 liens avec images (4 nov. 2026) : verifie
 // que la reponse n'est plus coupee depuis max_tokens 4000.
 //
