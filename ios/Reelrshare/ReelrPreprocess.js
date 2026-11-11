@@ -130,6 +130,71 @@ ReelrPreprocess.prototype = {
       }
     }
 
+    // Facebook dans Safari : en faisant defiler le fil ou les Reels, l'adresse
+    // de la page ne change pas (accueil facebook.com, ou 1er Reel). Chaque
+    // partage donnait donc la meme adresse : un seul lien arrivait dans
+    // Reelr (constate le 2026-11-11). On prend la video visible a l'ecran,
+    // comme pour TikTok. Si rien de sur n'est trouve, rien ne change.
+    function facebookVisibleUrl() {
+      var re = /\/(?:reels?)\/(\d{8,})|\/videos\/(?:[^\/?#]+\/)?(\d{8,})|[?&]v=(\d{8,})/;
+      function idOf(href) {
+        var m = (href || '').match(re);
+        return m ? (m[1] || m[2] || m[3]) : '';
+      }
+      var vids = document.querySelectorAll('video');
+      var best = null, bestArea = 0;
+      var vw = window.innerWidth, vh = window.innerHeight;
+      for (var i = 0; i < vids.length; i++) {
+        var r = vids[i].getBoundingClientRect();
+        var w = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
+        var h = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+        if (w * h > bestArea) { bestArea = w * h; best = vids[i]; }
+      }
+      if (!best) return '';
+      for (var el = best, d = 0; el && d < 25; el = el.parentElement, d++) {
+        var links = el.querySelectorAll ? el.querySelectorAll('a[href]') : [];
+        // Facebook pose l'identifiant de la video affichee sur un conteneur
+        // (data-video-id, constate le 2026-11-11 : il change a chaque Reel
+        // quand on defile, alors que l'adresse de la page reste la meme).
+        var dataId = el.getAttribute ? (el.getAttribute('data-video-id') || '') : '';
+        if (/^\d{8,}$/.test(dataId)) {
+          return /\/reels?\//.test(location.pathname + '/')
+            ? 'https://www.facebook.com/reel/' + dataId + '/'
+            : 'https://www.facebook.com/watch/?v=' + dataId;
+        }
+        var ids = {};
+        var n = 0, firstId = '', firstIsReel = false;
+        for (var j = 0; j < links.length; j++) {
+          var href = links[j].href || '';
+          var id = idOf(href);
+          if (id && !ids[id]) {
+            ids[id] = 1;
+            n++;
+            if (!firstId) { firstId = id; firstIsReel = /\/reels?\//.test(href); }
+          }
+        }
+        if (n === 1) {
+          return firstIsReel
+            ? 'https://www.facebook.com/reel/' + firstId + '/'
+            : 'https://www.facebook.com/watch/?v=' + firstId;
+        }
+        if (n > 1) break;
+      }
+      return '';
+    }
+    if (/(^|\.)facebook\.com$/.test(location.hostname)) {
+      var fbVideo = facebookVisibleUrl();
+      var fbIdMatch = fbVideo.match(/(\d{8,})/);
+      var pageIdMatch = location.href.match(/(?:reels?\/|videos\/(?:[^\/?#]+\/)?|[?&]v=)(\d{8,})/);
+      if (fbVideo && !(fbIdMatch && pageIdMatch && fbIdMatch[1] === pageIdMatch[1])) {
+        pageUrl = fbVideo;
+        // Titre et image lus dans la page = ceux d'une autre video.
+        title = '';
+        image = '';
+        largest = '';
+      }
+    }
+
     args.completionFunction({
       url: pageUrl,
       title: title,

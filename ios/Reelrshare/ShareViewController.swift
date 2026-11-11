@@ -237,6 +237,7 @@ class ShareViewController: UIViewController {
                     // generique ne doit jamais choisir une autre adresse
                     // du dictionnaire (image, image2...).
                     if let pageURL = self?.safariPageURL(from: data) {
+                        self?.logShare("adresse lue dans Safari : \(pageURL)")
                         self?.storeSafariPreview(from: data)
                         self?.storeSilentlyIfValid(urlString: pageURL)
                     } else {
