@@ -163,9 +163,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// Avant d'ouvrir une appli : on note qu'un lien est attendu. Au retour,
   /// si rien n'est arrivé, l'accueil proposera l'aide.
   Future<void> _leaveForApp() async {
+    // Lu AVANT tout await : on ne touche pas au BuildContext apres.
+    final app = ClipsApp.of(context);
     if (!_inRescue) {
       try {
-        final base = ClipsApp.of(context)?.lifetimeClipsAdded ?? 0;
+        final base = app?.lifetimeClipsAdded ?? 0;
         final p = await SharedPreferences.getInstance();
         await p.setInt(kOnbRescueBase, base);
         await p.setInt(kOnbRescueAt, DateTime.now().millisecondsSinceEpoch);
@@ -175,7 +177,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     // Terminer l'onboarding AVANT de partir : sinon on retombe dessus au
     // retour. L'accueil affiche alors le spinner « Reelr range ton lien… »
     // (et non l'ecran vide) jusqu'au retour du client.
-    ClipsApp.of(context)?.holdArrivalForLeave();
+    app?.holdArrivalForLeave();
     await _complete();
   }
 
