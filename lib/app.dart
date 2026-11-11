@@ -94,6 +94,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   ThemeMode get themeMode => _themeMode;
   Locale get locale => _locale;
   bool get isPremium => _isPremium;
+  /// Nombre cumulé de liens enregistrés (sert à savoir si un partage a
+  /// abouti après l'onboarding).
+  int get lifetimeClipsAdded => _lifetimeClipsAdded;
 
   void setPremium(bool value) {
     setState(() => _isPremium = value);
@@ -314,7 +317,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       debugPrint("[lifecycle] resumed");
-      _drainSilentShareInbox();
+      unawaited(_drainSilentShareInbox().whenComplete(() {
+        _releaseLeaveArrival();
+        return _maybeOfferOnboardingRescue();
+      }));
       if (_prefsLoaded) _scheduleThumbnailRepair();
     }
   }
@@ -536,6 +542,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// Ouvre la sheet de partage UNIQUEMENT si les prefs sont chargées
   /// et l'onboarding terminé. Sinon attend.
   void _drainPendingShare() {
+    // Un lien est partage alors que l'onboarding n'est pas fini : on le
+    // termine pour que le client arrive directement dans Reelr.
+    if (_prefsLoaded && !_onboardingDone && _pendingSharedUrl != null) {
+      markOnboardingDone();
+      return;
+    }
     if (!_prefsLoaded || !_onboardingDone) return;
     final url = _pendingSharedUrl;
     if (url == null) return;
@@ -841,6 +853,39 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     );
   }
 
+  /// Vignettes montrees sur le paywall : celles des liens en attente (on va
+  /// chercher leur image, 6 s au plus chacune), sinon celles des derniers
+  /// liens enregistres. Ne bloque jamais l'ecran : il n'attend que 8 s.
+  Future<List<PaywallThumb>> _loadPaywallThumbs() async {
+    final prefs = await SharedPreferences.getInstance();
+    final held = (prefs.getStringList(_heldShareUrlsKey) ?? const <String>[])
+        .take(3)
+        .toList();
+    if (held.isNotEmpty) {
+      return Future.wait(held.map((u) async {
+        String? thumb;
+        try {
+          final meta = await OEmbedService.fetchMetadata(u)
+              .timeout(const Duration(seconds: 6));
+          thumb = meta?.thumbnailUrl;
+        } catch (_) {}
+        return PaywallThumb(id: u, linkUrl: u, url: thumb);
+      }));
+    }
+    final recent = [...widget.state.allClips]
+      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    return recent
+        .where((c) => c.thumbnailUrl != null)
+        .take(3)
+        .map((c) => PaywallThumb(
+              id: c.id,
+              linkUrl: c.url,
+              url: OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl),
+              persistId: c.id,
+            ))
+        .toList();
+  }
+
   /// Ouvre l'écran d'abonnement Premium. Accessible depuis le flux de
   /// limite gratuite (_ingestSharedUrl) et directement depuis les Réglages,
   /// pour que l'achat ne soit pas caché derrière la limite de 50 clips
@@ -864,6 +909,7 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         isLoading:
             !_purchaseServiceReady || _purchaseService.isLoadingProduct,
         heldCount: heldCount,
+        loadThumbs: _loadPaywallThumbs,
         // On attend l'etat terminal cote StoreKit (achete, annule, erreur)
         // avant de rendre la main : le paywall garde son indicateur pendant
         // toute la preparation de la feuille de paiement, au lieu de rester
@@ -926,6 +972,61 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// Expose la restauration d'achats pour les écrans (Settings).
   Future<void> restorePurchases() => _purchaseService.restorePurchases();
 
+  /// Retour d'une appli ouverte depuis l'onboarding : si aucun lien n'est
+  /// arrivé, on propose l'aide « tu n'as pas trouvé Reelr ? » (une seule
+  /// fois). Si un lien est arrivé, tout va bien : on ne dit rien.
+  /// Depart de l'onboarding vers une autre appli : l'accueil (encore vide)
+  /// montre le spinner d'arrivee au lieu de l'ecran vide, jusqu'au retour.
+  bool _leaveArrivalHeld = false;
+  Timer? _leaveArrivalTimer;
+
+  void holdArrivalForLeave() {
+    if (_leaveArrivalHeld) return;
+    _leaveArrivalHeld = true;
+    widget.state.beginArrival();
+    // Filet de securite : si le retour n'est jamais signale.
+    _leaveArrivalTimer =
+        Timer(const Duration(seconds: 120), _releaseLeaveArrival);
+  }
+
+  void _releaseLeaveArrival() {
+    if (!_leaveArrivalHeld) return;
+    _leaveArrivalHeld = false;
+    _leaveArrivalTimer?.cancel();
+    widget.state.endArrival();
+  }
+
+  Future<void> _maybeOfferOnboardingRescue() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (!(p.getBool('onb_rescue_pending') ?? false)) return;
+      await p.setBool('onb_rescue_pending', false);
+      if (!mounted) return;
+      if (!_onboardingDone) {
+        // L'onboarding a ete marque termine juste avant de quitter l'appli.
+        if (!(p.getBool('onboarding_done') ?? false)) return;
+        setState(() => _onboardingDone = true);
+      }
+      final base = p.getInt('onb_rescue_base') ?? 0;
+      debugPrint('[rescue] base=$base now=$_lifetimeClipsAdded');
+      if (_lifetimeClipsAdded > base) return;
+      final at = p.getInt('onb_rescue_at') ?? 0;
+      final away = DateTime.now().millisecondsSinceEpoch - at;
+      // Retour trop rapide : le client n'a pas eu le temps d'essayer.
+      debugPrint('[rescue] away=${away}ms');
+      if (away < 4000) return;
+      final nav = _navigatorKey.currentState;
+      if (nav == null) return;
+      debugPrint('[rescue] ouverture de l\'aide');
+      await nav.push(MaterialPageRoute<void>(
+        builder: (_) =>
+            OnboardingScreen(state: widget.state, rescueOnly: true),
+      ));
+    } catch (e) {
+      debugPrint('[rescue] error: $e');
+    }
+  }
+
   Future<void> _drainSilentShareInbox() async {
     var arrivalMarked = false;
     try {
@@ -955,6 +1056,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         widget.state.beginArrival();
         arrivalMarked = true;
       }
+      // Lien partage pendant l'onboarding : on quitte l'onboarding tout de
+      // suite (avant l'enregistrement, qui peut prendre plusieurs secondes).
+      if (urls.isNotEmpty && _prefsLoaded && !_onboardingDone && mounted) {
+        debugPrint('[onboarding] lien recu pendant l\'onboarding -> accueil');
+        markOnboardingDone();
+      }
       final prefs = await SharedPreferences.getInstance();
       final previouslyHeld =
           prefs.getStringList(_heldShareUrlsKey) ?? const <String>[];
@@ -982,6 +1089,12 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       }
       await prefs.setStringList(_heldShareUrlsKey, stillHeld);
       if (duplicates.isNotEmpty) _showDuplicateNotice(duplicates);
+      // Le client a partage un lien de lui-meme avant la fin de l'onboarding
+      // (sans passer par les logos) : l'onboarding a rempli son role, on
+      // l'amene directement dans Reelr au lieu de le laisser dessus.
+      if (urls.isNotEmpty && _prefsLoaded && !_onboardingDone && mounted) {
+        markOnboardingDone();
+      }
       if (stillHeld.isNotEmpty) {
         debugPrint('[drain] ${stillHeld.length} lien(s) en attente '
             '(limite gratuite)');
