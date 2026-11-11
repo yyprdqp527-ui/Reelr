@@ -112,7 +112,15 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   /// lieu de le laisser bloque sur l'onboarding.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (widget.rescueOnly || !mounted) return;
+    if (!mounted) return;
+    // Depuis n'importe quelle page de l'onboarding ou de l'aide : fond uni
+    // AVANT que iOS prenne sa derniere image. Sinon, au retour, iOS reaffiche
+    // cette page (le « flash onboarding ») avant que Flutter dessine. Ne
+    // change aucune page et ne capte aucun appui.
+    if (state == AppLifecycleState.inactive) {
+      ClipsApp.of(context)?.showLeaveCover();
+    }
+    if (widget.rescueOnly) return;
     if (state == AppLifecycleState.inactive &&
         (_kind == _Kind.dots || _kind == _Kind.apps)) {
       _leaveOnInactive();
@@ -143,7 +151,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     final app = ClipsApp.of(context);
     if (app == null) return;
     _leftOnInactive = true;
-    app.holdArrivalForLeave();
+    // Fond uni (et non le spinner « range ton lien ») : aucun ecran
+    // intermediaire visible au depart ni au retour.
+    app.showLeaveCover();
     app.markOnboardingDone();
     final base = app.lifetimeClipsAdded;
     SharedPreferences.getInstance().then((p) {
@@ -191,6 +201,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _leaveForApp() async {
     // Lu AVANT tout await : on ne touche pas au BuildContext apres.
     final app = ClipsApp.of(context);
+    // Cache plein ecran AVANT la fermeture animee de la page : il masque le
+    // clignotement aide/accueil. Ne bloque aucun appui, disparait seul.
+    app?.showLeaveCover();
+    try {
+      await WidgetsBinding.instance.endOfFrame
+          .timeout(const Duration(milliseconds: 300));
+    } catch (_) {}
     if (!_inRescue) {
       try {
         final base = app?.lifetimeClipsAdded ?? 0;
@@ -1149,24 +1166,30 @@ class _AppLink extends StatelessWidget {
     required this.onAfter,
   });
 
-  Future<void> _open() async {
+  Future<bool> _open() async {
     for (final scheme in schemes) {
       final uri = Uri.parse('$scheme://');
       try {
         if (await canLaunchUrl(uri) &&
             await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-          return;
+          return true;
         }
       } catch (_) {}
     }
     try {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } catch (_) {}
+      return await launchUrl(Uri.parse(url),
+          mode: LaunchMode.externalApplication);
+    } catch (_) {
+      return false;
+    }
   }
 
-  Future<void> _tap() async {
+  Future<void> _tap(BuildContext context) async {
+    final app = ClipsApp.of(context);
     await onBefore();
-    await _open();
+    final opened = await _open();
+    // Rien ne s'est ouvert : on enleve le cache tout de suite.
+    if (!opened) app?.hideLeaveCover();
     await onAfter();
   }
 
@@ -1174,7 +1197,7 @@ class _AppLink extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _tap,
+      onTap: () => _tap(context),
       child: Container(
         width: 50 * s,
         padding: EdgeInsets.fromLTRB(2 * s, 6 * s, 2 * s, 5 * s),

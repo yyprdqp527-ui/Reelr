@@ -317,6 +317,18 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       debugPrint("[lifecycle] resumed");
+      // Retour dans l'appli alors que l'onboarding est encore a l'ecran
+      // (le client est parti depuis une page sans passer par les logos) :
+      // si un lien l'attend dans la boite de partage, on ne montre pas
+      // l'onboarding une fraction de seconde avant l'accueil.
+      if (_prefsLoaded && !_onboardingDone) _leaveCoverPending = true;
+      if (_leaveCoverPending) {
+        // Retour d'une autre appli : on garde le fond uni le temps de lire
+        // la boite de partage et de decider de l'aide (4 s au plus).
+        _leaveCover.value = true;
+        _leaveCoverTimer?.cancel();
+        _leaveCoverTimer = Timer(const Duration(seconds: 4), hideLeaveCover);
+      }
       unawaited(_drainSilentShareInbox().whenComplete(() {
         _releaseLeaveArrival();
         return _maybeOfferOnboardingRescue();
@@ -984,6 +996,39 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   bool _contentlessSeen = false;
   Timer? _leaveArrivalTimer;
 
+  /// Cache plein ecran pose au depart vers une autre appli (logos de
+  /// l'onboarding / de l'aide) : il masque la fermeture animee de la page
+  /// (aide / onboarding -> accueil) qui, sinon, clignote pendant que iOS
+  /// bascule. Il ne capte AUCUN appui (IgnorePointer) et disparait seul
+  /// apres quelques secondes : le client ne peut pas rester bloque.
+  final ValueNotifier<bool> _leaveCover = ValueNotifier<bool>(false);
+  Timer? _leaveCoverTimer;
+
+  /// Vrai du depart jusqu'a ce que le retour soit traite (boite de partage
+  /// lue, aide eventuellement ouverte) : le cache est remis au retour dans
+  /// l'appli pour ne montrer aucun ecran intermediaire.
+  bool _leaveCoverPending = false;
+
+  void showLeaveCover() {
+    _leaveCoverPending = true;
+    _leaveCover.value = true;
+    _leaveCoverTimer?.cancel();
+    _leaveCoverTimer = Timer(const Duration(seconds: 6), _expireLeaveCover);
+  }
+
+  // Filet de securite : le cache s'efface seul (le retour reste "en
+  // attente", il sera remis a la reprise).
+  void _expireLeaveCover() {
+    _leaveCoverTimer?.cancel();
+    _leaveCoverTimer = null;
+    if (_leaveCover.value) _leaveCover.value = false;
+  }
+
+  void hideLeaveCover() {
+    _leaveCoverPending = false;
+    _expireLeaveCover();
+  }
+
   void holdArrivalForLeave() {
     if (_leaveArrivalHeld) return;
     _leaveArrivalHeld = true;
@@ -1000,7 +1045,28 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     widget.state.endArrival();
   }
 
+  /// Page d'aide « Tu n'as pas trouve Reelr ? » actuellement ouverte
+  /// (poussee par-dessus l'accueil). Un lien partage depuis le web la ferme :
+  /// l'aide a rempli son role.
+  Route<void>? _rescueRoute;
+
+  void _closeRescueRoute() {
+    final r = _rescueRoute;
+    _rescueRoute = null;
+    if (r != null && r.isActive) {
+      _navigatorKey.currentState?.removeRoute(r);
+    }
+  }
+
   Future<void> _maybeOfferOnboardingRescue() async {
+    try {
+      await _maybeOfferOnboardingRescueInner();
+    } finally {
+      hideLeaveCover();
+    }
+  }
+
+  Future<void> _maybeOfferOnboardingRescueInner() async {
     try {
       final p = await SharedPreferences.getInstance();
       if (!(p.getBool('onb_rescue_pending') ?? false)) return;
@@ -1027,10 +1093,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       final nav = _navigatorKey.currentState;
       if (nav == null) return;
       debugPrint('[rescue] ouverture de l\'aide');
-      await nav.push(MaterialPageRoute<void>(
+      final route = MaterialPageRoute<void>(
         builder: (_) =>
             OnboardingScreen(state: widget.state, rescueOnly: true),
-      ));
+      );
+      _rescueRoute = route;
+      hideLeaveCover();
+      await nav.push(route);
+      if (identical(_rescueRoute, route)) _rescueRoute = null;
     } catch (e) {
       debugPrint('[rescue] error: $e');
     }
@@ -1064,6 +1134,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       if (urls.isNotEmpty) {
         widget.state.beginArrival();
         arrivalMarked = true;
+        // Aide « Tu n'as pas trouve Reelr ? » ouverte : le lien est la, on la
+        // ferme pour montrer l'accueil (sinon le client reste dessus).
+        if (mounted) _closeRescueRoute();
       }
       // Lien partage pendant l'onboarding : on quitte l'onboarding tout de
       // suite (avant l'enregistrement, qui peut prendre plusieurs secondes).
@@ -2379,6 +2452,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    _leaveCoverTimer?.cancel();
+    _leaveCover.dispose();
     _storeRevision.dispose();
     _shareSub?.cancel();
     _deepLinkSub?.cancel();
@@ -2395,6 +2470,20 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         title: 'Reelr',
         debugShowCheckedModeBanner: false,
         navigatorKey: _navigatorKey,
+        builder: (context, child) => Stack(
+          fit: StackFit.expand,
+          children: [
+            ?child,
+            ValueListenableBuilder<bool>(
+              valueListenable: _leaveCover,
+              builder: (context, on, _) => on
+                  ? const Positioned.fill(
+                      child: IgnorePointer(child: _LeaveCover()),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
         theme: AppTheme.light(),
         darkTheme: AppTheme.dark(),
         themeMode: _themeMode,
@@ -2445,6 +2534,21 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
               : OnboardingScreen(state: widget.state),
         ),
       ),
+    );
+  }
+}
+
+/// Fond uni (couleur de l'appli, sans texte ni spinner) pose par-dessus tout
+/// pendant le depart vers une autre appli : il masque la fermeture animee de
+/// la page sans se remarquer. Voir [ClipsAppState.showLeaveCover].
+class _LeaveCover extends StatelessWidget {
+  const _LeaveCover();
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: const SizedBox.expand(),
     );
   }
 }
