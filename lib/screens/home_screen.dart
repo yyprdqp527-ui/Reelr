@@ -2712,9 +2712,9 @@ class _ArrivingState extends StatelessWidget {
   }
 }
 
-/// État vide de l'accueil : jamais d'écran vide. Invite à commencer et
-/// réexplique en 3 étapes comment ajouter un lien, avec un accès direct
-/// au tutoriel.
+/// État vide de l'accueil : volontairement presque vide (le logo et un lien
+/// discret vers le tutoriel). L'ancienne grande carte « bibliothèque vide »
+/// apparaissait en éclair à la sortie de l'onboarding.
 class _EmptyState extends StatelessWidget {
   final AppL10n l;
   final ClipsState state;
@@ -2724,141 +2724,45 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : AppTheme.lightTextPrimary;
     final subColor = isDark
         ? Colors.white.withValues(alpha: 0.6)
         : AppTheme.lightTextSecondary;
-    final borderColor = isDark
-        ? Colors.white.withValues(alpha: 0.08)
-        : AppTheme.lightBorder.withValues(alpha: 0.6);
-    const accent = Color(0xFFA855F7);
-    final steps = isFr
-        ? const [
-            'Ouvre une vidéo ou une page dans TikTok, Instagram, YouTube, Safari…',
-            'Appuie sur Partager, puis choisis Reelr.',
-            'Reelr range le lien tout seul dans la bonne catégorie.',
-          ]
-        : const [
-            'Open a video or page in TikTok, Instagram, YouTube, Safari…',
-            'Tap Share, then choose Reelr.',
-            'Reelr files the link in the right category for you.',
-          ];
-    return LayoutBuilder(
-      builder: (context, constraints) => SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: constraints.maxHeight - 32),
-          child: Center(
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: borderColor, width: 1),
+    if (state.searchQuery.isNotEmpty) {
+      return Center(
+        child: Text(
+          isFr ? 'Aucun résultat' : 'No results',
+          style: TextStyle(color: subColor, fontSize: 15),
+        ),
+      );
+    }
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Opacity(
+            opacity: 0.7,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(28),
+              child: Image.asset('assets/icon/icon.png', width: 112, height: 112),
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => OnboardingScreen(state: state),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 64,
-                    height: 64,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(18),
-                      color: const Color(0xFF7C3AED).withValues(alpha: 0.18),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF7C3AED).withValues(alpha: 0.30),
-                          blurRadius: 20,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(Icons.bookmark_add_rounded,
-                        size: 30, color: accent),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    isFr ? 'COMMENCE ICI' : 'START HERE',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.4,
-                      color: accent,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    isFr
-                        ? 'Ta bibliothèque est vide\npour l\'instant'
-                        : 'Your library is empty\nfor now',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      height: 1.3,
-                      color: textColor,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  for (var i = 0; i < steps.length; i++)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 24,
-                            height: 24,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: accent.withValues(alpha: 0.18),
-                            ),
-                            child: Text(
-                              '${i + 1}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: accent,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              steps[i],
-                              style: TextStyle(
-                                fontSize: 14,
-                                height: 1.5,
-                                color: subColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  const SizedBox(height: 8),
-                  TextButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => OnboardingScreen(state: state),
-                      ),
-                    ),
-                    icon: const Icon(Icons.play_circle_outline_rounded,
-                        color: accent),
-                    label: Text(
-                      isFr ? 'Revoir le tutoriel' : 'Watch the tutorial again',
-                      style: const TextStyle(
-                        color: accent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+            ),
+            child: Text(
+              isFr ? 'Comment ajouter un lien ?' : 'How do I add a link?',
+              style: TextStyle(
+                color: isDark ? Colors.white.withValues(alpha: 0.85) : subColor,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
