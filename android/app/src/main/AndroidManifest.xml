@@ -32,12 +32,6 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Receive shared text/URLs from other apps -->
-            <intent-filter>
-                <action android:name="android.intent.action.SEND"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:mimeType="text/plain"/>
-            </intent-filter>
             <!-- Lien de partage de playlist : schéma personnalisé reelr:// -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW"/>
@@ -55,6 +49,21 @@
                     android:scheme="https"
                     android:host="yyprdqp527-ui.github.io"
                     android:pathPrefix="/reelr-support/playlist"/>
+            </intent-filter>
+        </activity>
+        <!-- Partage depuis une autre appli : recepteur invisible, range le lien
+             dans la boite et se ferme (comme l'extension iOS). -->
+        <activity
+            android:name=".ShareReceiverActivity"
+            android:exported="true"
+            android:theme="@style/ShareTheme"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="text/plain"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

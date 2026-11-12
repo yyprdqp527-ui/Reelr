@@ -3,6 +3,8 @@ package com.room79.reelr
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import io.flutter.embedding.android.FlutterActivity
@@ -30,6 +32,20 @@ class MainActivity : FlutterActivity() {
                     return@setMethodCallHandler
                 }
                 LinkPreviewFetcher(this).fetch(url) { payload -> result.success(payload) }
+            }
+        // Boite de partage : meme canal et memes methodes que sur iOS. Le
+        // recepteur invisible (ShareReceiverActivity) y range les liens.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "reelr/share_inbox")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "drainPendingUrls" -> result.success(ShareInbox.drain(this))
+                    "drainShareLog" -> result.success(emptyList<String>())
+                    "setSharedLocale" -> {
+                        ShareInbox.setLang(this, call.arguments as? String)
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
             }
     }
 }
@@ -63,6 +79,19 @@ class LinkPreviewFetcher(private val activity: FlutterActivity) {
             handler.postDelayed(timeout, 15000)
 
             webView.webViewClient = object : WebViewClient() {
+                // Page principale en erreur (reseau, blocage) : rien a lire,
+                // inutile d'attendre ou de prendre le titre de la page d'erreur.
+                override fun onReceivedError(
+                    view: WebView,
+                    request: WebResourceRequest,
+                    error: WebResourceError,
+                ) {
+                    if (request.isForMainFrame) {
+                        handler.removeCallbacks(timeout)
+                        finish(null)
+                    }
+                }
+
                 override fun onPageFinished(view: WebView, loadedUrl: String) {
                     // Laisse au JavaScript de la page le temps d'injecter
                     // ses balises (pages rendues cote client).
