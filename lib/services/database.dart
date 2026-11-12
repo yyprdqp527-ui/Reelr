@@ -31,19 +31,37 @@ class DatabaseHelper {
   }
 
   /// Copie coherente de la base (`clips.db.bak_<label>`) avant une operation
-  /// qui deplace beaucoup de liens. Au mieux : une erreur est seulement notee.
-  Future<void> backupBeforeMigration(String label) async {
+  /// qui deplace beaucoup de liens. Renvoie true si la copie existe.
+  ///
+  /// `VACUUM INTO` demande SQLite 3.27 : absent d'Android 9 et 10. Dans ce cas
+  /// on vide le journal puis on copie le fichier de la base tel quel.
+  Future<bool> backupBeforeMigration(String label) async {
+    if (kIsWeb) return false;
+    final dbPath = await getDatabasesPath();
+    final target = path_helper.join(dbPath, 'clips.db.bak_$label');
     try {
-      if (kIsWeb) return;
       final db = await database;
-      final dbPath = await getDatabasesPath();
-      final target = path_helper.join(dbPath, 'clips.db.bak_$label');
       final f = File(target);
       if (await f.exists()) await f.delete();
       await db.execute("VACUUM INTO '${target.replaceAll("'", "''")}'");
       debugPrint('[db] sauvegarde faite : $target');
+      return true;
+    } catch (e) {
+      debugPrint('[db] VACUUM INTO impossible ($e), copie du fichier');
+    }
+    try {
+      final db = await database;
+      try {
+        await db.rawQuery('PRAGMA wal_checkpoint(TRUNCATE)');
+      } catch (_) {}
+      final f = File(target);
+      if (await f.exists()) await f.delete();
+      await File(path_helper.join(dbPath, 'clips.db')).copy(target);
+      debugPrint('[db] sauvegarde faite (copie) : $target');
+      return true;
     } catch (e) {
       debugPrint('[db] sauvegarde impossible : $e');
+      return false;
     }
   }
 

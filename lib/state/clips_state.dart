@@ -1774,7 +1774,13 @@ class ClipsState extends ChangeNotifier {
             await _ensureStandardCategory(parentId);
         if (parent == null || parent.id == own.id) continue;
         if (!backedUp) {
-          await DatabaseHelper.instance.backupBeforeMigration('familles');
+          // Pas de sauvegarde possible : on ne touche a rien, nouvel essai
+          // au prochain lancement.
+          if (!await DatabaseHelper.instance
+              .backupBeforeMigration('familles')) {
+            debugPrint('[famille] migration reportee : pas de sauvegarde');
+            return;
+          }
           backedUp = true;
         }
         final themeName =
