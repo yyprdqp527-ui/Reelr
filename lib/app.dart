@@ -2464,6 +2464,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // Langue courante, pour nommer les themes crees par Reelr (tuiles meres).
+    ClipsState.appLanguage = _locale.languageCode;
     return ListenableBuilder(
       listenable: widget.state,
       builder: (context, _) => MaterialApp(
