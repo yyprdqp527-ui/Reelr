@@ -62,3 +62,6 @@ _bak_*
 diag_*.sh
 test/golden/out/
 Claude outputs/
+
+# Papiers perso a ranger (jamais dans le depot)
+_a_ranger/
