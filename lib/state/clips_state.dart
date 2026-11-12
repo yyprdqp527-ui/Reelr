@@ -9,6 +9,7 @@ import '../services/classifier.dart';
 import '../models/classification_result.dart';
 import '../services/database.dart';
 import '../core/l10n.dart';
+import '../core/tile_families.dart';
 import 'dart:async';
 import '../services/oembed.dart';
 import '../services/restaurant_rules.dart';
@@ -399,6 +400,7 @@ class ClipsState extends ChangeNotifier {
     _subsubcategories = subSubMaps.map(SubSubCategory.fromMap).toList();
     _clipSubSubcategoryMap = await DatabaseHelper.instance.getClipSubSubcategoryMapAll();
     await _loadFusedTileLabels();
+    await _migrateTileFamilies();
     _isLoading = false;
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
@@ -1146,6 +1148,9 @@ class ClipsState extends ChangeNotifier {
       }
       _categories = await DatabaseHelper.instance.getAllCategories();
       var matchedCat = findBestCategoryMatch(catName);
+      // Regroupement en tuiles meres : un sujet qui est un theme d'une autre
+      // tuile et qui n'a pas de tuile a lui va dans la tuile mere.
+      matchedCat ??= await _familyParentTile(catName);
       if (matchedCat == null) {
         final catNames = _aiCategoryNames;
         // `catName` est le libelle brut renvoye par Claude (ex. "Food"),
@@ -1183,6 +1188,7 @@ class ClipsState extends ChangeNotifier {
       if (current.categoryId != null) return;
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
+      await _placeFamilyTheme(updated.id, catName, matchedCat);
       await alignSubcategory(updated.id);
       // L'ordre n'est plus contraint depuis que `updateClip` passe par
       // `upsertClip` : un UPDATE partiel ne touche plus aux colonnes
@@ -1431,8 +1437,9 @@ class ClipsState extends ChangeNotifier {
       return false;
     }
     _categories = await DatabaseHelper.instance.getAllCategories();
-    var cat =
-        findBestCategoryMatch(target) ?? await _ensureStandardCategory(target);
+    var cat = findBestCategoryMatch(target) ??
+        await _familyParentTile(target) ??
+        await _ensureStandardCategory(target);
     // Si des liens surs (ancres) sont deja ranges ensemble dans UNE
     // categorie, la serie les rejoint : on ne contredit pas un lien sur.
     final anchorCats = {
@@ -1460,6 +1467,7 @@ class ClipsState extends ChangeNotifier {
       if (fresh.categoryId != it.categoryAtStart) continue;
       if (fresh.categoryId == cat.id) continue;
       await updateClip(fresh.copyWith(categoryId: cat.id));
+      await _placeFamilyTheme(fresh.id, target, cat);
       await alignSubcategory(fresh.id);
       await DatabaseHelper.instance.updateClipClassification(
         clipId: fresh.id,
@@ -1541,6 +1549,7 @@ class ClipsState extends ChangeNotifier {
         continue;
       }
       var cat = findBestCategoryMatch(target) ??
+          await _familyParentTile(target) ??
           await _ensureStandardCategory(target);
       // Si des liens surs (ancres) sont deja ranges ensemble dans UNE
       // categorie, la serie les rejoint : on ne contredit pas un lien sur.
@@ -1573,6 +1582,7 @@ class ClipsState extends ChangeNotifier {
           continue;
         }
         await updateClip(fresh.copyWith(categoryId: cat.id));
+        await _placeFamilyTheme(fresh.id, target, cat);
         await alignSubcategory(fresh.id);
         await DatabaseHelper.instance.updateClipClassification(
           clipId: fresh.id,
@@ -1596,6 +1606,142 @@ class ClipsState extends ChangeNotifier {
       notifyListeners();
     }
     return true;
+  }
+
+
+  // ───────────────────────────────────────────
+  // REGROUPEMENT EN TUILES MERES (decision d'Anne, 12 nov. 2026)
+  // Claude choisit toujours un sujet du catalogue. La table TileFamilies dit
+  // si ce sujet est un THEME d'une autre tuile : le lien est alors range
+  // directement dans la tuile mere ET dans la sous-tuile du theme (nom du
+  // sujet), sans second choix de Claude.
+  // ───────────────────────────────────────────
+
+  /// Langue de l'appli (renseignee par app.dart) pour nommer les themes.
+  static String? appLanguage;
+
+  String _familyLang() {
+    final l = appLanguage ??
+        WidgetsBinding.instance.platformDispatcher.locale.languageCode;
+    return l == 'fr' ? 'fr' : 'en';
+  }
+
+  /// Id cat_xxx du sujet [subject] (id ou libelle), ou null s'il est inconnu.
+  String? _subjectIdOf(String subject) {
+    final s = subject.trim();
+    if (s.startsWith('cat_') && AppL10n.standardCategoryName(s) != null) {
+      return s;
+    }
+    return AppL10n.canonicalCategoryId(s);
+  }
+
+  /// Vrai si [tile] est la tuile standard [id] (par son id ou par son nom).
+  bool _isStandardTile(ClipCategory tile, String id) =>
+      tile.id == id || AppL10n.canonicalCategoryId(tile.name) == id;
+
+  /// Tuile mere du sujet [subject] si ce sujet est un theme et n'a pas de
+  /// tuile a lui (la tuile mere est creee au besoin), sinon null.
+  Future<ClipCategory?> _familyParentTile(String subject) async {
+    final parentId = TileFamilies.parentIdOf(_subjectIdOf(subject));
+    if (parentId == null) return null;
+    return findBestCategoryMatch(parentId) ??
+        await _ensureStandardCategory(parentId);
+  }
+
+  /// Apres le rangement d'un lien dans [tile] : si son sujet est un theme de
+  /// cette tuile mere, le range dans la sous-tuile du theme (creee au besoin)
+  /// puis dans la sous-sous-tuile de la cliente dont le nom correspond.
+  Future<void> _placeFamilyTheme(
+      String clipId, String subject, ClipCategory tile) async {
+    try {
+      final subjectId = _subjectIdOf(subject);
+      final parentId = TileFamilies.parentIdOf(subjectId);
+      if (subjectId == null || parentId == null) return;
+      if (!_isStandardTile(tile, parentId)) return;
+      final sub = await _familyThemeSub(tile, subjectId);
+      await setClipSubcategory(clipId, sub.id);
+      final clip = _clips.where((c) => c.id == clipId).firstOrNull;
+      if (clip != null) {
+        final ss = _bestNamed<SubSubCategory>(
+            getSubSubCategoriesFor(sub.id), (x) => x.name, clip);
+        await setClipSubSubcategory(clipId, ss?.id);
+      }
+      debugPrint('[famille] $subjectId -> ${tile.name} / ${sub.name}');
+    } catch (e) {
+      debugPrint('[famille] erreur: $e');
+    }
+  }
+
+  /// Sous-tuile du theme [subjectId] dans [tile] (reutilisee ou creee).
+  Future<SubCategory> _familyThemeSub(
+      ClipCategory tile, String subjectId) async {
+    for (final s in _subcategories) {
+      if (s.categoryId == tile.id &&
+          AppL10n.canonicalCategoryId(s.name) == subjectId) {
+        return s;
+      }
+    }
+    final name = AppL10n(Locale(_familyLang())).localizeCategoryById(subjectId);
+    final sub = SubCategory(
+      id: const Uuid().v4(),
+      name: name,
+      categoryId: tile.id,
+      color: AppL10n.categoryColors[subjectId] ?? tile.color,
+      icon: AppL10n.categoryIcons[subjectId] ?? tile.icon,
+    );
+    await addSubCategory(sub);
+    // Meme memoire que « Fusionner » : le nom du theme redirige le
+    // classement vers la tuile mere.
+    if (_fusedTileLabels.add(AppL10n.normalizeCategoryLabel(name))) {
+      await _saveFusedTileLabels();
+    }
+    return sub;
+  }
+
+  static const String _familiesDoneKey = 'tile_families_done_v1';
+
+  /// Une seule fois : regroupe les tuiles existantes d'une cliente dans leur
+  /// tuile mere, avec le meme code que le bouton « Fusionner ». Les liens
+  /// sont conserves. Une tuile renommee par la cliente n'est pas touchee.
+  /// Reversible (le theme redevient une tuile avec « Defusionner »).
+  Future<void> _migrateTileFamilies() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_familiesDoneKey) == true) return;
+      var n = 0;
+      var backedUp = false;
+      for (final e in TileFamilies.parentOf.entries) {
+        final subjectId = e.key;
+        final parentId = e.value;
+        ClipCategory? own;
+        for (final c in _categories) {
+          if (c.id == parentId) continue;
+          if (c.id == subjectId ||
+              AppL10n.canonicalCategoryId(c.name) == subjectId) {
+            own = c;
+            break;
+          }
+        }
+        if (own == null) continue;
+        // Tuile renommee par la cliente : on la laisse telle quelle.
+        if (AppL10n.canonicalCategoryId(own.name) != subjectId) continue;
+        final parent = findBestCategoryMatch(parentId) ??
+            await _ensureStandardCategory(parentId);
+        if (parent == null || parent.id == own.id) continue;
+        if (!backedUp) {
+          await DatabaseHelper.instance.backupBeforeMigration('familles');
+          backedUp = true;
+        }
+        final themeName =
+            AppL10n(Locale(_familyLang())).localizeCategoryById(subjectId);
+        await mergeCategoryIntoCategory(own.id, parent.id, themeName);
+        n++;
+      }
+      await prefs.setBool(_familiesDoneKey, true);
+      debugPrint('[famille] migration : $n tuile(s) regroupee(s)');
+    } catch (e) {
+      debugPrint('[famille] migration ignoree : $e');
+    }
   }
 
   /// Cree la categorie standard [rawId] (ex. cat_design) si elle n'existe
@@ -2115,7 +2261,7 @@ class ClipsState extends ChangeNotifier {
           'cat_sante': 'Santé', 'cat_science': 'Science',
           'cat_bebe': 'Bébé', 'cat_tricot': 'Couture', 'cat_tricotage': 'Tricot', 'cat_crochet': 'Crochet', 'cat_broderie': 'Broderie',
           'cat_doc': 'Documentaire', 'cat_religion': 'Religion',
-          'cat_immo': 'Immobilier', 'cat_manga': 'Anime & Manga',
+          'cat_immo': 'Immobilier', 'cat_manga': 'Manga',
           'cat_politique': 'Politique', 'cat_crypto': 'Crypto',
           'cat_lang': 'Langues', 'cat_histoire': 'Histoire',
           'cat_art': 'Art', 'cat_photo': 'Photo',
@@ -2130,6 +2276,8 @@ class ClipsState extends ChangeNotifier {
           'cat_shopping': 'Magasins',
           'cat_restaurant': 'Restaurant',
           'cat_menage': 'Ménage',
+          'cat_maison': 'Maison',
+          'cat_spiritualite': 'Spiritualité',
           'cat_travaux': 'Travaux',
           'cat_rangement': 'Rangement',
           'cat_coiffure': 'Coiffure',
@@ -2153,6 +2301,7 @@ class ClipsState extends ChangeNotifier {
     try {
       _categories = await DatabaseHelper.instance.getAllCategories();
       var cat = findBestCategoryMatch(catId);
+      cat ??= await _familyParentTile(catId);
       if (cat == null) {
         final canonical = AppL10n.canonicalCategoryId(catId) ?? catId;
         cat = await addCategory(ClipCategory(
@@ -2172,6 +2321,7 @@ class ClipsState extends ChangeNotifier {
         }
       }
       await updateClip(current.copyWith(categoryId: cat.id));
+      await _placeFamilyTheme(current.id, catId, cat);
       await alignSubcategory(current.id);
       await recordUserCategoryChoice(current, cat.id);
       await DatabaseHelper.instance.setClipCandidates(clip.id, const []);
