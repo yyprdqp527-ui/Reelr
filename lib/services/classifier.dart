@@ -1472,7 +1472,7 @@ cat_broderie        → broderie, point de croix (cross stitch), grilles et moti
 cat_art             → beaux-arts, peinture, dessin artistique, exposition. Diff. cat_diy : art = démarche artistique exposée, diy = fabrication pratique.
 cat_design          → design appliqué : UX/UI, interfaces d'applis et de sites, maquettes, Figma, palettes et tendances de couleurs, typographie, logos, identité visuelle, branding, design graphique, inspiration design. Diff. cat_art : art = beaux-arts et démarche artistique ; design = conception visuelle appliquée à un usage (interface, marque, produit). Diff. cat_tech : tech = appareils et logiciels ; design = leur conception visuelle ou ergonomique. Diff. cat_deco : déco = intérieur d'un logement. Diff. cat_photo : une banque d'images sur un sujet de design reste cat_design.
 cat_photo           → technique photo/vidéo, matériel, retouche. Diff. cat_art : photo = médium/technique, art = résultat artistique visé.
-cat_tech            → high-tech, électronique, informatique, smartphones, ordinateurs, audio (écouteurs, enceintes), gadgets, applis. Diff. cat_photo : photo = technique et matériel de prise de vue ; tech = tout autre appareil ou produit électronique.
+cat_tech            → high-tech, électronique, informatique, smartphones, ordinateurs, audio (écouteurs, enceintes), gadgets, applis, ET TOUTE vidéo qui concerne l'intelligence artificielle (ChatGPT, Claude, Gemini, Midjourney, agents, prompts, outils et actualités de l'IA), quel que soit l'usage (business, éducation, création). Diff. cat_photo : photo = technique et matériel de prise de vue ; tech = tout autre appareil ou produit électronique.
 cat_cosplay         → cosplay, costumes de personnages, geek culture
 cat_manga           → anime, manga, culture japonaise animée. Diff. cat_cosplay : manga = œuvres, cosplay = déguisement inspiré d'œuvres.
 cat_deco            → décoration intérieure, home tour, aménagement
@@ -1594,7 +1594,9 @@ recours. Ne les choisis que si aucune catégorie plus précise ne convient.
 
 17. Appareils photo, objectifs, caméras, drones, réglages de prise de vue
     → cat_photo, même pour filmer en vidéo. Téléphones, ordinateurs,
-    écouteurs, consoles et autres appareils → cat_tech.
+    écouteurs, consoles et autres appareils → cat_tech. Tout contenu sur
+    l'intelligence artificielle (ChatGPT, Claude, Gemini, Midjourney, agents,
+    prompts) → cat_tech.
 
 18. Lune, pleine lune, astres, signes, énergie lunaire → cat_astro, même
     avec un rituel ou une méditation. cat_wellness = méditation,
