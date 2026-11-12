@@ -1147,6 +1147,9 @@ class OEmbedService {
     'log in or sign up to view',
     'page not found',
     'content not available',
+    // Titres des pages d'erreur de la WebView Android (apercu de lien).
+    'webpage not available', 'web page not available',
+    'page web non disponible', 'page web indisponible',
     // Ajoutes apres coup : quand l'API Helix echoue, l'og:title de Twitch
     // vaut litteralement « Twitch ». Le classifieur etait quand meme
     // appele et repondait « cat_gaming, confiance 95 » sur ce seul mot.
