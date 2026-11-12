@@ -10,6 +10,10 @@ class TileFamilies {
   /// Tuiles meres qui ne sont pas un sujet du catalogue de Claude.
   static const Set<String> extraParents = {'cat_maison', 'cat_spiritualite'};
 
+  /// Sujets qui sont leur propre tuile mere ET rangent leurs liens dans un
+  /// theme au nom different (Manga : les liens vont dans « Anime »).
+  static const Map<String, String> selfThemes = {'cat_manga': 'Anime'};
+
   /// sujet (cat_xxx) -> tuile mere (cat_xxx).
   static const Map<String, String> parentOf = {
     // Recette

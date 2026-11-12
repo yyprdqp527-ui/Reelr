@@ -413,6 +413,7 @@ class ClipsState extends ChangeNotifier {
     _clipSubSubcategoryMap = await DatabaseHelper.instance.getClipSubSubcategoryMapAll();
     await _loadFusedTileLabels();
     await _migrateTileFamilies();
+    await _migrateMangaAnime();
     _isLoading = false;
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
@@ -1667,7 +1668,8 @@ class ClipsState extends ChangeNotifier {
       String clipId, String subject, ClipCategory tile) async {
     try {
       final subjectId = _subjectIdOf(subject);
-      final parentId = TileFamilies.parentIdOf(subjectId);
+      final parentId = TileFamilies.parentIdOf(subjectId) ??
+          (TileFamilies.selfThemes.containsKey(subjectId) ? subjectId : null);
       if (subjectId == null || parentId == null) return;
       if (!_isStandardTile(tile, parentId)) return;
       final sub = await _familyThemeSub(tile, subjectId);
@@ -1694,7 +1696,8 @@ class ClipsState extends ChangeNotifier {
         return s;
       }
     }
-    final name = AppL10n(Locale(_familyLang())).localizeCategoryById(subjectId);
+    final name = TileFamilies.selfThemes[subjectId] ??
+        AppL10n(Locale(_familyLang())).localizeCategoryById(subjectId);
     final sub = SubCategory(
       id: const Uuid().v4(),
       name: name,
@@ -1709,6 +1712,35 @@ class ClipsState extends ChangeNotifier {
       await _saveFusedTileLabels();
     }
     return sub;
+  }
+
+  static const String _mangaAnimeKey = 'tile_manga_anime_done_v1';
+
+  /// Une seule fois : les liens deja dans Manga sans sous-tuile vont dans
+  /// la sous-tuile « Anime ». Ceux deja rangés (Cosplay...) ne bougent pas.
+  Future<void> _migrateMangaAnime() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_mangaAnimeKey) == true) return;
+      final tile = findBestCategoryMatch('cat_manga');
+      if (tile != null) {
+        final loose = _clips
+            .where((c) =>
+                c.categoryId == tile.id &&
+                _clipSubcategoryMap[c.id] == null)
+            .toList();
+        if (loose.isNotEmpty) {
+          final sub = await _familyThemeSub(tile, 'cat_manga');
+          for (final c in loose) {
+            await setClipSubcategory(c.id, sub.id);
+          }
+          debugPrint('[famille] ${loose.length} lien(s) Manga -> Anime');
+        }
+      }
+      await prefs.setBool(_mangaAnimeKey, true);
+    } catch (e) {
+      debugPrint('[famille] migration Anime ignoree : $e');
+    }
   }
 
   static const String _familiesDoneKey = 'tile_families_done_v1';

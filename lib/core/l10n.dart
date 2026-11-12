@@ -427,7 +427,7 @@ class AppL10n {
     'cat_doc':            'Documentary',
     'cat_religion':       'Religion',
     'cat_immo':           'Real Estate',
-    'cat_manga':          'Anime & Manga',
+    'cat_manga':          'Manga',
     'cat_politique':      'Politics',
     'cat_crypto':         'Crypto',
     'cat_lang':           'Languages',
@@ -468,6 +468,8 @@ class AppL10n {
   /// Accents, casse et pluriel simple sont geres par
   /// [normalizeCategoryLabel] : inutile de les lister ici.
   static const Map<String, List<String>> _extraSynonyms = {
+    // Anciens noms de la tuile Manga + theme « Anime » (tuile mere Manga).
+    'cat_manga': ['anime & manga', 'anime et manga', 'anime', 'animes'],
     'cat_food': ['food', 'recette', 'cuisine', 'cooking', 'recipe'],
     'cat_fitness': ['workout', 'muscu', 'musculation', 'gym'],
     'cat_actu': ['actu', 'info', 'infos', 'news', 'actualite'],
