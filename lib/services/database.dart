@@ -1,3 +1,4 @@
+import 'dart:io' show File;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path_helper;
@@ -27,6 +28,23 @@ class DatabaseHelper {
     final fullPath = path_helper.join(dbPath, 'clips.db');
     return openDatabase(fullPath,
       version: 23, onCreate: _onCreate, onUpgrade: _onUpgrade);
+  }
+
+  /// Copie coherente de la base (`clips.db.bak_<label>`) avant une operation
+  /// qui deplace beaucoup de liens. Au mieux : une erreur est seulement notee.
+  Future<void> backupBeforeMigration(String label) async {
+    try {
+      if (kIsWeb) return;
+      final db = await database;
+      final dbPath = await getDatabasesPath();
+      final target = path_helper.join(dbPath, 'clips.db.bak_$label');
+      final f = File(target);
+      if (await f.exists()) await f.delete();
+      await db.execute("VACUUM INTO '${target.replaceAll("'", "''")}'");
+      debugPrint('[db] sauvegarde faite : $target');
+    } catch (e) {
+      debugPrint('[db] sauvegarde impossible : $e');
+    }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
