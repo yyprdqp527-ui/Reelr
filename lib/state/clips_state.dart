@@ -183,6 +183,9 @@ List<Clip> sortClipsByOrder(List<Clip> src, SortOrder order) {
 class ClipsState extends ChangeNotifier {
   List<Clip> _clips = [];
   final Set<String> _newlyClassifiedCategoryIds = {};
+  // Sous-tuiles (themes) qui ont recu un nouveau lien : elles brillent
+  // jusqu'a ce que la cliente les ouvre.
+  final Set<String> _newlyClassifiedSubCategoryIds = {};
   List<ClipCategory> _categories = [];
   List<SubCategory> _subcategories = [];
   Map<String, String> _clipSubcategoryMap = {};
@@ -246,6 +249,15 @@ class ClipsState extends ChangeNotifier {
   List<ClipCategory> get categories => _categories;
 
   Set<String> get newlyClassifiedCategoryIds => Set.unmodifiable(_newlyClassifiedCategoryIds);
+
+  Set<String> get newlyClassifiedSubCategoryIds =>
+      Set.unmodifiable(_newlyClassifiedSubCategoryIds);
+
+  void markSubCategoryViewed(String subCategoryId) {
+    if (_newlyClassifiedSubCategoryIds.remove(subCategoryId)) {
+      notifyListeners();
+    }
+  }
 
   void markCategoryViewed(String categoryId) {
     _newlyClassifiedCategoryIds.remove(categoryId);
@@ -1660,6 +1672,7 @@ class ClipsState extends ChangeNotifier {
       if (!_isStandardTile(tile, parentId)) return;
       final sub = await _familyThemeSub(tile, subjectId);
       await setClipSubcategory(clipId, sub.id);
+      _newlyClassifiedSubCategoryIds.add(sub.id);
       final clip = _clips.where((c) => c.id == clipId).firstOrNull;
       if (clip != null) {
         final ss = _bestNamed<SubSubCategory>(
@@ -2486,6 +2499,7 @@ class ClipsState extends ChangeNotifier {
       // Range a la main pendant l'appel : on n'y touche pas.
       if (_clipSubcategoryMap[clipId] != null) return;
       await setClipSubcategory(clipId, sub.id);
+      _newlyClassifiedSubCategoryIds.add(sub.id);
       final subSub = _bestNamed<SubSubCategory>(
           getSubSubCategoriesFor(sub.id), (s) => s.name, clip);
       await setClipSubSubcategory(clipId, subSub?.id);
