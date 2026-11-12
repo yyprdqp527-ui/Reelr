@@ -28,6 +28,7 @@ import '../widgets/confirm_delete_many.dart';
 import '../widgets/background.dart';
 import '../widgets/coach_mark.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/glow_beam.dart';
 import '../widgets/offer_subcategory_move.dart';
 import '../widgets/reelr_loader.dart';
 import '../widgets/resilient_thumbnail.dart';
@@ -1076,6 +1077,10 @@ class _CategoryTileState extends State<_CategoryTile> {
           transform: Matrix4.translationValues(0.0, _hover ? -4.0 : 0.0, 0.0)
             ..scaleByDouble(_hover ? 1.03 : 1.0, _hover ? 1.03 : 1.0, 1.0, 1.0),
           transformAlignment: Alignment.center,
+          // Nouveau lien dans la tuile : contour lumineux (meme faisceau que
+          // la barre de recherche), a la place de l'ancien point rouge.
+          foregroundDecoration:
+              widget.showBadge ? const BeamDecoration(radius: 22) : null,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
             border: Border.all(
@@ -1183,20 +1188,6 @@ class _CategoryTileState extends State<_CategoryTile> {
                           ),
                         ),
                       ],
-                      // Badge rouge si nouvellement classifiée
-                      if (widget.showBadge)
-                        Positioned(
-                          top: 8,
-                          right: 8,
-                          child: Container(
-                            width: 12,
-                            height: 12,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFF3B30),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
                     ],
                   )
                 // ── Mode glass card : BackdropFilter intact ──
@@ -1722,15 +1713,21 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                   if (subcats.isNotEmpty)
                     _SubcategoryBar(
                       subcategories: subcats,
+                      newSubIds: widget.state.newlyClassifiedSubCategoryIds,
                       selectedId: _selectedSubcategoryId,
                       categoryColor: widget.categoryId != null
                           ? (widget.state.categoryById(widget.categoryId)?.color ??
                               AppTheme.orange)
                           : AppTheme.orange,
-                      onSelect: (id) => setState(() {
-                        _selectedSubcategoryId = id;
-                        _selectedSubSubcategoryId = null;
-                      }),
+                      onSelect: (id) {
+                        if (id != null) {
+                          widget.state.markSubCategoryViewed(id);
+                        }
+                        setState(() {
+                          _selectedSubcategoryId = id;
+                          _selectedSubSubcategoryId = null;
+                        });
+                      },
                       onDelete: (id) =>
                           widget.state.deleteSubCategory(id),
                       onPromote: (id) async {
@@ -2180,6 +2177,7 @@ class _SubcategoryBar extends StatelessWidget {
   final ValueChanged<String?> onSelectSubSub;
   final ValueChanged<String> onDeleteSubSub;
   final VoidCallback onAddSubSub;
+  final Set<String> newSubIds;
 
   const _SubcategoryBar({
     required this.subcategories,
@@ -2193,6 +2191,7 @@ class _SubcategoryBar extends StatelessWidget {
     required this.onSelectSubSub,
     required this.onDeleteSubSub,
     required this.onAddSubSub,
+    this.newSubIds = const {},
   });
 
   @override
@@ -2258,6 +2257,7 @@ class _SubcategoryBar extends StatelessWidget {
                     label: sub.name,
                     color: sub.color,
                     selected: selectedId == sub.id,
+                    glow: newSubIds.contains(sub.id),
                     onTap: () => onSelect(sub.id),
                   ),
                 ),
@@ -2399,12 +2399,14 @@ class _SubChip extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onTap;
+  final bool glow;
 
   const _SubChip({
     required this.label,
     required this.color,
     required this.selected,
     required this.onTap,
+    this.glow = false,
   });
 
   @override
@@ -2414,6 +2416,8 @@ class _SubChip extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        foregroundDecoration:
+            glow ? const BeamDecoration(radius: 20, strokeWidth: 1.8) : null,
         decoration: BoxDecoration(
           color: selected ? color : color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
@@ -3307,14 +3311,18 @@ class ClipCard extends StatelessWidget {
                           subSub != null &&
                           subSub.subCategoryId == sub.id) {
                         return open(_Badge(
-                          label: subSub.name,
+                          label: currentCategoryId == category.id
+                              ? subSub.name
+                              : '${AppL10n.of(context).localizeCategoryDisplay(category.id, category.name)} › ${sub.name} › ${subSub.name}',
                           color: subSub.color,
                           icon: subSub.icon,
                         ));
                       }
                       if (sub != null && sub.categoryId == category.id) {
                         return open(_Badge(
-                          label: sub.name,
+                          label: currentCategoryId == category.id
+                              ? sub.name
+                              : '${AppL10n.of(context).localizeCategoryDisplay(category.id, category.name)} › ${sub.name}',
                           color: sub.color,
                           icon: sub.icon,
                         ));
@@ -4122,12 +4130,16 @@ class _Badge extends StatelessWidget {
             Icon(icon, size: 12, color: displayColor),
             const SizedBox(width: 4),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: displayColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: displayColor,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
