@@ -14,8 +14,9 @@ import 'playlist_link.dart';
 class PlaylistLinkShortener {
   static const String _shortenUrl =
       'https://reelr-link-shortener.myreelr.workers.dev/shorten';
-  static const String _shortDomain =
-      'https://reelr-link-shortener.myreelr.workers.dev';
+  // Le lien partage passe par la route /s/ du Worker reelr-proxy : elle
+  // genere l'apercu (Messages, WhatsApp) puis redirige vers la page.
+  static const String _shortBase = 'https://s.myreelr.app';
 
   static Future<Uri> shorten(PlaylistLink link) async {
     final fallback = link.toWebUri();
@@ -40,7 +41,7 @@ class PlaylistLinkShortener {
       final code = data['code'] as String?;
       if (code == null || code.isEmpty) return fallback;
 
-      return Uri.parse('$_shortDomain/$code');
+      return Uri.parse('$_shortBase/$code');
     } catch (_) {
       return fallback;
     }
