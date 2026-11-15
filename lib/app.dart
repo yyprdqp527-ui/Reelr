@@ -313,10 +313,25 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     });
   }
 
+  /// Moment ou l'appli est partie en arriere-plan.
+  DateTime? _pausedAt;
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _pausedAt = DateTime.now();
+    }
     if (state == AppLifecycleState.resumed) {
       debugPrint("[lifecycle] resumed");
+      // Retour apres etre reellement parti en arriere-plan : on rouvre
+      // toujours sur l'accueil (tuiles), pas sur la derniere page visitee.
+      // Avant la lecture de la boite de partage, pour ne pas fermer une
+      // page qu'elle ouvrirait.
+      final away = _pausedAt;
+      _pausedAt = null;
+      if (away != null && _onboardingDone) {
+        _navigatorKey.currentState?.popUntil((r) => r.isFirst);
+      }
       // Retour dans l'appli alors que l'onboarding est encore a l'ecran
       // (le client est parti depuis une page sans passer par les logos) :
       // si un lien l'attend dans la boite de partage, on ne montre pas
