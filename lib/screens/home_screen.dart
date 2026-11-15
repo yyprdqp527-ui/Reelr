@@ -22,6 +22,7 @@ import '../services/database.dart';
 import '../services/oembed.dart';
 import '../services/playlist_link.dart';
 import '../services/playlist_link_shortener.dart';
+import '../services/playlist_thumb_upload.dart';
 import '../services/claude_service.dart';
 import '../state/clips_state.dart';
 import '../widgets/confirm_delete_many.dart';
@@ -1473,7 +1474,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
     if (clips == null || clips.isEmpty || !context.mounted) return;
     final isFr = Localizations.localeOf(context).languageCode == 'fr';
 
-    final playlistLink = PlaylistLink.fromClips(name, clips);
+    final uploadedThumbs = await PlaylistThumbUpload.uploadFor(clips);
+    final playlistLink =
+        PlaylistLink.fromClips(name, clips, uploadedThumbs: uploadedThumbs);
     final link = await PlaylistLinkShortener.shorten(playlistLink);
     if (!context.mounted) return;
 

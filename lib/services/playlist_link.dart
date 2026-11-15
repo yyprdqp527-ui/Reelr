@@ -63,15 +63,17 @@ class PlaylistLink {
 
   const PlaylistLink({required this.name, required this.items});
 
-  factory PlaylistLink.fromClips(String name, List<Clip> clips) =>
+  factory PlaylistLink.fromClips(String name, List<Clip> clips,
+          {Map<String, String> uploadedThumbs = const {}}) =>
       PlaylistLink(
         name: name,
         items: clips
             .map((c) => PlaylistLinkItem(
                   title: c.title,
                   url: c.url,
-                  thumbnailUrl: _shareableThumbnail(
-                      OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl)),
+                  thumbnailUrl: uploadedThumbs[c.id] ??
+                      _shareableThumbnail(
+                          OEmbedService.bestThumbnailUrl(c.url, c.thumbnailUrl)),
                 ))
             .toList(),
       );
