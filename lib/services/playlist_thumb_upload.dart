@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:http/http.dart' as http;
 
@@ -53,8 +54,14 @@ class PlaylistThumbUpload {
     try {
       final file = await ThumbnailStore.instance.fileFor(clip.id);
       if (file == null) return null;
-      final bytes = await file.readAsBytes();
-      if (bytes.isEmpty || bytes.length > _maxBytes) return null;
+      var bytes = await file.readAsBytes();
+      // Les vignettes locales font souvent 300 Ko a 1 Mo : on les reduit.
+      if (bytes.length > _maxBytes) {
+        final small = await _shrink(bytes);
+        if (small == null) return null;
+        bytes = small;
+      }
+      if (bytes.isEmpty) return null;
       final type = _imageType(bytes);
       if (type == null) return null;
       final response = await http
@@ -74,6 +81,26 @@ class PlaylistThumbUpload {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Reduit en PNG, de la plus grande largeur a la plus petite, jusqu'a
+  /// passer sous la limite du Worker.
+  static Future<Uint8List?> _shrink(Uint8List bytes) async {
+    for (final w in const [480, 384, 288, 224]) {
+      try {
+        final codec = await ui.instantiateImageCodec(bytes, targetWidth: w);
+        final frame = await codec.getNextFrame();
+        final data =
+            await frame.image.toByteData(format: ui.ImageByteFormat.png);
+        frame.image.dispose();
+        if (data == null) return null;
+        final out = data.buffer.asUint8List();
+        if (out.length <= _maxBytes) return out;
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
   }
 
   static String? _imageType(Uint8List b) {
