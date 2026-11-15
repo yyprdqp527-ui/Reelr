@@ -59,6 +59,8 @@ class _T {
   String get cantFind => fr ? 'Je ne trouve pas Reelr' : "I can't find Reelr";
   String get showMe => fr ? 'Montre-moi' : 'Show me';
   String get imFine => fr ? 'Non, ça va' : "No, I'm good";
+  String get openPlaylist => fr ? 'Ouvrir la playlist' : 'Open the playlist';
+  String get notNow => fr ? 'Pas maintenant' : 'Not now';
 
   // Intro du secours (iPhone)
   String get introBody => fr
@@ -77,7 +79,7 @@ class _T {
 // ÉCRAN
 // ─────────────────────────────────────────────
 
-enum _Kind { welcome, share, dots, apps, intro, modifier, toggle, androidRescue }
+enum _Kind { welcome, share, dots, apps, playlist, intro, modifier, toggle, androidRescue }
 
 class OnboardingScreen extends StatefulWidget {
   final ClipsState state;
@@ -97,6 +99,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _controller = PageController();
   int _page = 0;
   bool _rescue = false;
+  // Lien différé : une playlist d'un ami attend dans le presse-papiers.
+  bool _playlistWaiting = false;
+  bool _openingPlaylist = false;
 
   /// Moment ou le client a quitte l'appli depuis les dernieres pages.
   DateTime? _leftAt;
@@ -105,6 +110,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    if (!widget.rescueOnly) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _checkPlaylistWaiting());
+    }
   }
 
   /// Le client est alle chercher un lien dans une autre appli depuis les
@@ -176,7 +184,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       _Kind.welcome,
       _Kind.share,
       if (!_isAndroid) _Kind.dots,
-      _Kind.apps,
+      _playlistWaiting ? _Kind.playlist : _Kind.apps,
     ];
   }
 
@@ -226,6 +234,29 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Future<void> _afterApp() async {}
 
+  Future<void> _checkPlaylistWaiting() async {
+    final waiting =
+        await ClipsApp.of(context)?.deferredPlaylistMayWait() ?? false;
+    if (!mounted || !waiting) return;
+    setState(() => _playlistWaiting = true);
+  }
+
+  /// « Ouvrir la playlist » : si le presse-papiers n'a finalement pas de
+  /// playlist, on retombe sur la page des applis.
+  Future<void> _openPlaylist() async {
+    if (_openingPlaylist) return;
+    _openingPlaylist = true;
+    final opened =
+        await ClipsApp.of(context)?.openDeferredPlaylistFromOnboarding() ??
+            false;
+    _openingPlaylist = false;
+    if (!mounted || opened) return;
+    setState(() => _playlistWaiting = false);
+  }
+
+  /// « Pas maintenant » : retour à la page des applis.
+  void _declinePlaylist() => setState(() => _playlistWaiting = false);
+
   void _back() {
     _controller.previousPage(
       duration: const Duration(milliseconds: 350),
@@ -263,6 +294,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return t.start;
       case _Kind.apps:
         return t.go;
+      case _Kind.playlist:
+        return t.openPlaylist;
       case _Kind.intro:
         return t.showMe;
       default:
@@ -271,11 +304,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   VoidCallback _primaryAction() {
+    if (_kind == _Kind.playlist) return _openPlaylist;
     return _kind == _Kind.apps ? _complete : _next;
   }
 
   String? _secondaryLabel(_T t) {
     switch (_kind) {
+      case _Kind.playlist:
+        return t.notNow;
       case _Kind.apps:
         return _inRescue ? null : t.cantFind;
       case _Kind.intro:
@@ -288,6 +324,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   VoidCallback? _secondaryAction() {
     switch (_kind) {
+      case _Kind.playlist:
+        return _declinePlaylist;
       case _Kind.apps:
         return _startRescue;
       case _Kind.intro:
@@ -376,6 +414,13 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               : [_s("Can't find\n"), _s('Reelr', wordmark: true), _s('?')]),
           phone: (h) => _PhoneFrame(height: h, child: _IntroScreen(t: t, height: h)),
         );
+      case _Kind.playlist:
+        return _Page(
+          title: _title(context, t.fr
+              ? [_s('Ton ami t’a envoyé\nune '), _s('playlist', y: true)]
+              : [_s('A friend sent\nyou a '), _s('playlist', y: true)]),
+          phone: (h) => _PhoneFrame(height: h, child: _PlaylistScreen(height: h)),
+        );
       case _Kind.apps:
         return _Page(
           title: _title(context, t.fr
@@ -461,7 +506,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                         const SizedBox(width: 12),
                         _ArrowButton(
                           icon: Icons.chevron_right_rounded,
-                          visible: _kind != _Kind.welcome && _kind != _Kind.apps,
+                          visible: _kind != _Kind.welcome &&
+              _kind != _Kind.apps &&
+              _kind != _Kind.playlist,
                           onPressed: _next,
                         ),
                       ],
@@ -829,6 +876,38 @@ class _IntroScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Page « playlist d'un ami » : l'icône de Reelr, sans texte (le titre et
+/// le bouton sont en Flutter).
+class _PlaylistScreen extends StatelessWidget {
+  final double height;
+
+  const _PlaylistScreen({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = height / 420;
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xFF221D68), Color(0xFF17134A)],
+        ),
+      ),
+      alignment: Alignment.center,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22 * s),
+        child: Image.asset(
+          'assets/icon/icon.png',
+          width: 88 * s,
+          height: 88 * s,
+          fit: BoxFit.cover,
+        ),
       ),
     );
   }
