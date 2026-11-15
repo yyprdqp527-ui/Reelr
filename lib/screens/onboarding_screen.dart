@@ -1058,32 +1058,15 @@ class _AppsScreenState extends State<_AppsScreen> with TickerProviderStateMixin 
     final t = widget.t;
     final s = widget.height / 420;
     final size = 30 * s;
-    final browser = Container(
-      width: size,
-      height: size,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF5CB8FF), Color(0xFF0A60F0)],
-        ),
-      ),
-      child: Icon(Icons.explore_rounded, color: Colors.white, size: 26 * s),
-    );
+    final browser = _logo(
+        widget.android ? 'assets/icons/chrome.png' : 'assets/icons/safari.png',
+        size);
     final google = Container(
       width: size,
       height: size,
       color: Colors.white,
-      alignment: Alignment.center,
-      child: Text(
-        'G',
-        style: TextStyle(
-          fontFamily: _font,
-          fontWeight: FontWeight.w900,
-          fontSize: 24 * s,
-          color: const Color(0xFF4285F4),
-        ),
-      ),
+      padding: EdgeInsets.all(5 * s),
+      child: Image.asset('assets/icons/google.png', fit: BoxFit.contain),
     );
     const web = 'https://www.google.com';
     Widget gap() => SizedBox(height: 10 * s);
@@ -1195,12 +1178,15 @@ class _AppLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Semantics(
+      label: label,
+      button: true,
+      child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _tap(context),
       child: Container(
         width: 50 * s,
-        padding: EdgeInsets.fromLTRB(2 * s, 6 * s, 2 * s, 5 * s),
+        padding: EdgeInsets.fromLTRB(2 * s, 6 * s, 2 * s, 6 * s),
         decoration: BoxDecoration(
           color: Colors.white.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(14 * s),
@@ -1213,20 +1199,9 @@ class _AppLink extends StatelessWidget {
               borderRadius: BorderRadius.circular(9 * s),
               child: icon,
             ),
-            SizedBox(height: 3 * s),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.clip,
-              softWrap: false,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.85),
-                fontSize: 8.5 * s,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
           ],
         ),
+      ),
       ),
     );
   }
