@@ -264,6 +264,25 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         uri.path.startsWith('/reelr-support/playlist')) {
       return uri;
     }
+    if (uri.host == 's.myreelr.app' &&
+        uri.pathSegments.length == 1 &&
+        uri.pathSegments.first.isNotEmpty) {
+      return Uri.https(
+        'yyprdqp527-ui.github.io',
+        '/reelr-support/playlist.html',
+        {'code': uri.pathSegments.first},
+      );
+    }
+    if (uri.host == 'reelr-proxy.myreelr.workers.dev' &&
+        uri.pathSegments.length == 2 &&
+        uri.pathSegments.first == 's' &&
+        uri.pathSegments.last.isNotEmpty) {
+      return Uri.https(
+        'yyprdqp527-ui.github.io',
+        '/reelr-support/playlist.html',
+        {'code': uri.pathSegments.last},
+      );
+    }
     if (uri.host == 'reelr-link-shortener.myreelr.workers.dev' &&
         uri.pathSegments.length == 1 &&
         uri.pathSegments.first.isNotEmpty) {
@@ -569,7 +588,10 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
           onImportItem: (item) async {
             // Créée au premier lien importé seulement : si on referme
             // l'écran sans rien importer, aucune catégorie vide.
-            presetCategory ??= _playlistCategoryId(playlist.name);
+            // Un seul lien : pas de tuile au nom du lien, classement normal.
+            if (playlist.items.length > 1) {
+              presetCategory ??= _playlistCategoryId(playlist.name);
+            }
             return _ingestSharedUrl(
               item.url,
               silent: true,
@@ -712,6 +734,15 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     String? sharedThumbnailUrl,
     String? presetCategoryId,
   }) async {
+    // Un lien de partage Reelr (collé, ou partagé vers Reelr) ouvre la
+    // playlist ; il n'est jamais enregistré comme un lien ordinaire.
+    if (!silent) {
+      final ownLink = _playlistUriFromText(url);
+      if (ownLink != null) {
+        unawaited(_handleDeepLink(ownLink));
+        return false;
+      }
+    }
     widget.state.beginArrival();
     try {
       return await _ingestSharedUrlInner(
