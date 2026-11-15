@@ -224,6 +224,33 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     await _handleDeepLink(uri);
   }
 
+  /// Onboarding : vrai si, au premier lancement, le presse-papiers contient
+  /// probablement un lien (iOS : sans lire le contenu, sans demande).
+  Future<bool> deferredPlaylistMayWait() async {
+    if (!_wasFirstLaunch || _lastPlaylistUri != null) return false;
+    try {
+      return await _pasteboardChannel.invokeMethod<bool>(
+            'hasProbableWebURL',
+          ) ??
+          false;
+    } catch (_) {
+      return Clipboard.hasStrings();
+    }
+  }
+
+  /// Onboarding, bouton « Ouvrir la playlist » : lit le presse-papiers (iOS
+  /// demande « Autoriser à coller »), termine l'onboarding et ouvre l'import.
+  /// Faux si le presse-papiers ne contient pas de lien de playlist.
+  Future<bool> openDeferredPlaylistFromOnboarding() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final uri = _playlistUriFromText(data?.text ?? '');
+    if (uri == null) return false;
+    _deferredPlaylistChecked = true;
+    await _handleDeepLink(uri);
+    await markOnboardingDoneAwaited();
+    return true;
+  }
+
   /// Retrouve un lien de playlist dans un texte : page playlist, lien
   /// court du Worker (converti en page ?code=) ou reelr://playlist.
   Uri? _playlistUriFromText(String text) {
