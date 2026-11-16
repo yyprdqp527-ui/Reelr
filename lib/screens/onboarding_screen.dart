@@ -59,7 +59,7 @@ class _T {
   String get cantFind => fr ? 'Je ne trouve pas Reelr' : "I can't find Reelr";
   String get showMe => fr ? 'Montre-moi' : 'Show me';
   String get imFine => fr ? 'Non, ça va' : "No, I'm good";
-  String get openPlaylist => fr ? 'Ouvrir la playlist' : 'Open the playlist';
+  String get openPlaylist => fr ? 'Ajouter à Reelr' : 'Add to Reelr';
   String get notNow => fr ? 'Pas maintenant' : 'Not now';
 
   // Intro du secours (iPhone)
@@ -417,8 +417,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       case _Kind.playlist:
         return _Page(
           title: _title(context, t.fr
-              ? [_s('Ton ami t’a envoyé\nune '), _s('playlist', y: true)]
-              : [_s('A friend sent\nyou a '), _s('playlist', y: true)]),
+              ? [_s('Un ami te\n'), _s('partage', y: true)]
+              : [_s('A friend\nis '), _s('sharing', y: true)]),
           phone: (h) => _PhoneFrame(height: h, child: _PlaylistScreen(height: h)),
         );
       case _Kind.apps:
