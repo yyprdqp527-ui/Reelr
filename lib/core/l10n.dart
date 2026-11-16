@@ -127,6 +127,9 @@ class AppL10n {
       'playlist_import_already_saved': 'Déjà enregistré',
       'playlist_import_none_selected': 'Sélectionne au moins un lien à importer.',
       'playlist_share_none_selected': 'Choisis au moins un lien',
+      'shared_link_title': 'Un ami te partage',
+      'shared_link_add': 'Ajouter à Reelr',
+      'shared_link_later': 'Pas maintenant',
     },
     'en': {
       'app_name': 'Reelr',
@@ -242,6 +245,9 @@ class AppL10n {
       'playlist_import_already_saved': 'Already saved',
       'playlist_import_none_selected': 'Select at least one link to import.',
       'playlist_share_none_selected': 'Choose at least one link',
+      'shared_link_title': 'A friend is sharing',
+      'shared_link_add': 'Add to Reelr',
+      'shared_link_later': 'Not now',
     },
   };
 
