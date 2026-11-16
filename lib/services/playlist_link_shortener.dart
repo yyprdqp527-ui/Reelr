@@ -19,7 +19,13 @@ class PlaylistLinkShortener {
   static const String _shortBase = 'https://s.myreelr.app';
 
   static Future<Uri> shorten(PlaylistLink link) async {
-    final fallback = link.toWebUri();
+    // Une seconde tentative avant le lien long de secours.
+    final first = await _tryShorten(link);
+    if (first != null) return first;
+    return await _tryShorten(link) ?? link.toWebUri();
+  }
+
+  static Future<Uri?> _tryShorten(PlaylistLink link) async {
     try {
       final response = await http
           .post(
@@ -33,17 +39,17 @@ class PlaylistLinkShortener {
               'items': link.encodedItemsForSharing(),
             }),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 6));
 
-      if (response.statusCode != 200) return fallback;
+      if (response.statusCode != 200) return null;
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final code = data['code'] as String?;
-      if (code == null || code.isEmpty) return fallback;
+      if (code == null || code.isEmpty) return null;
 
       return Uri.parse('$_shortBase/$code');
     } catch (_) {
-      return fallback;
+      return null;
     }
   }
 }

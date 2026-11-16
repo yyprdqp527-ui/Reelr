@@ -265,6 +265,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         uri.path.startsWith('/reelr-support/playlist')) {
       return uri;
     }
+    if (uri.host == 's.myreelr.app' && uri.queryParameters.containsKey('items')) {
+      // Lien de secours long (name + items), même contenu que la page.
+      return Uri.https(
+        'yyprdqp527-ui.github.io',
+        '/reelr-support/playlist.html',
+        uri.queryParameters,
+      );
+    }
     if (uri.host == 's.myreelr.app' &&
         uri.pathSegments.length == 1 &&
         uri.pathSegments.first.isNotEmpty) {

@@ -111,8 +111,8 @@ class PlaylistLink {
   /// fallback vers l'App Store / Play Store si le destinataire n'a pas
   /// Reelr installée (voir playlist.html).
   Uri toWebUri() => Uri.https(
-        'yyprdqp527-ui.github.io',
-        '/reelr-support/playlist.html',
+        's.myreelr.app',
+        '/',
         {
           'name': name,
           'items': _encodedPayload(),
