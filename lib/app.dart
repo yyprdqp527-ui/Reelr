@@ -19,6 +19,7 @@ import 'models/clip.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/categories_screen.dart' show suggestIconForCategoryName;
 import 'screens/playlist_import_screen.dart';
+import 'widgets/shared_link_sheet.dart';
 import 'services/thumbnail_cache.dart';
 import 'services/thumbnail_store.dart';
 import 'services/thumbnail_resolver.dart';
@@ -579,6 +580,24 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
         return;
       }
       _playlistImportOpen = true;
+      // Un seul lien : feuille « Un ami te partage », pas l'écran de playlist.
+      if (playlist.items.length == 1) {
+        SharedLinkSheet.show(
+          ctx,
+          state: widget.state,
+          item: playlist.items.first,
+          onImportItem: (item) => _ingestSharedUrl(
+            item.url,
+            silent: true,
+            sharedTitle: item.title,
+            sharedThumbnailUrl: item.rawThumbnailUrl,
+          ),
+          canAddMore: () => canAddClip(silent: true),
+          onLimitReached: (urls) => unawaited(_holdSharedUrls(urls)
+              .then((total) => showPaywall(heldCount: total))),
+        ).whenComplete(() => _playlistImportOpen = false);
+        return;
+      }
       Future<String?>? presetCategory;
       Navigator.of(ctx).push(MaterialPageRoute(
         builder: (_) => PlaylistImportScreen(
@@ -809,6 +828,9 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
       );
       if (!await widget.state.addClip(clip)) return false;
       if (presetCategoryId != null) _presortedIds.add(clip.id);
+      if (sharedThumbnailUrl != null && sharedThumbnailUrl.isNotEmpty) {
+        _sharedThumbIds.add(clip.id);
+      }
       registerClipAdded();
       _enqueueHydration(clip);
       return true;
@@ -1662,6 +1684,8 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
   /// l'extraction complète titre et vignette, mais aucun classement n'est
   /// lancé (pas d'appel à Claude, la catégorie reste celle de la playlist).
   final Set<String> _presortedIds = {};
+  // Clips arrivés avec la vignette d'un ami.
+  final Set<String> _sharedThumbIds = {};
 
   /// Catégorie qui reçoit une playlist : celle qui porte déjà ce nom (à
   /// l'accent, la casse et le pluriel près), sinon une nouvelle.
@@ -1807,6 +1831,14 @@ class ClipsAppState extends State<ClipsApp> with WidgetsBindingObserver {
     var resolvedThumbnailUrl = (thumbnailUrl == null || thumbnailUrl.isEmpty)
         ? keptThumb
         : thumbnailUrl;
+    // Vignette d'un ami : la capture de page (repli quand le site bloque
+    // les robots) ne la remplace pas.
+    if (_sharedThumbIds.contains(clip.id) &&
+        keptThumb != null &&
+        thumbnailUrl != null &&
+        thumbnailUrl.contains('/screenshot?')) {
+      resolvedThumbnailUrl = keptThumb;
+    }
     // Image deja refusee (video, format illisible) : on ne la remet pas
     // sur le clip. Autre image de la page, sinon capture d'ecran.
     await ThumbnailStore.loadUnreadable();
