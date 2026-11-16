@@ -3407,6 +3407,45 @@ class ClipCard extends StatelessWidget {
     }
   }
 
+  /// Partage un lien seul par un lien Reelr (une playlist d'un seul lien) :
+  /// même Worker, même page, même ouverture après installation.
+  Future<void> _shareViaReelr(BuildContext context) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final screenSize = MediaQuery.of(context).size;
+    final screenRect = Offset.zero & screenSize;
+    final measured = (box != null && box.hasSize)
+        ? box.localToGlobal(Offset.zero) & box.size
+        : null;
+    final origin = (measured != null &&
+            !measured.isEmpty &&
+            screenRect.intersect(measured) == measured)
+        ? measured
+        : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
+    final isFr = Localizations.localeOf(context).languageCode == 'fr';
+
+    final uploadedThumbs = await PlaylistThumbUpload.uploadFor([clip]);
+    final link = await PlaylistLinkShortener.shorten(
+      PlaylistLink.fromClips(clip.displayTitle, [clip],
+          uploadedThumbs: uploadedThumbs),
+    );
+    if (!context.mounted) return;
+
+    final message = isFr
+        ? 'Je te partage ce lien sur Reelr :\n\n$link'
+        : "I'm sharing this link with you on Reelr:\n\n$link";
+    try {
+      await Share.share(message, sharePositionOrigin: origin);
+    } catch (e) {
+      debugPrint('[share] erreur feuille de partage: $e');
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(isFr
+            ? "Le partage n'a pas pu s'ouvrir. Réessaie."
+            : "Couldn't open sharing. Try again."),
+      ));
+    }
+  }
+
   void _handleAction(BuildContext context, String action, AppL10n l) {
     switch (action) {
       case 'rename':
@@ -3446,15 +3485,7 @@ class ClipCard extends StatelessWidget {
         );
         return;
       case 'share':
-        final box = context.findRenderObject() as RenderBox?;
-        final screenSize = MediaQuery.of(context).size;
-        final origin = (box != null && box.hasSize)
-            ? box.localToGlobal(Offset.zero) & box.size
-            : Rect.fromLTWH(0, 0, screenSize.width, screenSize.height / 2);
-        Share.share(
-          _shareText(clip),
-          sharePositionOrigin: origin,
-        );
+        _shareViaReelr(context);
         return;
       case 'move':
         showModalBottomSheet(
@@ -5150,34 +5181,6 @@ class _EditClipSheetState extends State<EditClipSheet> {
 
 /// Texte envoye quand on partage un clip (SMS, WhatsApp...).
 ///
-/// Le titre d'un clip Instagram, TikTok ou Pinterest est souvent la
-/// legende COMPLETE de la publication (recette entiere, liste de hashtags,
-/// plusieurs langues) : elle etait envoyee telle quelle et produisait des
-/// messages interminables. On n'envoie plus que la premiere ligne, coupee
-/// proprement a ~90 caracteres, suivie du lien. L'apercu riche (image,
-/// titre) est de toute facon construit par l'app de messagerie a partir du
-/// lien. Titre sans interet (« Instagram », « Reddit »...) : lien seul.
-String _shareText(Clip clip) {
-  const maxLength = 90;
-  final firstLine = clip.displayTitle
-      .split('\n')
-      .map((l) => l.trim())
-      .firstWhere((l) => l.isNotEmpty, orElse: () => '');
-  if (firstLine.isEmpty || OEmbedService.isPlaceholderTitle(firstLine)) {
-    return clip.url;
-  }
-  var title = firstLine;
-  // Par caracteres visibles (emoji compris), pour ne jamais couper un
-  // emoji en deux.
-  if (title.characters.length > maxLength) {
-    final cut = title.characters.take(maxLength).toString();
-    final lastSpace = cut.lastIndexOf(' ');
-    title = '${(lastSpace > 40 ? cut.substring(0, lastSpace) : cut).trimRight()}…';
-  }
-  return '$title\n${clip.url}';
-}
-
-
 // ─────────────────────────────────────────────
 // RENOMMER UN CLIP
 // ─────────────────────────────────────────────
