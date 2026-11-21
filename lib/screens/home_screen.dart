@@ -1759,7 +1759,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                 : (widget.state.isReceivingLinks
                                     ? const _ArrivingState()
                                     : _EmptyState(l: l, state: widget.state))))
-                        : _sortOrder == SortOrder.manual && clips.length >= 2
+                        : _sortOrder == SortOrder.manual &&
+                                clips.length >= 2 &&
+                                !_gridView
                             ? ReorderableListView.builder(
                                 padding: const EdgeInsets.fromLTRB(
                                     16, 8, 16, 32),
@@ -1828,7 +1830,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                     itemCount: clips.length,
                                     itemBuilder: (ctx, i) {
                                       final c = clips[i];
-                                      return GestureDetector(
+                                      final gridCard = ClipCard(
+                                          clip: c,
+                                          state: widget.state,
+                                          currentCategoryId: widget.categoryId);
+                                      final tile = GestureDetector(
                                         onTap: () async {
                                           final uri = Uri.tryParse(c.url);
                                           if (uri != null && await canLaunchUrl(uri)) {
@@ -1878,6 +1884,12 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                 ),
                                               ),
                                               Positioned(
+                                                top: 6,
+                                                right: 6,
+                                                child: gridCard.gridMenuButton(
+                                                    ctx, l),
+                                              ),
+                                              Positioned(
                                                 left: 8, right: 8, bottom: 8,
                                                 child: Text(
                                                   c.displayTitle,
@@ -1891,6 +1903,50 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                 ),
                                               ),
                                             ],
+                                          ),
+                                        ),
+                                      );
+                                      // Clic long = deplacer a la main (le
+                                      // renommage est dans le menu ⋮).
+                                      final side = (MediaQuery.of(ctx)
+                                                  .size
+                                                  .width -
+                                              44) /
+                                          2;
+                                      return DragTarget<int>(
+                                        onWillAcceptWithDetails: (d) =>
+                                            d.data != i,
+                                        onAcceptWithDetails: (d) async {
+                                          setState(() {
+                                            _sortOrder = SortOrder.manual;
+                                            widget.state.setSortOrderFor(
+                                                widget.categoryId,
+                                                SortOrder.manual);
+                                          });
+                                          await widget.state.reorderClips(
+                                              clips, d.data, i);
+                                        },
+                                        builder: (ctx, candidates, _) =>
+                                            LongPressDraggable<int>(
+                                          data: i,
+                                          feedback: Material(
+                                            color: Colors.transparent,
+                                            child: SizedBox(
+                                              width: side,
+                                              height: side,
+                                              child: Opacity(
+                                                  opacity: 0.9, child: tile),
+                                            ),
+                                          ),
+                                          childWhenDragging:
+                                              Opacity(opacity: 0.3, child: tile),
+                                          child: AnimatedScale(
+                                            scale: candidates.isNotEmpty
+                                                ? 0.94
+                                                : 1.0,
+                                            duration: const Duration(
+                                                milliseconds: 120),
+                                            child: tile,
                                           ),
                                         ),
                                       );
@@ -3152,7 +3208,6 @@ class ClipCard extends StatelessWidget {
     return GlassCard(
       padding: EdgeInsets.zero,
       onTap: () => _openUrl(context, clip.url),
-      onLongPress: () => _handleAction(context, 'rename', l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -3444,6 +3499,47 @@ class ClipCard extends StatelessWidget {
             : "Couldn't open sharing. Try again."),
       ));
     }
+  }
+
+  /// Menu ⋮ de la carte carree (vue grille) : memes actions que la liste.
+  Widget gridMenuButton(BuildContext context, AppL10n l) {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: PopupMenuButton<String>(
+        padding: EdgeInsets.zero,
+        iconSize: 18,
+        constraints: const BoxConstraints(),
+        icon: const Padding(
+          padding: EdgeInsets.all(6),
+          child: Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
+        ),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        itemBuilder: (_) => [
+          PopupMenuItem(
+              value: 'rename',
+              child: _MenuItem(
+                  icon: Icons.edit_rounded, label: l.t('rename'))),
+          PopupMenuItem(
+              value: 'move',
+              child: _MenuItem(
+                  icon: Icons.drive_file_move_rounded,
+                  label: l.t('move_to_category'))),
+          PopupMenuItem(
+              value: 'share',
+              child: _MenuItem(
+                  icon: Icons.send_rounded, label: l.t('share'))),
+          PopupMenuItem(
+              value: 'delete',
+              child: _MenuItem(
+                  icon: Icons.delete_rounded,
+                  label: l.t('delete'),
+                  danger: true)),
+        ],
+        onSelected: (v) => _handleAction(context, v, l),
+      ),
+    );
   }
 
   void _handleAction(BuildContext context, String action, AppL10n l) {
