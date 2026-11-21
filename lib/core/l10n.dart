@@ -338,6 +338,7 @@ class AppL10n {
     'cat_coiffure': 'Coiffure',
     'cat_patisserie': 'Pâtisserie',
     'cat_boissons': 'Boissons',
+    'cat_itineraire': 'Itinéraires',
     'cat_livres': 'Livres',
     'cat_tech':           'Tech',
     'cat_design':         'Design & UX',
@@ -412,6 +413,7 @@ class AppL10n {
     'cat_coiffure': 'Hair',
     'cat_patisserie': 'Baking',
     'cat_boissons': 'Drinks',
+    'cat_itineraire': 'Routes',
     'cat_livres': 'Books',
     'cat_tech':           'Tech',
     'cat_design':         'Design & UX',
@@ -500,6 +502,7 @@ class AppL10n {
     'cat_sport': ['sport extreme', 'extreme', 'extrême'],
     'cat_patisserie': ['patisserie', 'gateau', 'gateaux', 'baking', 'desserts'],
     'cat_boissons': ['boissons', 'vin', 'cocktails', 'drinks', 'wine'],
+    'cat_itineraire': ['itineraires', 'itineraire', 'routes', 'route', 'cartes', 'maps', 'plans'],
     'cat_livres': ['livres', 'livre', 'lecture', 'books', 'booktok'],
     'cat_broderie': ['broderie', 'embroidery', 'point de croix', 'cross stitch', 'crossstitch', 'cross stich', 'punto croce', 'punto de cruz', 'kreuzstich'],
   };
@@ -587,6 +590,7 @@ class AppL10n {
     'cat_coiffure': Color(0xFFBA68C8),
     'cat_patisserie': Color(0xFFF8BBD0),
     'cat_boissons': Color(0xFFAED581),
+    'cat_itineraire': Color(0xFF4DB6AC),
     'cat_livres': Color(0xFFA1887F),
   };
 
@@ -635,6 +639,7 @@ class AppL10n {
     'cat_coiffure': Icons.face_3_rounded,
     'cat_patisserie': Icons.cake_rounded,
     'cat_boissons': Icons.local_bar_rounded,
+    'cat_itineraire': Icons.alt_route_rounded,
     'cat_livres': Icons.menu_book_rounded,
   };
 
