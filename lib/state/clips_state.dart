@@ -414,6 +414,7 @@ class ClipsState extends ChangeNotifier {
     await _loadFusedTileLabels();
     await _migrateTileFamilies();
     await _migrateMangaAnime();
+    await _migrateShopBrands();
     _isLoading = false;
     notifyListeners();
     unawaited(_retryFailedClassificationsAtStart());
@@ -740,6 +741,33 @@ class ClipsState extends ChangeNotifier {
             "Claude n'a pas été appelé.";
       }
 
+      // 1 bis map) Itineraire (2026-11-21) : lien Google Maps, Plans
+      // d'Apple, Waze, Citymapper, Komoot... : toujours Itineraires, sans
+      // Claude. Les videos avec une carte passent par Claude (prompt).
+      if (catName == null && isWebLink) {
+        final mapUri = Uri.tryParse(clip.url);
+        final mapHost = mapUri?.host.toLowerCase() ?? '';
+        final mapPath = mapUri?.path.toLowerCase() ?? '';
+        final isMapLink = RegExp(
+              r'(^|\.)(maps\.app\.goo\.gl|maps\.apple\.com|waze\.com|'
+              r'citymapper\.com|komoot\.[a-z.]+|mappy\.com|viamichelin\.[a-z.]+|'
+              r'rome2rio\.com|openstreetmap\.org|wikiloc\.com|alltrails\.com|'
+              r'visorando\.com|geoportail\.gouv\.fr|here\.com|'
+              r'maps\.google\.[a-z.]+)$',
+            ).hasMatch(mapHost) ||
+            ((mapHost.startsWith('www.google.') || mapHost == 'google.com') &&
+                mapPath.startsWith('/maps')) ||
+            (mapHost == 'goo.gl' && mapPath.startsWith('/maps')) ||
+            (mapHost.endsWith('bing.com') && mapPath.startsWith('/maps'));
+        if (isMapLink) {
+          catName = 'cat_itineraire';
+          debugPrint('[classify] carte $mapHost -> Itineraires (Claude saute)');
+          decisionSource = "couche 1 bis · lien d'itinéraire";
+          decisionReason = "Lien d'un site de cartes ou d'itinéraires "
+              "($mapHost). Claude n'a pas été appelé.";
+        }
+      }
+
       // 1 bis) Site de reservation de voyage (Booking, Airbnb, Expedia,
       // Hotels.com, Trivago, Tripadvisor) : toujours Voyage. Claude
       // hesitait selon le nom de l'hotel (« Suites FL » parti en Immo,
@@ -823,48 +851,34 @@ class ClipsState extends ChangeNotifier {
         }
       }
 
-      // 1 quinquies) Enseigne commerciale connue (Auchan, Lidl, Amazon,
-      // Walmart, Tesco...) : une tuile par enseigne, creee au premier lien,
-      // quel que soit le produit (litiere, jouet, courses). Passe apres les
-      // choix de l'utilisatrice : une tuile du meme nom ou un site range a
-      // la main gagnent toujours.
+      // 1 quinquies) Magasin (Auchan, Lidl, Amazon, Vinted...) : tuile
+      // Magasins, sous-tuile au nom du magasin. Passe apres les choix de
+      // l'utilisatrice : une tuile du meme nom ou un site range a la main
+      // gagnent toujours.
       if (catName == null && isWebLink) {
+        // Decision d'Anne (2026-11-21) : tout lien d'une enseigne ou d'une
+        // boutique va dans la tuile Magasins, sous-tuile au nom du magasin
+        // (creee au premier lien, voir _placeShopBrand). Claude saute.
         await OEmbedService.loadShopHosts();
-        final shopHost = _linkHost(clip.url);
-        // Enseigne connue : une tuile par enseigne. Autre boutique : pas de
-        // tuile automatique (une liste du meme sujet reste ensemble) ; on
-        // n'utilise qu'une tuile du meme nom DEJA existante.
-        final knownBrand = _retailBrandOf(shopHost);
-        final otherBrand = (knownBrand == null &&
-                OEmbedService.isShopHost(shopHost))
-            ? (_brandInTitle(clip.title) ?? _shopNameFor(clip, shopHost))
-            : null;
-        // Decision d'Anne (2026-10-13) : on cherche la chose, pas le
-        // magasin. Aucune tuile d'enseigne n'est creee automatiquement,
-        // meme pour une enseigne connue : on n'en reutilise une que si elle
-        // existe deja. Sinon Claude range le produit par usage.
-        final brandCandidate = knownBrand ?? otherBrand;
-        final brand = (brandCandidate != null &&
-                findBestCategoryMatch(brandCandidate) != null)
-            ? brandCandidate
-            : null;
-        if (otherBrand != null && brand == null) {
-          debugPrint('[classify] boutique $otherBrand : pas de tuile '
-              'automatique, classement par sujet');
-        }
-        if (brand != null) {
-          final tile = await addCategory(ClipCategory(
-            id: const Uuid().v4(),
-            name: brand,
-            color: _brandColor(brand),
-            icon: Icons.storefront_rounded,
-          ));
-          catName = tile.name;
-          debugPrint('[classify] enseigne $brand -> tuile "${tile.name}" '
-              '(Claude saute)');
-          decisionSource = "couche 2 ter · enseigne";
-          decisionReason = "Lien d'une enseigne commerciale ($brand) : "
-              "tuile dédiée. Claude n'a pas été appelé.";
+        final shopBrand = _shopBrandOf(clip);
+        if (shopBrand != null) {
+          final tile = _ownTileBrands.contains(shopBrand)
+              ? await addCategory(ClipCategory(
+                  id: const Uuid().v4(),
+                  name: shopBrand,
+                  color: _brandColor(shopBrand),
+                  icon: Icons.storefront_rounded,
+                ))
+              : (findBestCategoryMatch('cat_shopping') ??
+                  await _ensureStandardCategory('cat_shopping'));
+          if (tile != null) {
+            catName = tile.name;
+            debugPrint('[classify] magasin $shopBrand -> ${tile.name} / '
+                '$shopBrand (Claude saute)');
+            decisionSource = "couche 2 ter · magasin";
+            decisionReason = "Lien d'un magasin ($shopBrand) : tuile "
+                "Magasins, sous-tuile $shopBrand. Claude n'a pas été appelé.";
+          }
         }
       }
 
@@ -1202,6 +1216,7 @@ class ClipsState extends ChangeNotifier {
       final updated = current.copyWith(categoryId: matchedCat.id);
       await updateClip(updated);
       await _placeFamilyTheme(updated.id, catName, matchedCat);
+      await _placeShopBrand(updated.id, matchedCat);
       await alignSubcategory(updated.id);
       // L'ordre n'est plus contraint depuis que `updateClip` passe par
       // `upsertClip` : un UPDATE partiel ne touche plus aux colonnes
@@ -1687,6 +1702,54 @@ class ClipsState extends ChangeNotifier {
     }
   }
 
+  /// Nom du magasin d'un lien web (enseigne connue ou boutique reconnue),
+  /// ou null.
+  String? _shopBrandOf(Clip clip) {
+    if (SocialPlatform.detect(clip.url).id != 'other') return null;
+    final host = _linkHost(clip.url);
+    final known = _retailBrandOf(host);
+    if (known != null) return known;
+    if (OEmbedService.isShopHost(host)) {
+      return _brandInTitle(clip.title) ?? _shopNameFor(clip, host);
+    }
+    return null;
+  }
+
+  /// Lien range dans Magasins : le met dans la sous-tuile au nom du magasin
+  /// (creee au besoin).
+  Future<void> _placeShopBrand(String clipId, ClipCategory tile) async {
+    try {
+      if (!_isStandardTile(tile, 'cat_shopping')) return;
+      final clip = _clips.where((c) => c.id == clipId).firstOrNull;
+      if (clip == null) return;
+      final brand = _shopBrandOf(clip);
+      if (brand == null || _ownTileBrands.contains(brand)) return;
+      final key = AppL10n.normalizeCategoryLabel(brand);
+      SubCategory? sub;
+      for (final s in _subcategories) {
+        if (s.categoryId == tile.id &&
+            AppL10n.normalizeCategoryLabel(s.name) == key) {
+          sub = s;
+          break;
+        }
+      }
+      if (sub == null) {
+        sub = SubCategory(
+          id: const Uuid().v4(),
+          name: brand,
+          categoryId: tile.id,
+          color: _brandColor(brand),
+          icon: Icons.storefront_rounded,
+        );
+        await addSubCategory(sub);
+      }
+      await setClipSubcategory(clipId, sub.id);
+      _newlyClassifiedSubCategoryIds.add(sub.id);
+    } catch (e) {
+      debugPrint('[magasin] erreur: $e');
+    }
+  }
+
   /// Sous-tuile du theme [subjectId] dans [tile] (reutilisee ou creee).
   Future<SubCategory> _familyThemeSub(
       ClipCategory tile, String subjectId) async {
@@ -1712,6 +1775,68 @@ class ClipsState extends ChangeNotifier {
       await _saveFusedTileLabels();
     }
     return sub;
+  }
+
+  static const String _shopBrandsKey = 'tile_shop_brands_done_v2';
+
+  /// Une seule fois : les liens de magasins deja ranges dans une tuile du
+  /// catalogue vont dans Magasins, sous-tuile au nom du magasin. Les tuiles
+  /// creees par la cliente ne sont pas touchees.
+  Future<void> _migrateShopBrands() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (prefs.getBool(_shopBrandsKey) == true) return;
+      await OEmbedService.loadShopHosts();
+      final tile = findBestCategoryMatch('cat_shopping') ??
+          await _ensureStandardCategory('cat_shopping');
+      if (tile == null) return;
+      var n = 0;
+      for (final c in List<Clip>.of(_clips)) {
+        final brand = _shopBrandOf(c);
+        if (brand == null) continue;
+        if (_ownTileBrands.contains(brand)) {
+          final own = await addCategory(ClipCategory(
+            id: const Uuid().v4(),
+            name: brand,
+            color: _brandColor(brand),
+            icon: Icons.storefront_rounded,
+          ));
+          final from =
+              c.categoryId == null ? null : categoryById(c.categoryId!);
+          if (from != null && from.id == own.id) continue;
+          if (from != null &&
+              from.id != tile.id &&
+              !from.id.startsWith('cat_')) {
+            continue;
+          }
+          await updateClip(c.copyWith(categoryId: own.id));
+          await setClipSubcategory(c.id, null);
+          await setClipSubSubcategory(c.id, null);
+          n++;
+          continue;
+        }
+        final cat = c.categoryId == null ? null : categoryById(c.categoryId!);
+        if (cat != null &&
+            cat.id != tile.id &&
+            !cat.id.startsWith('cat_')) {
+          continue;
+        }
+        if (cat != null && cat.id == tile.id &&
+            _clipSubcategoryMap[c.id] != null) {
+          continue;
+        }
+        if (cat == null || cat.id != tile.id) {
+          await updateClip(c.copyWith(categoryId: tile.id));
+          await setClipSubSubcategory(c.id, null);
+        }
+        await _placeShopBrand(c.id, tile);
+        n++;
+      }
+      debugPrint('[magasin] $n lien(s) ranges par magasin');
+      await prefs.setBool(_shopBrandsKey, true);
+    } catch (e) {
+      debugPrint('[magasin] migration ignoree : $e');
+    }
   }
 
   static const String _mangaAnimeKey = 'tile_manga_anime_done_v1';
@@ -2334,6 +2459,7 @@ class ClipsState extends ChangeNotifier {
           'cat_coiffure': 'Coiffure',
           'cat_patisserie': 'Pâtisserie',
           'cat_boissons': 'Boissons',
+          'cat_itineraire': 'Itinéraires',
           'cat_livres': 'Livres',
           'cat_design': 'Design & UX',
   };
@@ -3795,6 +3921,9 @@ const Map<String, String> _retailBrands = {
   'marksandspencer': 'Marks & Spencer', 'overstock': 'Overstock',
   'newegg': 'Newegg', 'chewy': 'Chewy', 'petsmart': 'PetSmart',
 };
+
+/// Magasins qui ont leur propre tuile (les autres : sous-tuile de Magasins).
+const Set<String> _ownTileBrands = {'Vinted'};
 
 /// Nom d'enseigne pour un nom d'hote (www.auchan.fr, smile.amazon.co.uk,
 /// shop.walmart.com...), ou null. Un mot du domaine doit valoir
