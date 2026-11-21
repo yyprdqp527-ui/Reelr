@@ -63,6 +63,7 @@ const Map<String, String> kCategoryNames = {
   'cat_coiffure': 'Coiffure',
   'cat_patisserie': 'Pâtisserie',
   'cat_boissons': 'Boissons',
+  'cat_itineraire': 'Itinéraires',
   'cat_livres': 'Livres',
   'cat_design': 'Design & UX',
 };
