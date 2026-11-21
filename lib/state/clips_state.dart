@@ -866,7 +866,11 @@ class ClipsState extends ChangeNotifier {
         // (creee au premier lien, voir _placeShopBrand). Claude saute.
         await OEmbedService.loadShopHosts();
         final shopBrand = _shopBrandOf(clip);
-        if (shopBrand != null) {
+        // Regle du 2026-11-21 : un produit va dans la tuile de son sujet
+        // (robe -> Mode). Seul un magasin a tuile propre (Vinted) saute
+        // Claude. Les autres : Claude classe ; sans tuile de sujet, le lien
+        // va dans Magasins (voir _assignShopFallback).
+        if (shopBrand != null && _ownTileBrands.contains(shopBrand)) {
           final tile = _ownTileBrands.contains(shopBrand)
               ? await addCategory(ClipCategory(
                   id: const Uuid().v4(),
@@ -1109,6 +1113,7 @@ class ClipsState extends ChangeNotifier {
               _clips = await DatabaseHelper.instance.getAllClips();
               notifyListeners();
             }
+            if (cands.length < 2) await _assignShopFallback(clip);
             return;
           }
         } catch (e) {
@@ -1176,6 +1181,7 @@ class ClipsState extends ChangeNotifier {
       };
       if (noResultLabels.contains(catName.trim().toLowerCase())) {
         debugPrint('[classify] aucune categorie exploitable, clip laisse a trier: ${clip.id}');
+        await _assignShopFallback(clip);
         return;
       }
       _categories = await DatabaseHelper.instance.getAllCategories();
@@ -1718,6 +1724,25 @@ class ClipsState extends ChangeNotifier {
       return _brandInTitle(clip.title) ?? _shopNameFor(clip, host);
     }
     return null;
+  }
+
+  /// Lien de magasin sans tuile de sujet : il va dans Magasins, sous-tuile
+  /// au nom du magasin. Ne fait rien pour un autre lien, ni s'il a deja une
+  /// tuile.
+  Future<void> _assignShopFallback(Clip clip) async {
+    try {
+      if (_shopBrandOf(clip) == null) return;
+      final current = _clips.where((c) => c.id == clip.id).firstOrNull;
+      if (current == null || current.categoryId != null) return;
+      final tile = findBestCategoryMatch('cat_shopping') ??
+          await _ensureStandardCategory('cat_shopping');
+      if (tile == null) return;
+      await updateClip(current.copyWith(categoryId: tile.id));
+      await _placeShopBrand(clip.id, tile);
+      debugPrint('[magasin] sans sujet -> ${tile.name}: ${clip.id}');
+    } catch (e) {
+      debugPrint('[magasin] repli ignore : $e');
+    }
   }
 
   /// Lien range dans Magasins : le met dans la sous-tuile au nom du magasin
