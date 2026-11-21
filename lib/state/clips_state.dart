@@ -164,13 +164,18 @@ class SubSubCategory {
 
 enum SortOrder { chronological, alphabetical, manual }
 
+/// Cle du tri alphabetique : nom affiche (celui du client s'il en a donne
+/// un), sans majuscules ni accents, sans emoji ni ponctuation au debut.
+String _alphaKey(Clip c) => normalizeForSearch(c.displayTitle)
+    .replaceFirst(RegExp(r'^[^a-z0-9]+'), '');
+
 List<Clip> sortClipsByOrder(List<Clip> src, SortOrder order) {
   final list = List<Clip>.from(src);
   switch (order) {
     case SortOrder.chronological:
       list.sort((a, b) => b.addedAt.compareTo(a.addedAt));
     case SortOrder.alphabetical:
-      list.sort((a, b) => a.displayTitle.compareTo(b.displayTitle));
+      list.sort((a, b) => _alphaKey(a).compareTo(_alphaKey(b)));
     case SortOrder.manual:
       list.sort((a, b) {
         final cmp = a.position.compareTo(b.position);
