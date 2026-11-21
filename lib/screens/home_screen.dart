@@ -1416,6 +1416,9 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
   void initState() {
     super.initState();
     _sortOrder = widget.state.sortOrderFor(widget.categoryId);
+    if (widget.categoryId == null && _sortOrder == SortOrder.manual) {
+      _sortOrder = SortOrder.chronological;
+    }
     _gridView = widget.state.gridViewFor(widget.categoryId);
     _selectedSubcategoryId = widget.initialSubcategoryId;
     _selectedSubSubcategoryId = widget.initialSubSubcategoryId;
@@ -1661,8 +1664,11 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       Icons.access_time_rounded, l.t('sort_date_added')),
                   _sortItem(SortOrder.alphabetical,
                       Icons.sort_by_alpha_rounded, l.t('sort_alphabetical')),
-                  _sortItem(
-                      SortOrder.manual, Icons.drag_handle_rounded, l.t('sort_manual')),
+                  // « Manuel » n'existe pas dans « Tout » : l'ordre d'une
+                  // tuile ne se regle que dans cette tuile.
+                  if (widget.categoryId != null)
+                    _sortItem(SortOrder.manual, Icons.drag_handle_rounded,
+                        l.t('sort_manual')),
                 ],
               ),
               if (widget.categoryId != null && _selectedSubcategoryId == null) ...[
@@ -1760,6 +1766,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                     ? const _ArrivingState()
                                     : _EmptyState(l: l, state: widget.state))))
                         : _sortOrder == SortOrder.manual &&
+                                widget.categoryId != null &&
                                 clips.length >= 2 &&
                                 !_gridView
                             ? ReorderableListView.builder(
@@ -1883,6 +1890,34 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                                   ),
                                                 ),
                                               ),
+                                              if (widget.categoryId == null)
+                                                Positioned(
+                                                  top: 8,
+                                                  left: 6,
+                                                  right: 44,
+                                                  child: Align(
+                                                    alignment:
+                                                        Alignment.centerLeft,
+                                                    child: Column(
+                                                      crossAxisAlignment:
+                                                          CrossAxisAlignment
+                                                              .start,
+                                                      mainAxisSize:
+                                                          MainAxisSize.min,
+                                                      children: [
+                                                        gridCard
+                                                            .gridBadge(ctx, l),
+                                                        for (final chip in gridCard
+                                                            .gridCandidateChips(
+                                                                ctx, l)) ...[
+                                                          const SizedBox(
+                                                              height: 4),
+                                                          chip,
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
                                               Positioned(
                                                 top: 6,
                                                 right: 6,
@@ -1908,6 +1943,7 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                                       );
                                       // Clic long = deplacer a la main (le
                                       // renommage est dans le menu ⋮).
+                                      if (widget.categoryId == null) return tile;
                                       final side = (MediaQuery.of(ctx)
                                                   .size
                                                   .width -
@@ -3501,19 +3537,93 @@ class ClipCard extends StatelessWidget {
     }
   }
 
+  /// Pastilles « ou est rangee la carte » pour la vue carres de « Tout » :
+  /// une pastille par niveau (tuile, sous-tuile, sous-sous-tuile).
+  Widget gridBadge(BuildContext context, AppL10n l) {
+    final category = state.categoryById(clip.categoryId);
+    if (category == null) {
+      if (state.isClassificationPending(clip)) {
+        return _gridPill(
+            Localizations.localeOf(context).languageCode == 'fr'
+                ? 'Classification en cours…'
+                : 'Classifying…',
+            Colors.grey,
+            Icons.hourglass_top_rounded);
+      }
+      return _gridPill(
+          l.t('to_sort'), _toSortAccent, Icons.label_off_rounded);
+    }
+    final sub = state.subCategoryForClip(clip.id);
+    final subSub = state.subSubCategoryForClip(clip.id);
+    final hasSub = sub != null && sub.categoryId == category.id;
+    final hasSubSub =
+        hasSub && subSub != null && subSub.subCategoryId == sub.id;
+    return Wrap(
+      spacing: 4,
+      runSpacing: 4,
+      children: [
+        _gridPill(l.localizeCategoryDisplay(category.id, category.name),
+            category.color, category.icon),
+        if (hasSub) _gridPill(sub.name, sub.color, sub.icon),
+        if (hasSubSub) _gridPill(subSub.name, subSub.color, subSub.icon),
+      ],
+    );
+  }
+
+  Widget _gridPill(String label, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Pastilles « X ou Y ? » de la vue carres : un appui range le lien.
+  List<Widget> gridCandidateChips(BuildContext context, AppL10n l) {
+    if (state.categoryById(clip.categoryId) != null ||
+        state.isClassificationPending(clip) ||
+        clip.candidates.length < 2) {
+      return const [];
+    }
+    return [
+      for (final id in clip.candidates.take(2))
+        GestureDetector(
+          onTap: () => state.assignCandidateCategory(clip, id),
+          child: _gridPill(
+            '${l.localizeCategoryDisplay(id, state.candidateName(id))} ?',
+            AppL10n.categoryColors[id] ?? _toSortAccent,
+            AppL10n.categoryIcons[id] ?? Icons.help_outline_rounded,
+          ),
+        ),
+    ];
+  }
+
   /// Menu ⋮ de la carte carree (vue grille) : memes actions que la liste.
   Widget gridMenuButton(BuildContext context, AppL10n l) {
-    return Material(
-      color: Colors.black54,
-      shape: const CircleBorder(),
-      child: PopupMenuButton<String>(
+    return PopupMenuButton<String>(
         padding: EdgeInsets.zero,
-        iconSize: 18,
-        constraints: const BoxConstraints(),
-        icon: const Padding(
-          padding: EdgeInsets.all(6),
-          child: Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
-        ),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         itemBuilder: (_) => [
@@ -3538,7 +3648,14 @@ class ClipCard extends StatelessWidget {
                   danger: true)),
         ],
         onSelected: (v) => _handleAction(context, v, l),
-      ),
+        child: Container(
+          width: 28,
+          height: 28,
+          decoration: const BoxDecoration(
+              color: Colors.black54, shape: BoxShape.circle),
+          child: const Icon(Icons.more_vert_rounded,
+              color: Colors.white, size: 16),
+        ),
     );
   }
 
