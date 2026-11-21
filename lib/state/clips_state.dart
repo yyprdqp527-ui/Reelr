@@ -1936,6 +1936,13 @@ class ClipsState extends ChangeNotifier {
   }
 
   Future<void> updateClip(Clip clip) async {
+    // La position (ordre manuel) ne change que par reorderClips : un Clip
+    // reconstruit a partir d'une ancienne copie (classement, vignette...)
+    // ne doit pas la remettre a 0 et faire remonter la carte.
+    final known = _clips.indexWhere((c) => c.id == clip.id);
+    if (known != -1 && clip.position != _clips[known].position) {
+      clip = clip.copyWith(position: _clips[known].position);
+    }
     await DatabaseHelper.instance.upsertClip(clip);
     final idx = _clips.indexWhere((c) => c.id == clip.id);
     if (idx != -1) {
@@ -3796,7 +3803,7 @@ class ClipsState extends ChangeNotifier {
   }
 
   bool gridViewFor(String? categoryId) =>
-      _categoryGridViews[categoryId ?? '__all__'] ?? false;
+      _categoryGridViews[categoryId ?? '__all__'] ?? true;
 
   void setGridViewFor(String? categoryId, bool value) {
     _categoryGridViews[categoryId ?? '__all__'] = value;
